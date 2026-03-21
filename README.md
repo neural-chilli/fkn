@@ -45,6 +45,7 @@ Implemented today:
 - config validation via `fkn validate`
 - structured context output via `fkn context --json`
 - MCP serve mode
+- MCP resources for context, scopes, and cached guard state
 - watch mode
 - help output and task suggestions
 - JSON output for key commands

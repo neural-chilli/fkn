@@ -12,6 +12,8 @@ Current status:
 - raw HTTP+SSE MCP requests: tested
 - `tools/list`: tested
 - `tools/call`: tested
+- `resources/list`: tested
+- `resources/read`: tested
 - GitHub Copilot custom MCP integration: unverified
 - Claude Code custom MCP integration: unverified
 
@@ -20,6 +22,8 @@ That means the current implementation is suitable for experimentation and local 
 ## What `fkn serve` Exposes
 
 Every task with `agent: true` is exposed as an MCP tool.
+
+`fkn serve` also exposes read-only MCP resources for repo state that agents may want to inspect without calling a task.
 
 Example task:
 
@@ -40,6 +44,13 @@ That becomes a tool with:
   - `dry_run`
 
 Tasks with `agent: false` are hidden from the MCP manifest.
+
+Current resources:
+
+- `fkn://context`
+- `fkn://context.json`
+- `fkn://guard/last` when a cached guard result exists
+- `fkn://scope/<name>` for configured scopes
 
 ## Running the Server
 
@@ -130,6 +141,8 @@ Current MCP methods:
 - `ping`
 - `tools/list`
 - `tools/call`
+- `resources/list`
+- `resources/read`
 
 That is enough for a useful first integration surface, but it is still intentionally small.
 
@@ -197,6 +210,7 @@ Good current uses:
 - exposing build/test/check tasks to an MCP-capable coding agent
 - providing a repo-specific task manifest without a second config file
 - letting an agent discover task descriptions via `tools/list`
+- letting an agent read context, scope paths, and cached guard state via MCP resources
 - allowing controlled `dry_run` task inspection
 
 Less mature today:

@@ -2,6 +2,9 @@ package mcp
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/neural-chilli/fkn/internal/config"
@@ -113,5 +116,108 @@ func TestToolsExposeTaskParams(t *testing.T) {
 	required := tools[0].InputSchema["required"].([]string)
 	if len(required) != 1 || required[0] != "feature" {
 		t.Fatalf("required = %#v, want feature", required)
+	}
+}
+
+func TestHandlePayloadResourcesList(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{
+		Tasks: map[string]config.Task{
+			"test": {Desc: "Test", Cmd: "echo test"},
+		},
+		Scopes: map[string][]string{
+			"cli": {"cmd/", "internal/"},
+		},
+	}
+	repoRoot := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(repoRoot, ".fkn"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(repoRoot, ".fkn", "last-guard.json"), []byte(`{"guard":"default"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	server := New(cfg, repoRoot, runner.New(cfg, repoRoot))
+
+	resp, notify, err := server.HandlePayload([]byte(`{"jsonrpc":"2.0","id":1,"method":"resources/list","params":{}}`), nil)
+	if err != nil {
+		t.Fatalf("HandlePayload() error = %v", err)
+	}
+	if notify {
+		t.Fatal("HandlePayload() notify = true, want false")
+	}
+
+	var payload JSONRPCResponse
+	if err := json.Unmarshal(resp, &payload); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v", err)
+	}
+	if payload.Error != nil {
+		t.Fatalf("payload.Error = %+v, want nil", payload.Error)
+	}
+	result := payload.Result.(map[string]any)
+	rawResources := result["resources"].([]any)
+	if len(rawResources) < 3 {
+		t.Fatalf("resources = %#v, want context/scope/guard resources", rawResources)
+	}
+}
+
+func TestHandlePayloadResourcesRead(t *testing.T) {
+	t.Parallel()
+
+	repoRoot := t.TempDir()
+	if err := os.WriteFile(filepath.Join(repoRoot, "README.md"), []byte("hello\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(repoRoot, ".fkn"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(repoRoot, ".fkn", "last-guard.json"), []byte(`{"guard":"default"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := &config.Config{
+		Project: "demo",
+		Tasks: map[string]config.Task{
+			"test": {Desc: "Test", Cmd: "echo test"},
+		},
+		Scopes: map[string][]string{
+			"cli": {"README.md"},
+		},
+		Context: config.ContextConfig{
+			Files: []string{"README.md"},
+			Caps: config.ContextCaps{
+				FileLines:       10,
+				FilesMax:        5,
+				FileTreeEntries: 10,
+				DependencyLines: 10,
+				GitLogLines:     10,
+			},
+		},
+	}
+	server := New(cfg, repoRoot, runner.New(cfg, repoRoot))
+
+	resp, notify, err := server.HandlePayload([]byte(`{"jsonrpc":"2.0","id":1,"method":"resources/read","params":{"uri":"fkn://scope/cli"}}`), nil)
+	if err != nil {
+		t.Fatalf("HandlePayload() error = %v", err)
+	}
+	if notify {
+		t.Fatal("HandlePayload() notify = true, want false")
+	}
+
+	var payload JSONRPCResponse
+	if err := json.Unmarshal(resp, &payload); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v", err)
+	}
+	if payload.Error != nil {
+		t.Fatalf("payload.Error = %+v, want nil", payload.Error)
+	}
+	result := payload.Result.(map[string]any)
+	contents := result["contents"].([]any)
+	if len(contents) != 1 {
+		t.Fatalf("contents = %#v, want 1 item", contents)
+	}
+	item := contents[0].(map[string]any)
+	if !strings.Contains(item["text"].(string), "README.md") {
+		t.Fatalf("resource text = %#v, want scope path", item)
 	}
 }

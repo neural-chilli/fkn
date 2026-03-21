@@ -4,9 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/neural-chilli/fkn/internal/config"
+	contextpkg "github.com/neural-chilli/fkn/internal/context"
 	"github.com/neural-chilli/fkn/internal/runner"
 )
 
@@ -22,6 +26,13 @@ type Tool struct {
 	Name        string         `json:"name"`
 	Description string         `json:"description"`
 	InputSchema map[string]any `json:"inputSchema"`
+}
+
+type Resource struct {
+	URI         string `json:"uri"`
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+	MimeType    string `json:"mimeType,omitempty"`
 }
 
 type JSONRPCRequest struct {
@@ -46,6 +57,10 @@ type JSONRPCError struct {
 type toolCallParams struct {
 	Name      string         `json:"name"`
 	Arguments map[string]any `json:"arguments"`
+}
+
+type resourceReadParams struct {
+	URI string `json:"uri"`
 }
 
 func New(cfg *config.Config, repoRoot string, taskRunner *runner.Runner) *Server {
@@ -106,6 +121,43 @@ func (s *Server) Tools() []Tool {
 	return tools
 }
 
+func (s *Server) Resources() []Resource {
+	resources := []Resource{
+		{
+			URI:         "fkn://context",
+			Name:        "Repository Context",
+			Description: "Bounded markdown context for the repository",
+			MimeType:    "text/markdown",
+		},
+		{
+			URI:         "fkn://context.json",
+			Name:        "Repository Context JSON",
+			Description: "Structured bounded context for the repository",
+			MimeType:    "application/json",
+		},
+	}
+
+	if fileExists(filepath.Join(s.repoRoot, ".fkn", "last-guard.json")) {
+		resources = append(resources, Resource{
+			URI:         "fkn://guard/last",
+			Name:        "Last Guard Result",
+			Description: "Cached JSON result from the most recent guard run",
+			MimeType:    "application/json",
+		})
+	}
+
+	for _, name := range sortedScopeNames(s.cfg.Scopes) {
+		resources = append(resources, Resource{
+			URI:         "fkn://scope/" + name,
+			Name:        "Scope " + name,
+			Description: "Path list for the " + name + " scope",
+			MimeType:    "text/plain",
+		})
+	}
+
+	return resources
+}
+
 func (s *Server) HandlePayload(payload []byte, errOut io.Writer) ([]byte, bool, error) {
 	var req JSONRPCRequest
 	if err := json.Unmarshal(payload, &req); err != nil {
@@ -137,7 +189,8 @@ func (s *Server) handleRequest(req JSONRPCRequest, errOut io.Writer) JSONRPCResp
 		resp.Result = map[string]any{
 			"protocolVersion": ProtocolVersion,
 			"capabilities": map[string]any{
-				"tools": map[string]any{"listChanged": false},
+				"tools":     map[string]any{"listChanged": false},
+				"resources": map[string]any{"listChanged": false},
 			},
 			"serverInfo": map[string]any{
 				"name":    "fkn",
@@ -152,6 +205,15 @@ func (s *Server) handleRequest(req JSONRPCRequest, errOut io.Writer) JSONRPCResp
 		resp.Result = map[string]any{"tools": s.Tools()}
 	case "tools/call":
 		result, err := s.callTool(req.Params)
+		if err != nil {
+			resp.Error = &JSONRPCError{Code: -32000, Message: err.Error()}
+			return resp
+		}
+		resp.Result = result
+	case "resources/list":
+		resp.Result = map[string]any{"resources": s.Resources()}
+	case "resources/read":
+		result, err := s.readResource(req.Params)
 		if err != nil {
 			resp.Error = &JSONRPCError{Code: -32000, Message: err.Error()}
 			return resp
@@ -235,6 +297,63 @@ func (s *Server) callTool(raw json.RawMessage) (map[string]any, error) {
 	}, nil
 }
 
+func (s *Server) readResource(raw json.RawMessage) (map[string]any, error) {
+	var params resourceReadParams
+	if err := json.Unmarshal(raw, &params); err != nil {
+		return nil, fmt.Errorf("invalid resource read params: %w", err)
+	}
+	if params.URI == "" {
+		return nil, fmt.Errorf("resource uri is required")
+	}
+
+	mimeType, text, err := s.resourceContent(params.URI)
+	if err != nil {
+		return nil, err
+	}
+
+	return map[string]any{
+		"contents": []map[string]any{{
+			"uri":      params.URI,
+			"mimeType": mimeType,
+			"text":     text,
+		}},
+	}, nil
+}
+
+func (s *Server) resourceContent(uri string) (string, string, error) {
+	switch uri {
+	case "fkn://context":
+		rendered, err := contextpkg.New(s.cfg, s.repoRoot).Generate(contextpkg.Options{})
+		return "text/markdown", rendered, err
+	case "fkn://context.json":
+		payload, err := contextpkg.New(s.cfg, s.repoRoot).GenerateJSON(contextpkg.Options{})
+		if err != nil {
+			return "", "", err
+		}
+		raw, err := json.MarshalIndent(payload, "", "  ")
+		if err != nil {
+			return "", "", err
+		}
+		return "application/json", string(raw), nil
+	case "fkn://guard/last":
+		raw, err := os.ReadFile(filepath.Join(s.repoRoot, ".fkn", "last-guard.json"))
+		if err != nil {
+			return "", "", fmt.Errorf("guard cache is unavailable: %w", err)
+		}
+		return "application/json", string(raw), nil
+	default:
+		if strings.HasPrefix(uri, "fkn://scope/") {
+			name := strings.TrimPrefix(uri, "fkn://scope/")
+			paths, ok := s.cfg.Scopes[name]
+			if !ok {
+				return "", "", fmt.Errorf("unknown scope resource %q", uri)
+			}
+			return "text/plain", strings.Join(paths, "\n"), nil
+		}
+		return "", "", fmt.Errorf("unknown resource %q", uri)
+	}
+}
+
 func sortedParamNames(params map[string]config.Param) []string {
 	names := make([]string, 0, len(params))
 	for name := range params {
@@ -242,6 +361,20 @@ func sortedParamNames(params map[string]config.Param) []string {
 	}
 	sort.Strings(names)
 	return names
+}
+
+func sortedScopeNames(scopes map[string][]string) []string {
+	names := make([]string, 0, len(scopes))
+	for name := range scopes {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}
+
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }
 
 func rawID(id json.RawMessage) any {
