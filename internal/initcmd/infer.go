@@ -35,6 +35,9 @@ func inferConfig(repoRoot string) string {
 		if task.Agent != nil {
 			builder.WriteString(fmt.Sprintf("    agent: %t\n", *task.Agent))
 		}
+		if task.Safety != "" {
+			builder.WriteString(fmt.Sprintf("    safety: %s\n", task.Safety))
+		}
 		if len(task.Params) > 0 {
 			builder.WriteString("    params:\n")
 			for _, paramName := range sortedParamNames(task.Params) {
@@ -76,11 +79,11 @@ func inferTasks(repoRoot string) []inferredTask {
 	taskByName := map[string]inferredTask{}
 	order := []string{}
 
-	addTask := func(name, desc, cmd string, agent *bool, params map[string]config.Param) {
+	addTask := func(name, desc, cmd string, agent *bool, safety string, params map[string]config.Param) {
 		if _, exists := taskByName[name]; exists {
 			return
 		}
-		taskByName[name] = inferredTask{Name: name, Desc: desc, Cmd: cmd, Agent: agent, Params: params}
+		taskByName[name] = inferredTask{Name: name, Desc: desc, Cmd: cmd, Agent: agent, Safety: safety, Params: params}
 		order = append(order, name)
 	}
 
@@ -93,6 +96,7 @@ func inferTasks(repoRoot string) []inferredTask {
 			inferredTargetDesc("repository", target.Name, "target"),
 			fmt.Sprintf("make %s", target.Name),
 			inferredTargetAgent(target.Name, len(target.Params) > 0),
+			inferredTargetSafety(target.Name, len(target.Params) > 0),
 			inferredParams(target.Params),
 		)
 	}
@@ -106,6 +110,7 @@ func inferTasks(repoRoot string) []inferredTask {
 			inferredTargetDesc("repository", recipe.Name, "recipe"),
 			buildJustCommand(recipe),
 			inferredTargetAgent(recipe.Name, len(recipe.Params) > 0),
+			inferredTargetSafety(recipe.Name, len(recipe.Params) > 0),
 			inferredJustParams(recipe.Params),
 		)
 	}
@@ -126,13 +131,14 @@ func inferTasks(repoRoot string) []inferredTask {
 			fmt.Sprintf("Run the package.json %s script", name),
 			script.Cmd,
 			inferredTargetAgent(name, len(script.Params) > 0),
+			inferredTargetSafety(name, len(script.Params) > 0),
 			script.Params,
 		)
 	}
 
 	if hasFile(repoRoot, "go.mod") {
-		addTask("test", "Run the Go test suite", "go test ./...", nil, nil)
-		addTask("build", "Build the Go packages", "go build ./...", nil, nil)
+		addTask("test", "Run the Go test suite", "go test ./...", nil, "idempotent", nil)
+		addTask("build", "Build the Go packages", "go build ./...", nil, "idempotent", nil)
 	}
 
 	if _, ok := taskByName["check"]; !ok {
@@ -237,6 +243,28 @@ func inferredTargetAgent(name string, hasParams bool) *bool {
 		return &value
 	}
 	return nil
+}
+
+func inferredTargetSafety(name string, hasParams bool) string {
+	lower := strings.ToLower(name)
+	if lower == "clean" || tokenMatch(lower, "init") || strings.Contains(lower, "migrate") || strings.Contains(lower, "seed") || (hasParams && (strings.Contains(lower, "add") || strings.Contains(lower, "create") || strings.Contains(lower, "generate"))) {
+		return "destructive"
+	}
+	for _, token := range []string{"deploy", "release", "publish", "sync"} {
+		if tokenMatch(lower, token) {
+			return "external"
+		}
+	}
+	for _, token := range []string{"test", "check", "verify", "build", "lint", "fmt", "vet", "vulncheck"} {
+		if lower == token || strings.HasPrefix(lower, token+"-") || strings.HasPrefix(lower, token+":") {
+			return "idempotent"
+		}
+	}
+	return ""
+}
+
+func tokenMatch(name, token string) bool {
+	return name == token || strings.HasPrefix(name, token+"-") || strings.HasSuffix(name, "-"+token)
 }
 
 func shouldSkipInferredTarget(name string) bool {

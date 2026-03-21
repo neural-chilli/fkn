@@ -7,16 +7,19 @@ tasks:
     desc: Format Go files
     cmd: gofmt -w .
     agent: false
+    safety: idempotent
 
   test:
     desc: Run the Go test suite
     scope: cli
     cmd: go test ./...
+    safety: idempotent
 
   build:
     desc: Build the fkn binary
     scope: cli
     cmd: go build -o bin/fkn ./cmd/fkn
+    safety: idempotent
 
   check:
     desc: Run the default local verification pipeline
@@ -26,6 +29,7 @@ tasks:
     steps:
       - test
       - build
+    safety: idempotent
 
 groups:
   core:

@@ -350,6 +350,11 @@ Notes:
 - `continue_on_error` only affects sequential pipelines.
 - Parallel pipelines still fail fast in the current implementation.
 - `agent: false` hides a task from the MCP tool manifest.
+- `safety` describes how cautious agents should be:
+  - `safe` for read-only or low-risk tasks
+  - `idempotent` for tasks that are safe to rerun repeatedly
+  - `destructive` for tasks that mutate repo state or delete things
+  - `external` for tasks that reach outside the repo, such as deploy or publish flows
 
 ## Task Dependencies
 
@@ -395,6 +400,7 @@ tasks:
   add-feature:
     desc: Add a feature scaffold
     cmd: make add-feature
+    safety: destructive
     params:
       feature:
         desc: Feature name
@@ -455,6 +461,7 @@ Notes:
 - a variadic param must be the last positional param
 - required params fail fast if omitted
 - params are exposed in MCP tool schemas for agent callers
+- safety is exposed in `fkn help`, `fkn list`, generated agent docs, and MCP tool annotations
 
 ## Guards
 

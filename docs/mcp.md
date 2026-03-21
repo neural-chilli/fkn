@@ -38,12 +38,14 @@ That becomes a tool with:
 
 - name: `test`
 - description: `Run the test suite`
+- annotations including `fknSafety` plus MCP hints like `readOnlyHint`, `idempotentHint`, `destructiveHint`, or `openWorldHint` when applicable
 - input schema supporting:
   - named task params from `fkn.yaml`
   - `env`
   - `dry_run`
 
 Tasks with `agent: false` are hidden from the MCP manifest.
+Tasks can also declare `safety: safe | idempotent | destructive | external`, which is surfaced in tool annotations for agent callers.
 
 Current resources:
 

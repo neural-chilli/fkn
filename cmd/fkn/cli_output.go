@@ -61,6 +61,7 @@ func printTaskHelp(stdout *os.File, invokedName, resolvedName string, cfg *confi
 		}
 	}
 	fmt.Fprintf(stdout, "Agent: %t\n", task.AgentEnabled())
+	fmt.Fprintf(stdout, "Safety: %s\n", task.SafetyLevel())
 	if task.Dir != "" {
 		fmt.Fprintf(stdout, "Dir: %s\n", task.Dir)
 	} else if cfg.Defaults.Dir != "" {
@@ -185,6 +186,7 @@ type listTask struct {
 	Steps    []string             `json:"steps,omitempty"`
 	Scope    *string              `json:"scope"`
 	Agent    bool                 `json:"agent"`
+	Safety   string               `json:"safety"`
 	Default  bool                 `json:"default,omitempty"`
 	Aliases  []string             `json:"aliases,omitempty"`
 	Groups   []string             `json:"groups,omitempty"`
@@ -295,6 +297,7 @@ func formatListSummary(item listTask) string {
 	if !item.Agent {
 		meta = append(meta, "agent:false")
 	}
+	meta = append(meta, "safety:"+item.Safety)
 	return strings.Join([]string{item.Desc, "[" + strings.Join(meta, " | ") + "]"}, " ")
 }
 

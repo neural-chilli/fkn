@@ -18,6 +18,7 @@ tasks:
   build:
     desc: Build the project
     cmd: echo build
+    safety: idempotent
     scope: cli
     needs:
       - test
@@ -60,7 +61,7 @@ scopes:
 		"core",
 		"Everyday development commands",
 		"Build the project",
-		"[cmd | default | scope:cli | aliases:b,verify | groups:core | needs:test | params:--profile?,--target]",
+		"[cmd | default | scope:cli | aliases:b,verify | groups:core | needs:test | params:--profile?,--target | safety:idempotent]",
 	} {
 		if !strings.Contains(output, want) {
 			t.Fatalf("stdout = %q, want %q", output, want)
@@ -75,6 +76,7 @@ tasks:
   test:
     desc: Run tests
     cmd: echo test
+    safety: idempotent
 groups:
   qa:
     desc: Verification tasks
@@ -94,7 +96,7 @@ groups:
 		t.Fatalf("run(list --json) code = %d, want 0; stderr=%s", code, readStderr())
 	}
 	output := readStdout()
-	for _, want := range []string{`"groups": [`, `"name": "qa"`, `"desc": "Verification tasks"`, `"groups": [`, `"qa"`} {
+	for _, want := range []string{`"groups": [`, `"name": "qa"`, `"desc": "Verification tasks"`, `"groups": [`, `"qa"`, `"safety": "idempotent"`} {
 		if !strings.Contains(output, want) {
 			t.Fatalf("stdout = %q, want %q", output, want)
 		}

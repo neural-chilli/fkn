@@ -53,6 +53,7 @@ Implemented today:
 - richer `justfile` import with aliases, params, and private-recipe filtering
 - package.json argument inference for `npm_config_*`-style scripts
 - safer helper-task import with `agent: false` for mutating targets
+- task safety annotations for humans and agents
 - task params with CLI, runner, and MCP support
 - direct task param flags like `--feature auth`
 - structured error extraction in task, guard, and MCP JSON output
@@ -153,10 +154,12 @@ tasks:
   test:
     desc: Run the test suite
     cmd: go test ./...
+    safety: idempotent
 
   build:
     desc: Build the application
     cmd: go build -o bin/my-service ./cmd/my-service
+    safety: idempotent
     needs:
       - test
 
@@ -191,11 +194,13 @@ Scopes can still be simple path lists, but the richer object form lets you attac
 
 Groups give you a lightweight way to model task families. `fkn list` uses them to organize larger configs, and `fkn help <group>` prints the group description and member tasks.
 
-`fkn list` now also shows summary metadata like task type, default marker, aliases, scope, dependencies, and params in the human-readable view, and `fkn help <task>` includes a concrete usage line.
+`fkn list` now also shows summary metadata like task type, default marker, aliases, scope, dependencies, params, and safety in the human-readable view, and `fkn help <task>` includes a concrete usage line.
 
 Tasks can declare positional params with `position`, and the last positional param can be variadic with `variadic: true`. Named `--param` and direct `--name value` flags still work too, so task authors can support both natural positional invocation and explicit named invocation.
 
 `needs` gives a task reusable prerequisites without forcing it to become a pipeline. Dependencies run before the task itself, can point at either command tasks or pipeline tasks, and surface in JSON output as nested dependency results.
+
+Tasks can also declare `safety` as one of `safe`, `idempotent`, `destructive`, or `external`. This shows up in `fkn help`, `fkn list`, generated agent docs, and MCP tool annotations so agents can make better decisions about what to run autonomously.
 
 Tasks can also declare `error_format` when they emit machine-parseable diagnostics. Supported values today are `go_test`, `pytest`, `tsc`, `eslint`, and `generic`. When set, task JSON, `guard --json`, `repair --json`, and MCP tool results include a parsed `errors` array alongside raw stderr.
 

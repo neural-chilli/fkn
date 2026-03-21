@@ -44,6 +44,7 @@ func renderAgentsFKN(cfg *config.Config) (string, error) {
 			builder.WriteString(fmt.Sprintf("  Command: `%s`\n", task.Cmd))
 		}
 		builder.WriteString(fmt.Sprintf("  Agent visible: `%t`\n", task.AgentEnabled()))
+		builder.WriteString(fmt.Sprintf("  Safety: `%s`\n", task.SafetyLevel()))
 	}
 
 	writeGuardSection(&builder, cfg)

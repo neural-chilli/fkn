@@ -26,6 +26,7 @@ type Tool struct {
 	Name        string         `json:"name"`
 	Description string         `json:"description"`
 	InputSchema map[string]any `json:"inputSchema"`
+	Annotations map[string]any `json:"annotations,omitempty"`
 }
 
 type Resource struct {
@@ -112,13 +113,33 @@ func (s *Server) Tools() []Tool {
 		if len(required) > 0 {
 			inputSchema["required"] = required
 		}
+		annotations := safetyAnnotations(task)
 		tools = append(tools, Tool{
 			Name:        name,
 			Description: task.Desc,
 			InputSchema: inputSchema,
+			Annotations: annotations,
 		})
 	}
 	return tools
+}
+
+func safetyAnnotations(task config.Task) map[string]any {
+	safety := task.SafetyLevel()
+	annotations := map[string]any{
+		"fknSafety": safety,
+	}
+	switch safety {
+	case "safe":
+		annotations["readOnlyHint"] = true
+	case "idempotent":
+		annotations["idempotentHint"] = true
+	case "destructive":
+		annotations["destructiveHint"] = true
+	case "external":
+		annotations["openWorldHint"] = true
+	}
+	return annotations
 }
 
 func (s *Server) Resources() []Resource {

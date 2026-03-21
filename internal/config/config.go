@@ -38,6 +38,7 @@ type Task struct {
 	Dir             string            `yaml:"dir"`
 	Shell           string            `yaml:"shell"`
 	ShellArgs       []string          `yaml:"shell_args"`
+	Safety          string            `yaml:"safety"`
 	ErrorFormat     string            `yaml:"error_format"`
 	Timeout         string            `yaml:"timeout"`
 	ContinueOnError bool              `yaml:"continue_on_error"`
@@ -151,6 +152,13 @@ func (s *Scope) UnmarshalYAML(value *yaml.Node) error {
 
 func (t Task) AgentEnabled() bool {
 	return t.Agent == nil || *t.Agent
+}
+
+func (t Task) SafetyLevel() string {
+	if t.Safety != "" {
+		return t.Safety
+	}
+	return "safe"
 }
 
 func (t Task) Type() string {
@@ -270,6 +278,13 @@ func (c *Config) Validate(repoRoot string) error {
 		if task.Scope != "" {
 			if _, ok := c.Scopes[task.Scope]; !ok {
 				return fmt.Errorf("task %q references unknown scope %q", name, task.Scope)
+			}
+		}
+		if task.Safety != "" {
+			switch task.Safety {
+			case "safe", "idempotent", "destructive", "external":
+			default:
+				return fmt.Errorf("task %q: unknown safety %q", name, task.Safety)
 			}
 		}
 		for _, dep := range task.Needs {

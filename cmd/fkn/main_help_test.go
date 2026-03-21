@@ -54,6 +54,9 @@ func TestRunHelpForTask(t *testing.T) {
 	if !strings.Contains(output, "Needs: fmt") {
 		t.Fatalf("stdout = %q, want dependency detail", output)
 	}
+	if !strings.Contains(output, "Safety: idempotent") {
+		t.Fatalf("stdout = %q, want safety", output)
+	}
 	if !strings.Contains(output, "Usage: fkn check [--dry-run] [--json]") {
 		t.Fatalf("stdout = %q, want usage", output)
 	}
@@ -256,6 +259,32 @@ tasks:
 	output := readStdout()
 	if !strings.Contains(output, "Dir: app (inherited default)") {
 		t.Fatalf("stdout = %q, want inherited default dir", output)
+	}
+}
+
+func TestRunHelpShowsTaskSafety(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "fkn.yaml"), []byte(`
+tasks:
+  deploy:
+    desc: Deploy the service
+    cmd: ./scripts/deploy.sh
+    safety: external
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	restore := chdirForTest(t, dir)
+	defer restore()
+
+	stdout, readStdout := tempOutputFile(t)
+	stderr, readStderr := tempOutputFile(t)
+
+	code := run([]string{"help", "deploy"}, stdout, stderr)
+	if code != 0 {
+		t.Fatalf("run(help deploy) code = %d, want 0; stderr=%s", code, readStderr())
+	}
+	if !strings.Contains(readStdout(), "Safety: external") {
+		t.Fatalf("stdout = %q, want safety output", readStdout())
 	}
 }
 

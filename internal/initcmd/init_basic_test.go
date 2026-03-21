@@ -365,9 +365,9 @@ func TestRunFromRepoIncludesMostMakeTargets(t *testing.T) {
 		t.Fatalf("fkn.yaml = %q, want inferred FEATURE param", got)
 	}
 	for _, want := range []string{
-		"  add-feature:\n    desc: Run the repository add-feature target\n    cmd: make add-feature\n    agent: false\n",
-		"  codemap-sync:\n    desc: Run the repository codemap-sync target\n    cmd: make codemap-sync\n    agent: false\n",
-		"  ci-init:\n    desc: Run the repository ci-init target\n    cmd: make ci-init\n    agent: false\n",
+		"  add-feature:\n    desc: Run the repository add-feature target\n    cmd: make add-feature\n    agent: false\n    safety: destructive\n",
+		"  codemap-sync:\n    desc: Run the repository codemap-sync target\n    cmd: make codemap-sync\n    agent: false\n    safety: external\n",
+		"  ci-init:\n    desc: Run the repository ci-init target\n    cmd: make ci-init\n    agent: false\n    safety: destructive\n",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("fkn.yaml = %q, want agent-safe helper target %q", got, want)
@@ -398,7 +398,7 @@ func TestRunFromRepoMarksParameterizedPackageHelpersAgentFalse(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := string(cfg)
-	if !strings.Contains(got, "release:\n    desc: Run the package.json release script\n    cmd: npm run release -- --version={{params.version}}\n    agent: false\n") {
+	if !strings.Contains(got, "release:\n    desc: Run the package.json release script\n    cmd: npm run release -- --version={{params.version}}\n    agent: false\n    safety: external\n") {
 		t.Fatalf("fkn.yaml = %q, want release helper marked agent:false", got)
 	}
 	if !strings.Contains(got, "build:\n    desc: Run the package.json build script\n    cmd: npm run build\n") {

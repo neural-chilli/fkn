@@ -62,6 +62,7 @@ type inferredTask struct {
 	Cmd    string
 	Steps  []string
 	Agent  *bool
+	Safety string
 	Params map[string]config.Param
 }
 

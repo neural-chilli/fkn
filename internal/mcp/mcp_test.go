@@ -161,6 +161,33 @@ func TestToolsExposeTaskParams(t *testing.T) {
 	}
 }
 
+func TestToolsExposeSafetyAnnotations(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{
+		Tasks: map[string]config.Task{
+			"deploy": {
+				Desc:   "Deploy",
+				Cmd:    "./scripts/deploy.sh",
+				Safety: "external",
+			},
+		},
+	}
+
+	server := New(cfg, t.TempDir(), runner.New(cfg, t.TempDir()))
+	tools := server.Tools()
+	if len(tools) != 1 {
+		t.Fatalf("len(Tools()) = %d, want 1", len(tools))
+	}
+	annotations := tools[0].Annotations
+	if annotations["fknSafety"] != "external" {
+		t.Fatalf("annotations = %#v, want fknSafety external", annotations)
+	}
+	if annotations["openWorldHint"] != true {
+		t.Fatalf("annotations = %#v, want openWorldHint", annotations)
+	}
+}
+
 func TestHandlePayloadResourcesList(t *testing.T) {
 	t.Parallel()
 

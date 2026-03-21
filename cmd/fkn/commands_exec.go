@@ -50,6 +50,7 @@ func runList(args []string, stdout, stderr *os.File) int {
 			Desc:    task.Desc,
 			Type:    task.Type(),
 			Agent:   task.AgentEnabled(),
+			Safety:  task.SafetyLevel(),
 			Default: isDefaultTask(cfg, name),
 		}
 		item.Aliases = aliasesForTask(cfg.Aliases, name)
