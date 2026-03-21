@@ -55,6 +55,17 @@ type makeTarget struct {
 	Params []string
 }
 
+type justRecipe struct {
+	Name   string
+	Params []justParam
+}
+
+type justParam struct {
+	Name     string
+	Default  string
+	Required bool
+}
+
 func Run(repoRoot string, opts Options) (string, error) {
 	var messages []string
 
@@ -252,6 +263,7 @@ func ensureAgentsReference(path string) (bool, error) {
 func inferConfig(repoRoot string) string {
 	project := filepath.Base(repoRoot)
 	tasks := inferTasks(repoRoot)
+	aliases := inferAliases(repoRoot, tasks)
 	if len(tasks) == 0 {
 		return starterConfig
 	}
@@ -295,6 +307,13 @@ func inferConfig(repoRoot string) string {
 			for _, step := range task.Steps {
 				builder.WriteString(fmt.Sprintf("      - %s\n", step))
 			}
+		}
+	}
+
+	if len(aliases) > 0 {
+		builder.WriteString("\naliases:\n")
+		for _, name := range sortedAliasNames(aliases) {
+			builder.WriteString(fmt.Sprintf("  %s: %s\n", name, aliases[name]))
 		}
 	}
 
@@ -345,11 +364,17 @@ func inferTasks(repoRoot string) []inferredTask {
 		)
 	}
 
-	for _, target := range findJustTargets(repoRoot) {
-		if shouldSkipInferredTarget(target) {
+	for _, recipe := range findJustRecipes(repoRoot) {
+		if shouldSkipInferredTarget(recipe.Name) {
 			continue
 		}
-		addTask(target, inferredTargetDesc("repository", target, "recipe"), fmt.Sprintf("just %s", target), inferredTargetAgent(target), nil)
+		addTask(
+			recipe.Name,
+			inferredTargetDesc("repository", recipe.Name, "recipe"),
+			buildJustCommand(recipe),
+			inferredTargetAgent(recipe.Name),
+			inferredJustParams(recipe.Params),
+		)
 	}
 
 	scripts := findPackageScripts(repoRoot)
@@ -431,6 +456,24 @@ func inferredTargetDesc(subject, name, kind string) string {
 	return fmt.Sprintf("Run the %s %s %s", subject, name, kind)
 }
 
+func inferAliases(repoRoot string, tasks []inferredTask) map[string]string {
+	taskNames := map[string]bool{}
+	for _, task := range tasks {
+		taskNames[task.Name] = true
+	}
+
+	aliases := map[string]string{}
+	for alias, target := range findJustAliases(repoRoot) {
+		if strings.Contains(target, "::") {
+			continue
+		}
+		if taskNames[target] {
+			aliases[alias] = target
+		}
+	}
+	return aliases
+}
+
 func inferredTargetAgent(name string) *bool {
 	if name == "clean" {
 		value := false
@@ -475,6 +518,12 @@ func inferredWatchPaths(repoRoot string) []string {
 	}
 	if hasFile(repoRoot, "Makefile") {
 		paths = append(paths, "Makefile")
+	}
+	if hasFile(repoRoot, "justfile") {
+		paths = append(paths, "justfile")
+	}
+	if hasFile(repoRoot, "Justfile") {
+		paths = append(paths, "Justfile")
 	}
 
 	seen := map[string]bool{}
@@ -577,10 +626,6 @@ func findMakeTargets(repoRoot string) []makeTarget {
 	return targets
 }
 
-func findJustTargets(repoRoot string) []string {
-	return findTargets(filepath.Join(repoRoot, "justfile"))
-}
-
 func findTargets(path string) []string {
 	raw, err := os.ReadFile(path)
 	if err != nil {
@@ -608,6 +653,199 @@ func findTargets(path string) []string {
 		targets = append(targets, name)
 	}
 	return targets
+}
+
+func findJustRecipes(repoRoot string) []justRecipe {
+	path := findJustfilePath(repoRoot)
+	if path == "" {
+		return nil
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+
+	lines := strings.Split(strings.ReplaceAll(string(raw), "\r\n", "\n"), "\n")
+	seen := map[string]bool{}
+	privateNext := false
+	var recipes []justRecipe
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+		if strings.HasPrefix(trimmed, "#") || strings.HasPrefix(line, "\t") || strings.HasPrefix(line, "  ") {
+			continue
+		}
+		if strings.HasPrefix(trimmed, "[") && strings.HasSuffix(trimmed, "]") {
+			privateNext = strings.Contains(trimmed, "private")
+			continue
+		}
+		if strings.HasPrefix(trimmed, "alias ") || strings.HasPrefix(trimmed, "set ") || strings.Contains(trimmed, ":=") {
+			privateNext = false
+			continue
+		}
+
+		recipe, ok := parseJustRecipe(trimmed)
+		if !ok {
+			privateNext = false
+			continue
+		}
+		if privateNext || strings.HasPrefix(recipe.Name, "_") || seen[recipe.Name] {
+			privateNext = false
+			continue
+		}
+		privateNext = false
+		seen[recipe.Name] = true
+		recipes = append(recipes, recipe)
+	}
+
+	return recipes
+}
+
+func findJustAliases(repoRoot string) map[string]string {
+	path := findJustfilePath(repoRoot)
+	if path == "" {
+		return nil
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+
+	lines := strings.Split(strings.ReplaceAll(string(raw), "\r\n", "\n"), "\n")
+	privateNext := false
+	aliases := map[string]string{}
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		if strings.HasPrefix(trimmed, "[") && strings.HasSuffix(trimmed, "]") {
+			privateNext = strings.Contains(trimmed, "private")
+			continue
+		}
+		if privateNext {
+			privateNext = false
+			if strings.HasPrefix(trimmed, "alias ") {
+				continue
+			}
+		}
+		if !strings.HasPrefix(trimmed, "alias ") {
+			continue
+		}
+		parts := strings.SplitN(strings.TrimPrefix(trimmed, "alias "), ":=", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		name := strings.TrimSpace(parts[0])
+		target := strings.TrimSpace(parts[1])
+		if name == "" || target == "" || strings.HasPrefix(name, "_") {
+			continue
+		}
+		aliases[name] = target
+	}
+	return aliases
+}
+
+func findJustfilePath(repoRoot string) string {
+	for _, name := range []string{"justfile", "Justfile"} {
+		path := filepath.Join(repoRoot, name)
+		if hasFile(repoRoot, name) {
+			return path
+		}
+	}
+	return ""
+}
+
+func parseJustRecipe(line string) (justRecipe, bool) {
+	colon := strings.Index(line, ":")
+	if colon <= 0 {
+		return justRecipe{}, false
+	}
+	header := strings.TrimSpace(line[:colon])
+	if header == "" {
+		return justRecipe{}, false
+	}
+	fields := strings.Fields(header)
+	if len(fields) == 0 {
+		return justRecipe{}, false
+	}
+	name := fields[0]
+	if strings.Contains(name, "=") || strings.HasPrefix(name, "@") {
+		return justRecipe{}, false
+	}
+
+	params := make([]justParam, 0, len(fields)-1)
+	for _, token := range fields[1:] {
+		param, ok := parseJustParam(token)
+		if !ok {
+			break
+		}
+		params = append(params, param)
+	}
+	return justRecipe{Name: name, Params: params}, true
+}
+
+func parseJustParam(token string) (justParam, bool) {
+	token = strings.TrimSpace(token)
+	if token == "" || strings.HasPrefix(token, "(") || strings.HasPrefix(token, "[") {
+		return justParam{}, false
+	}
+	required := true
+	defaultValue := ""
+	name := strings.TrimLeft(token, "+*$")
+	if parts := strings.SplitN(name, "=", 2); len(parts) == 2 {
+		name = strings.TrimSpace(parts[0])
+		defaultValue = strings.TrimSpace(parts[1])
+		required = false
+	}
+	name = sanitizeParamName(name)
+	if name == "" {
+		return justParam{}, false
+	}
+	return justParam{Name: name, Default: defaultValue, Required: required}, true
+}
+
+func buildJustCommand(recipe justRecipe) string {
+	parts := []string{"just", recipe.Name}
+	for _, param := range recipe.Params {
+		parts = append(parts, "{{params."+param.Name+"}}")
+	}
+	return strings.Join(parts, " ")
+}
+
+func inferredJustParams(params []justParam) map[string]config.Param {
+	if len(params) == 0 {
+		return nil
+	}
+	out := make(map[string]config.Param, len(params))
+	for _, param := range params {
+		out[param.Name] = config.Param{
+			Desc:     fmt.Sprintf("Value for the %s recipe parameter", param.Name),
+			Env:      strings.ToUpper(strings.ReplaceAll(param.Name, "-", "_")),
+			Required: param.Required,
+			Default:  param.Default,
+		}
+	}
+	return out
+}
+
+func sanitizeParamName(name string) string {
+	name = strings.TrimSpace(strings.Trim(name, `"'`))
+	replacer := strings.NewReplacer("-", "_", ".", "_")
+	name = replacer.Replace(name)
+	return strings.Trim(name, "_")
+}
+
+func sortedAliasNames(aliases map[string]string) []string {
+	names := make([]string, 0, len(aliases))
+	for name := range aliases {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
 }
 
 func parseTargetName(line string) (string, bool) {
@@ -700,8 +938,16 @@ func scriptTaskName(name string) string {
 }
 
 func hasFile(repoRoot, name string) bool {
-	_, err := os.Stat(filepath.Join(repoRoot, name))
-	return err == nil
+	entries, err := os.ReadDir(repoRoot)
+	if err != nil {
+		return false
+	}
+	for _, entry := range entries {
+		if entry.Name() == name {
+			return true
+		}
+	}
+	return false
 }
 
 func ensureGitignoreEntry(path, entry string) (bool, error) {

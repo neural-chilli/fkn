@@ -143,6 +143,84 @@ func TestRunFromRepoPrefersMakeTargets(t *testing.T) {
 	}
 }
 
+func TestRunFromRepoInfersJustRecipesAndAliases(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	justfile := `
+alias b := build
+
+build target profile="debug":
+	echo {{target}} {{profile}}
+
+test:
+	just build app
+
+[private]
+hidden:
+	echo hidden
+
+_helper:
+	echo helper
+`
+	if err := os.WriteFile(filepath.Join(dir, "justfile"), []byte(justfile), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := Run(dir, Options{FromRepo: true}); err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+
+	cfg, err := os.ReadFile(filepath.Join(dir, "fkn.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(cfg)
+	for _, want := range []string{
+		"cmd: just build {{params.target}} {{params.profile}}",
+		"cmd: just test",
+		"aliases:\n  b: build\n",
+		"target:\n        desc: Value for the target recipe parameter\n        env: TARGET\n        required: true\n",
+		"profile:\n        desc: Value for the profile recipe parameter\n        env: PROFILE\n        default: \"debug\"\n",
+		"default: check",
+		"justfile",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("fkn.yaml = %q, want %q", got, want)
+		}
+	}
+	for _, unwanted := range []string{"hidden:", "_helper:"} {
+		if strings.Contains(got, unwanted) {
+			t.Fatalf("fkn.yaml = %q, did not want private recipe %q", got, unwanted)
+		}
+	}
+}
+
+func TestRunFromRepoReadsCapitalizedJustfile(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "Justfile"), []byte("build:\n\techo build\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := Run(dir, Options{FromRepo: true}); err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+
+	cfg, err := os.ReadFile(filepath.Join(dir, "fkn.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(cfg)
+	if !strings.Contains(got, "cmd: just build") {
+		t.Fatalf("fkn.yaml = %q, want Justfile-backed task", got)
+	}
+	if !strings.Contains(got, "Justfile") {
+		t.Fatalf("fkn.yaml = %q, want Justfile watch path", got)
+	}
+}
+
 func TestRunWithAgentsWritesCompanionFiles(t *testing.T) {
 	t.Parallel()
 

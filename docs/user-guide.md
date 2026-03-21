@@ -40,10 +40,13 @@ That tells `fkn` to infer a first pass from what the repo already exposes instea
 Current inference sources:
 
 - common `Makefile` targets like `test`, `build`, `check`, and `lint`
+- `justfile` and `Justfile`
 - common `package.json` scripts like `test`, `build`, `check`, `lint`, `dev`, and `start`
 - Go module repos via `go.mod`
 
 For Makefiles and justfiles, `fkn` now imports most regular targets instead of only a tiny built-in subset. It still skips obviously awkward scaffolding targets like `clean`, but it can now keep parameterized helper targets when it can infer env-style inputs such as `$(FEATURE)`.
+
+For `justfile`s specifically, `fkn` now also carries over common recipe aliases, positional/defaulted recipe parameters, and skips `_hidden` or `[private]` recipes so the generated config matches what humans usually invoke.
 
 The goal is not to guess everything perfectly. The goal is to give you a believable first `fkn.yaml` that humans and agents can edit confidently.
 
