@@ -16,6 +16,7 @@ type Config struct {
 	Tasks       map[string]Task     `yaml:"tasks"`
 	Guards      map[string]Guard    `yaml:"guards"`
 	Scopes      map[string][]string `yaml:"scopes"`
+	Prompts     map[string]Prompt   `yaml:"prompts"`
 }
 
 type Task struct {
@@ -33,6 +34,11 @@ type Task struct {
 
 type Guard struct {
 	Steps []string `yaml:"steps"`
+}
+
+type Prompt struct {
+	Desc     string `yaml:"desc"`
+	Template string `yaml:"template"`
 }
 
 func (t Task) AgentEnabled() bool {
@@ -101,6 +107,15 @@ func (c *Config) Validate(repoRoot string) error {
 			if _, ok := c.Tasks[step]; !ok {
 				return fmt.Errorf("guard %q references unknown task %q", name, step)
 			}
+		}
+	}
+
+	for name, prompt := range c.Prompts {
+		if prompt.Desc == "" {
+			return fmt.Errorf("prompt %q: desc is required", name)
+		}
+		if prompt.Template == "" {
+			return fmt.Errorf("prompt %q: template is required", name)
 		}
 	}
 

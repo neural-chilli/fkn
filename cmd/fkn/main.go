@@ -6,12 +6,15 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 
 	"fkn/internal/config"
 	"fkn/internal/guard"
+	"fkn/internal/prompt"
 	"fkn/internal/runner"
 	"fkn/internal/scope"
 )
@@ -45,6 +48,8 @@ func run(args []string, stdout, stderr *os.File) int {
 		return runGuard(args[1:], stdout, stderr)
 	case "list":
 		return runList(args[1:], stdout, stderr)
+	case "prompt":
+		return runPrompt(args[1:], stdout, stderr)
 	case "scope":
 		return runScope(args[1:], stdout, stderr)
 	default:
@@ -131,6 +136,45 @@ func runScope(args []string, stdout, stderr *os.File) int {
 	for _, path := range result.Paths {
 		fmt.Fprintln(stdout, path)
 	}
+	return 0
+}
+
+func runPrompt(args []string, stdout, stderr *os.File) int {
+	fs := flag.NewFlagSet("prompt", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	copyOut := fs.Bool("copy", false, "")
+	if err := fs.Parse(reorderSubcommandArgs(args, map[string]bool{"--copy": true})); err != nil {
+		return 2
+	}
+	if fs.NArg() == 0 {
+		printError(stderr, fmt.Errorf("prompt name is required"))
+		return 1
+	}
+
+	cfg, repoRoot, err := loadConfig()
+	if err != nil {
+		printError(stderr, err)
+		return 1
+	}
+
+	rendered, warnings, err := prompt.New(cfg, repoRoot).Render(fs.Arg(0))
+	if err != nil {
+		printError(stderr, err)
+		return 1
+	}
+	for _, warning := range warnings {
+		fmt.Fprintf(stderr, "warning: %s\n", warning)
+	}
+
+	fmt.Fprintln(stdout, rendered)
+
+	if *copyOut {
+		if err := copyToClipboard(rendered); err != nil {
+			printError(stderr, err)
+			return 1
+		}
+	}
+
 	return 0
 }
 
@@ -275,6 +319,7 @@ func printUsage(stdout *os.File) {
 		"fkn <task> [--dry-run] [--json]",
 		"fkn guard [name] [--json]",
 		"fkn list [--json] [--mcp]",
+		"fkn prompt <name> [--copy]",
 		"fkn scope <name> [--json] [--format prompt]",
 		"fkn version",
 	}
@@ -318,6 +363,33 @@ func reorderSubcommandArgs(args []string, flags map[string]bool) []string {
 	}
 
 	return append(flagArgs, positionals...)
+}
+
+func copyToClipboard(value string) error {
+	var cmd *exec.Cmd
+
+	switch runtime.GOOS {
+	case "darwin":
+		cmd = exec.Command("pbcopy")
+	case "windows":
+		cmd = exec.Command("cmd", "/c", "clip")
+	default:
+		if _, err := exec.LookPath("wl-copy"); err == nil {
+			cmd = exec.Command("wl-copy")
+		} else if _, err := exec.LookPath("xclip"); err == nil {
+			cmd = exec.Command("xclip", "-selection", "clipboard")
+		} else if _, err := exec.LookPath("xsel"); err == nil {
+			cmd = exec.Command("xsel", "--clipboard", "--input")
+		} else {
+			return fmt.Errorf("clipboard copy is unavailable on this system")
+		}
+	}
+
+	cmd.Stdin = strings.NewReader(value)
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("copy to clipboard failed: %w", err)
+	}
+	return nil
 }
 
 func printGuardReport(stdout *os.File, report guard.Report) {

@@ -32,6 +32,20 @@ scopes:
   cli:
     - cmd/fkn/
     - internal/config/
+    - internal/prompt/
     - internal/runner/
     - internal/guard/
     - internal/scope/
+
+prompts:
+  continue-cli:
+    desc: Continue work on the fkn CLI
+    template: |
+      Continue building the CLI on branch {{git_branch}}.
+      OS: {{os}}
+      Timestamp: {{timestamp}}
+      Scope: {{scope.cli}}
+      Check task: {{task.check.desc}}
+      Latest diff:
+      {{git_diff}}
+      Unknown variable should remain: {{unknown_var}}
