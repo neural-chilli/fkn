@@ -14,29 +14,30 @@ Most repositories accumulate commands, scripts, checks, conventions, and "run th
 - task metadata that can later be exposed as MCP tools
 - a path toward agent handoff and repo-aware prompts without scattered docs
 
+## Docs
+
+Start here:
+
+- [User Guide](/Users/josephfrost/code/fkn/docs/user-guide.md)
+- [MCP Guide](/Users/josephfrost/code/fkn/docs/mcp.md)
+
+The README is the short version. The user guide is the practical walkthrough with realistic examples. The MCP guide is the current compatibility and transport reference.
+
 ## Current Status
 
-This repository currently includes the first working slice:
+Implemented today:
 
-- YAML-backed task configuration via `fkn.yaml`
-- `fkn <task>` to run named command tasks
-- sequential and parallel task pipelines
-- `fkn guard [name]` to run validation-oriented guard pipelines
-- `fkn scope <name>` to print a named path scope
-- `fkn prompt <name>` to render a repo-versioned prompt template
-- `fkn context` to generate a bounded markdown repo briefing
-- `fkn init` to scaffold a starter config and ignore runtime state
-- `fkn serve` to expose agent-enabled tasks as MCP tools
-- `fkn watch` to rerun tasks or guards on file changes
-- `fkn help [task]` to show task or guard details from `fkn.yaml`
-- `fkn <task> --dry-run` to print resolved commands
-- `fkn <task> --json` for machine-readable execution results
-- `fkn guard --json` for structured guard reports
-- `fkn scope <name> --json` for scope data
-- `fkn list` and `fkn list --json`
-- `fkn list --mcp` to preview the MCP manifest for agent-enabled tasks
-- config validation for required task shape and circular task references
-- unknown task suggestions for close matches
+- task execution
+- sequential and parallel pipelines
+- guards
+- scopes
+- prompts
+- context generation
+- init scaffolding
+- MCP serve mode
+- watch mode
+- help output and task suggestions
+- JSON output for key commands
 
 ## Why Open Source
 
@@ -81,6 +82,10 @@ go run ./cmd/fkn list --mcp
 ```
 
 HTTP mode reads an optional bearer token from `FKN_MCP_TOKEN` by default.
+
+For realistic examples and a full config walkthrough:
+
+- [docs/user-guide.md](/Users/josephfrost/code/fkn/docs/user-guide.md)
 
 ## Example `fkn.yaml`
 
@@ -146,6 +151,17 @@ internal/runner/      # task and pipeline execution
 fkn.yaml              # repo-local dogfood config
 fkn-prd-v4.1.md       # product requirements document
 ```
+
+## Compatibility
+
+MCP status today:
+
+- raw stdio MCP requests: tested
+- raw HTTP+SSE MCP requests: tested
+- GitHub Copilot integration: unverified
+- Claude Code integration: unverified
+
+That means `fkn serve` is usable now for experimentation, but client-specific compatibility should still be treated as provisional until tested directly.
 
 ## Development
 
