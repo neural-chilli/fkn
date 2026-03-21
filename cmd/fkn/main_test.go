@@ -509,3 +509,46 @@ func tempOutputFile(t *testing.T) (*os.File, func() string) {
 		return string(raw)
 	}
 }
+
+func TestRunScopeAllowsFlagAfterPositional(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "fkn.yaml"), []byte(`
+tasks:
+  test:
+    desc: Run tests
+    cmd: printf ok
+scopes:
+  cli:
+    - cmd/
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	restore := chdirForTest(t, dir)
+	defer restore()
+
+	stdout, readStdout := tempOutputFile(t)
+	stderr, readStderr := tempOutputFile(t)
+
+	code := run([]string{"scope", "cli", "--json"}, stdout, stderr)
+	if code != 0 {
+		t.Fatalf("run(scope cli --json) code = %d, want 0; stderr=%s", code, readStderr())
+	}
+	if !strings.Contains(readStdout(), `"scope": "cli"`) {
+		t.Fatalf("stdout = %q, want JSON scope output", readStdout())
+	}
+}
+
+func TestRunDocsRejectsUnknownFlag(t *testing.T) {
+	t.Parallel()
+
+	stdout, _ := tempOutputFile(t)
+	stderr, readStderr := tempOutputFile(t)
+
+	code := run([]string{"docs", "--wat", "user-guide"}, stdout, stderr)
+	if code != 2 {
+		t.Fatalf("run(docs --wat user-guide) code = %d, want 2; stderr=%s", code, readStderr())
+	}
+	if !strings.Contains(readStderr(), `unknown flag "--wat"`) {
+		t.Fatalf("stderr = %q, want unknown flag error", readStderr())
+	}
+}

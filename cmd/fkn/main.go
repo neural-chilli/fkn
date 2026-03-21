@@ -146,7 +146,12 @@ func runDocs(args []string, stdout, stderr *os.File) int {
 	fs := flag.NewFlagSet("docs", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	listOnly := fs.Bool("list", false, "")
-	if err := fs.Parse(reorderSubcommandArgs(args, map[string]bool{"--list": true})); err != nil {
+	parsedArgs, err := parseSubcommandArgs(args, map[string]bool{"--list": false})
+	if err != nil {
+		printError(stderr, err)
+		return 2
+	}
+	if err := fs.Parse(parsedArgs); err != nil {
 		return 2
 	}
 
@@ -177,7 +182,12 @@ func runInit(args []string, stdout, stderr *os.File) int {
 	fs.SetOutput(stderr)
 	fromRepo := fs.Bool("from-repo", false, "")
 	agents := fs.Bool("agents", false, "")
-	if err := fs.Parse(reorderSubcommandArgs(args, map[string]bool{"--from-repo": true, "--agents": true})); err != nil {
+	parsedArgs, err := parseSubcommandArgs(args, map[string]bool{"--from-repo": false, "--agents": false})
+	if err != nil {
+		printError(stderr, err)
+		return 2
+	}
+	if err := fs.Parse(parsedArgs); err != nil {
 		return 2
 	}
 
@@ -204,7 +214,12 @@ func runGuard(args []string, stdout, stderr *os.File) int {
 	fs := flag.NewFlagSet("guard", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	jsonOut := fs.Bool("json", false, "")
-	if err := fs.Parse(reorderSubcommandArgs(args, map[string]bool{"--json": true})); err != nil {
+	parsedArgs, err := parseSubcommandArgs(args, map[string]bool{"--json": false})
+	if err != nil {
+		printError(stderr, err)
+		return 2
+	}
+	if err := fs.Parse(parsedArgs); err != nil {
 		return 2
 	}
 
@@ -243,7 +258,12 @@ func runScope(args []string, stdout, stderr *os.File) int {
 	fs.SetOutput(stderr)
 	jsonOut := fs.Bool("json", false, "")
 	format := fs.String("format", "", "")
-	if err := fs.Parse(reorderSubcommandArgs(args, map[string]bool{"--json": true, "--format": false})); err != nil {
+	parsedArgs, err := parseSubcommandArgs(args, map[string]bool{"--json": false, "--format": true})
+	if err != nil {
+		printError(stderr, err)
+		return 2
+	}
+	if err := fs.Parse(parsedArgs); err != nil {
 		return 2
 	}
 	if fs.NArg() == 0 {
@@ -286,7 +306,12 @@ func runValidate(args []string, stdout, stderr *os.File) int {
 	fs := flag.NewFlagSet("validate", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	jsonOut := fs.Bool("json", false, "")
-	if err := fs.Parse(reorderSubcommandArgs(args, map[string]bool{"--json": true})); err != nil {
+	parsedArgs, err := parseSubcommandArgs(args, map[string]bool{"--json": false})
+	if err != nil {
+		printError(stderr, err)
+		return 2
+	}
+	if err := fs.Parse(parsedArgs); err != nil {
 		return 2
 	}
 
@@ -319,7 +344,12 @@ func runPrompt(args []string, stdout, stderr *os.File) int {
 	fs := flag.NewFlagSet("prompt", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	copyOut := fs.Bool("copy", false, "")
-	if err := fs.Parse(reorderSubcommandArgs(args, map[string]bool{"--copy": true})); err != nil {
+	parsedArgs, err := parseSubcommandArgs(args, map[string]bool{"--copy": false})
+	if err != nil {
+		printError(stderr, err)
+		return 2
+	}
+	if err := fs.Parse(parsedArgs); err != nil {
 		return 2
 	}
 	if fs.NArg() == 0 {
@@ -357,13 +387,18 @@ func runPrompt(args []string, stdout, stderr *os.File) int {
 func runContext(args []string, stdout, stderr *os.File) int {
 	fs := flag.NewFlagSet("context", flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	agent := fs.Bool("agent", false, "")
-	jsonOut := fs.Bool("json", false, "")
-	taskName := fs.String("task", "", "")
-	outPath := fs.String("out", "", "")
-	copyOut := fs.Bool("copy", false, "")
-	maxTokens := fs.Int("max-tokens", 0, "")
-	if err := fs.Parse(reorderSubcommandArgs(args, map[string]bool{"--agent": true, "--json": true, "--task": false, "--out": false, "--copy": true, "--max-tokens": false})); err != nil {
+	agent := fs.Bool("agent", false, "Generate agent-focused context")
+	jsonOut := fs.Bool("json", false, "Emit structured JSON")
+	taskName := fs.String("task", "", "Task name required with --agent")
+	outPath := fs.String("out", "", "Write rendered markdown to a file")
+	copyOut := fs.Bool("copy", false, "Copy rendered markdown to the clipboard")
+	maxTokens := fs.Int("max-tokens", 0, "Approximate token budget; uses a rough estimate rather than a model tokenizer")
+	parsedArgs, err := parseSubcommandArgs(args, map[string]bool{"--agent": false, "--json": false, "--task": true, "--out": true, "--copy": false, "--max-tokens": true})
+	if err != nil {
+		printError(stderr, err)
+		return 2
+	}
+	if err := fs.Parse(parsedArgs); err != nil {
 		return 2
 	}
 
@@ -491,7 +526,12 @@ func runServe(args []string, stdout, stderr *os.File) int {
 	fs.SetOutput(stderr)
 	httpMode := fs.Bool("http", false, "")
 	port := fs.Int("port", 0, "")
-	if err := fs.Parse(reorderSubcommandArgs(args, map[string]bool{"--http": true, "--port": false})); err != nil {
+	parsedArgs, err := parseSubcommandArgs(args, map[string]bool{"--http": false, "--port": true})
+	if err != nil {
+		printError(stderr, err)
+		return 2
+	}
+	if err := fs.Parse(parsedArgs); err != nil {
 		return 2
 	}
 
@@ -532,7 +572,12 @@ func runWatch(args []string, stdout, stderr *os.File) int {
 	fs.SetOutput(stderr)
 	var paths multiFlag
 	fs.Var(&paths, "path", "")
-	if err := fs.Parse(reorderSubcommandArgs(args, map[string]bool{"--path": false})); err != nil {
+	parsedArgs, err := parseSubcommandArgs(args, map[string]bool{"--path": true})
+	if err != nil {
+		printError(stderr, err)
+		return 2
+	}
+	if err := fs.Parse(parsedArgs); err != nil {
 		return 2
 	}
 	if fs.NArg() == 0 {
@@ -699,7 +744,7 @@ func printUsage(stdout *os.File) {
 		"If fkn.yaml sets `default`, running `fkn` with no task runs that task.",
 		"fkn docs [name] [--list]",
 		"fkn help [task]",
-		"fkn context [--agent] [--json] [--task <name>] [--out <file>] [--copy] [--max-tokens <n>]",
+		"fkn context [--agent] [--json] [--task <name>] [--out <file>] [--copy] [--max-tokens <approx-n>]",
 		"fkn guard [name] [--json]",
 		"fkn init [--from-repo] [--agents]",
 		"fkn list [--json] [--mcp]",
@@ -868,30 +913,55 @@ func printJSON(stdout *os.File, v any) int {
 	return 0
 }
 
-func reorderSubcommandArgs(args []string, flags map[string]bool) []string {
+func parseSubcommandArgs(args []string, flags map[string]bool) ([]string, error) {
 	var flagArgs []string
 	var positionals []string
 
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
+		if arg == "--" {
+			positionals = append(positionals, args[i:]...)
+			break
+		}
 		if !strings.HasPrefix(arg, "-") {
 			positionals = append(positionals, arg)
 			continue
 		}
 
-		if hasValue, ok := flags[arg]; ok {
-			flagArgs = append(flagArgs, arg)
-			if !hasValue && i+1 < len(args) {
-				i++
-				flagArgs = append(flagArgs, args[i])
-			}
-			continue
+		name := arg
+		value := ""
+		hasInlineValue := false
+		if strings.Contains(arg, "=") {
+			parts := strings.SplitN(arg, "=", 2)
+			name = parts[0]
+			value = parts[1]
+			hasInlineValue = true
 		}
 
-		flagArgs = append(flagArgs, arg)
+		takesValue, ok := flags[name]
+		if !ok {
+			return nil, fmt.Errorf("unknown flag %q", name)
+		}
+
+		flagArgs = append(flagArgs, name)
+		if takesValue {
+			if hasInlineValue {
+				flagArgs = append(flagArgs, value)
+				continue
+			}
+			if i+1 >= len(args) {
+				return nil, fmt.Errorf("missing value for %s", name)
+			}
+			i++
+			flagArgs = append(flagArgs, args[i])
+			continue
+		}
+		if hasInlineValue {
+			return nil, fmt.Errorf("flag %s does not take a value", name)
+		}
 	}
 
-	return append(flagArgs, positionals...)
+	return append(flagArgs, positionals...), nil
 }
 
 func copyToClipboard(value string) error {
