@@ -310,6 +310,24 @@ func TestPrefixedWriterPrefixesFirstLine(t *testing.T) {
 	}
 }
 
+func TestRunPipelineReportsNestedPipelineErrorWithParentName(t *testing.T) {
+	t.Parallel()
+
+	r := newTestRunner(t, map[string]config.Task{
+		"inner": {Desc: "inner", Steps: []string{"leaf"}},
+		"leaf":  {Desc: "leaf", Cmd: "echo leaf"},
+		"outer": {Desc: "outer", Steps: []string{"inner"}},
+	})
+
+	_, err := r.Run("outer", Options{Stdout: io.Discard, Stderr: io.Discard})
+	if err == nil {
+		t.Fatal("Run() error = nil, want nested pipeline error")
+	}
+	if got := err.Error(); got != `task "outer" references pipeline task "inner", but nested pipeline steps are not implemented yet` {
+		t.Fatalf("Run() error = %q, want parent-aware nested pipeline error", got)
+	}
+}
+
 func newTestRunner(t *testing.T, tasks map[string]config.Task) *Runner {
 	t.Helper()
 	return New(&config.Config{Tasks: tasks}, t.TempDir())

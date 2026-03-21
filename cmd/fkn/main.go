@@ -1122,30 +1122,9 @@ func levenshtein(a, b string) int {
 			if a[i-1] != b[j-1] {
 				cost = 1
 			}
-			current[j] = min3(
-				current[j-1]+1,
-				prev[j]+1,
-				prev[j-1]+cost,
-			)
+			current[j] = min(current[j-1]+1, min(prev[j]+1, prev[j-1]+cost))
 		}
 		prev = current
 	}
 	return prev[len(b)]
-}
-
-func min3(a, b, c int) int {
-	if a < b && a < c {
-		return a
-	}
-	if b < c {
-		return b
-	}
-	return c
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
 }

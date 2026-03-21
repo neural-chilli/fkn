@@ -162,7 +162,7 @@ func (r *Runner) runSequential(taskName string, task config.Task, opts Options) 
 	overallCode := 0
 
 	for i, step := range task.Steps {
-		stepRes, err := r.runStep(context.Background(), i, step, opts)
+		stepRes, err := r.runStep(context.Background(), i, taskName, step, opts)
 		if err != nil {
 			return Result{}, err
 		}
@@ -212,7 +212,7 @@ func (r *Runner) runParallel(taskName string, task config.Task, opts Options) (R
 		wg.Add(1)
 		go func(i int, step string) {
 			defer wg.Done()
-			stepRes, err := r.runStep(ctx, i, step, opts)
+			stepRes, err := r.runStep(ctx, i, taskName, step, opts)
 			if err != nil {
 				errCh <- err
 				return
@@ -265,11 +265,11 @@ func (r *Runner) runParallel(taskName string, task config.Task, opts Options) (R
 	}, nil
 }
 
-func (r *Runner) runStep(ctx context.Context, index int, step string, opts Options) (StepResult, error) {
+func (r *Runner) runStep(ctx context.Context, index int, parentTaskName, step string, opts Options) (StepResult, error) {
 	task, ok := r.cfg.Tasks[step]
 	if ok {
 		if task.Cmd == "" {
-			return StepResult{}, fmt.Errorf("task %q references task %q, but nested pipeline steps are not implemented yet", step, step)
+			return StepResult{}, fmt.Errorf("task %q references pipeline task %q, but nested pipeline steps are not implemented yet", parentTaskName, step)
 		}
 		paramValues, err := resolveParamValues(task, opts.Params)
 		if err != nil {
