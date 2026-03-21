@@ -43,6 +43,8 @@ Current inference sources:
 - common `package.json` scripts like `test`, `build`, `check`, `lint`, `dev`, and `start`
 - Go module repos via `go.mod`
 
+For Makefiles and justfiles, `fkn` now imports most regular targets instead of only a tiny built-in subset. It still skips obviously awkward scaffolding targets like `clean` and parameterized helper targets such as `add-feature`.
+
 The goal is not to guess everything perfectly. The goal is to give you a believable first `fkn.yaml` that humans and agents can edit confidently.
 
 If you also want agent-facing guidance files:

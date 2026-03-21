@@ -269,3 +269,70 @@ func TestRenderAgentsFKNIncludesScopesAndPrompts(t *testing.T) {
 		}
 	}
 }
+
+func TestRunFromRepoIncludesMostMakeTargets(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	makefile := ".PHONY: tidy fmt lint vet vulncheck verify verify-strict check build run clean add-feature add-feature-git codemap-check codemap-sync map ci-init test\n\n" +
+		"tidy:\n\tgo mod tidy\n\n" +
+		"fmt:\n\tgofmt -w .\n\n" +
+		"lint:\n\tgolangci-lint run\n\n" +
+		"vet:\n\tgo vet ./...\n\n" +
+		"vulncheck:\n\tgovulncheck ./...\n\n" +
+		"verify:\n\tketuu verify\n\n" +
+		"verify-strict:\n\tketuu verify --strict\n\n" +
+		"codemap-check:\n\tketuu verify --codemap\n\n" +
+		"codemap-sync:\n\tketuu codemap sync\n\n" +
+		"map:\n\tketuu map\n\n" +
+		"ci-init:\n\tketuu ci init --github\n\n" +
+		"check:\n\tgo test ./...\n\n" +
+		"build:\n\tgo build ./...\n\n" +
+		"run:\n\t./bin/demo\n\n" +
+		"test:\n\tgo test ./...\n\n" +
+		"add-feature:\n\techo add\n"
+	if err := os.WriteFile(filepath.Join(dir, "Makefile"), []byte(makefile), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := Run(dir, Options{FromRepo: true}); err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+
+	cfg, err := os.ReadFile(filepath.Join(dir, "fkn.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(cfg)
+	for _, want := range []string{
+		"  tidy:\n",
+		"  fmt:\n",
+		"  lint:\n",
+		"  vet:\n",
+		"  vulncheck:\n",
+		"  verify:\n",
+		"  verify-strict:\n",
+		"  codemap-check:\n",
+		"  codemap-sync:\n",
+		"  map:\n",
+		"  ci-init:\n",
+		"  run:\n",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("fkn.yaml = %q, want inferred target %q", got, want)
+		}
+	}
+	for _, unwanted := range []string{
+		"  GO:\n",
+		"  APP_NAME:\n",
+		"  KETUU:\n",
+		"  BIN:\n",
+		"  clean:\n",
+		"  add-feature:\n",
+		"  add-feature-git:\n",
+	} {
+		if strings.Contains(got, unwanted) {
+			t.Fatalf("fkn.yaml = %q, did not want inferred target %q", got, unwanted)
+		}
+	}
+}

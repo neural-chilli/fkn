@@ -42,6 +42,7 @@ Implemented today:
 - watch mode
 - help output and task suggestions
 - JSON output for key commands
+- broader Makefile/justfile task import during `init --from-repo`
 
 ## Why Open Source
 

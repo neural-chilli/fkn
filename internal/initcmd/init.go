@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 
@@ -46,6 +45,7 @@ type inferredTask struct {
 	Desc  string
 	Cmd   string
 	Steps []string
+	Agent *bool
 }
 
 func Run(repoRoot string, opts Options) (string, error) {
@@ -259,6 +259,9 @@ func inferConfig(repoRoot string) string {
 		if task.Cmd != "" {
 			builder.WriteString(fmt.Sprintf("    cmd: %s\n", task.Cmd))
 		}
+		if task.Agent != nil {
+			builder.WriteString(fmt.Sprintf("    agent: %t\n", *task.Agent))
+		}
 		if len(task.Steps) > 0 {
 			builder.WriteString("    steps:\n")
 			for _, step := range task.Steps {
@@ -293,42 +296,26 @@ func inferTasks(repoRoot string) []inferredTask {
 	taskByName := map[string]inferredTask{}
 	order := []string{}
 
-	addTask := func(name, desc, cmd string) {
+	addTask := func(name, desc, cmd string, agent *bool) {
 		if _, exists := taskByName[name]; exists {
 			return
 		}
-		taskByName[name] = inferredTask{Name: name, Desc: desc, Cmd: cmd}
+		taskByName[name] = inferredTask{Name: name, Desc: desc, Cmd: cmd, Agent: agent}
 		order = append(order, name)
 	}
 
 	for _, target := range findMakeTargets(repoRoot) {
-		switch target {
-		case "check":
-			addTask("check", "Run the repository check target", "make check")
-		case "test":
-			addTask("test", "Run the repository test target", "make test")
-		case "build":
-			addTask("build", "Run the repository build target", "make build")
-		case "lint":
-			addTask("lint", "Run the repository lint target", "make lint")
-		case "dev":
-			addTask("dev", "Run the repository dev target", "make dev")
+		if shouldSkipInferredTarget(target) {
+			continue
 		}
+		addTask(target, inferredTargetDesc("repository", target, "target"), fmt.Sprintf("make %s", target), inferredTargetAgent(target))
 	}
 
 	for _, target := range findJustTargets(repoRoot) {
-		switch target {
-		case "check":
-			addTask("check", "Run the repository check recipe", "just check")
-		case "test":
-			addTask("test", "Run the repository test recipe", "just test")
-		case "build":
-			addTask("build", "Run the repository build recipe", "just build")
-		case "lint":
-			addTask("lint", "Run the repository lint recipe", "just lint")
-		case "dev":
-			addTask("dev", "Run the repository dev recipe", "just dev")
+		if shouldSkipInferredTarget(target) {
+			continue
 		}
+		addTask(target, inferredTargetDesc("repository", target, "recipe"), fmt.Sprintf("just %s", target), inferredTargetAgent(target))
 	}
 
 	scripts := findPackageScripts(repoRoot)
@@ -340,30 +327,30 @@ func inferTasks(repoRoot string) []inferredTask {
 	for _, name := range scriptNames {
 		switch name {
 		case "check":
-			addTask("check", "Run the package.json check script", fmt.Sprintf("npm run %s", name))
+			addTask("check", "Run the package.json check script", fmt.Sprintf("npm run %s", name), nil)
 		case "test":
-			addTask("test", "Run the package.json test script", fmt.Sprintf("npm run %s", name))
+			addTask("test", "Run the package.json test script", fmt.Sprintf("npm run %s", name), nil)
 		case "build":
-			addTask("build", "Run the package.json build script", fmt.Sprintf("npm run %s", name))
+			addTask("build", "Run the package.json build script", fmt.Sprintf("npm run %s", name), nil)
 		case "lint":
-			addTask("lint", "Run the package.json lint script", fmt.Sprintf("npm run %s", name))
+			addTask("lint", "Run the package.json lint script", fmt.Sprintf("npm run %s", name), nil)
 		case "dev":
-			addTask("dev", "Run the package.json dev script", fmt.Sprintf("npm run %s", name))
+			addTask("dev", "Run the package.json dev script", fmt.Sprintf("npm run %s", name), nil)
 		case "start":
-			addTask("start", "Run the package.json start script", fmt.Sprintf("npm run %s", name))
+			addTask("start", "Run the package.json start script", fmt.Sprintf("npm run %s", name), nil)
 		default:
 			if strings.HasPrefix(name, "test:") {
-				addTask(scriptTaskName(name), fmt.Sprintf("Run the package.json %s script", name), fmt.Sprintf("npm run %s", name))
+				addTask(scriptTaskName(name), fmt.Sprintf("Run the package.json %s script", name), fmt.Sprintf("npm run %s", name), nil)
 			}
 			if strings.HasPrefix(name, "lint:") {
-				addTask(scriptTaskName(name), fmt.Sprintf("Run the package.json %s script", name), fmt.Sprintf("npm run %s", name))
+				addTask(scriptTaskName(name), fmt.Sprintf("Run the package.json %s script", name), fmt.Sprintf("npm run %s", name), nil)
 			}
 		}
 	}
 
 	if hasFile(repoRoot, "go.mod") {
-		addTask("test", "Run the Go test suite", "go test ./...")
-		addTask("build", "Build the Go packages", "go build ./...")
+		addTask("test", "Run the Go test suite", "go test ./...", nil)
+		addTask("build", "Build the Go packages", "go build ./...", nil)
 	}
 
 	if _, ok := taskByName["check"]; !ok {
@@ -393,6 +380,27 @@ func inferTasks(repoRoot string) []inferredTask {
 	}
 
 	return tasks
+}
+
+func inferredTargetDesc(subject, name, kind string) string {
+	return fmt.Sprintf("Run the %s %s %s", subject, name, kind)
+}
+
+func inferredTargetAgent(name string) *bool {
+	if name == "clean" {
+		value := false
+		return &value
+	}
+	return nil
+}
+
+func shouldSkipInferredTarget(name string) bool {
+	switch name {
+	case "clean", "add-feature", "add-feature-git":
+		return true
+	default:
+		return false
+	}
 }
 
 func inferredGuardSteps(tasks []inferredTask) []string {
@@ -486,16 +494,28 @@ func findTargets(path string) []string {
 		return nil
 	}
 
-	targetPattern := regexp.MustCompile(`(?m)^([A-Za-z0-9][A-Za-z0-9_-]*)\s*:`)
-	matches := targetPattern.FindAllStringSubmatch(string(raw), -1)
-	if len(matches) == 0 {
-		return nil
-	}
-
 	seen := map[string]bool{}
 	var targets []string
-	for _, match := range matches {
-		name := match[1]
+	for _, line := range strings.Split(strings.ReplaceAll(string(raw), "\r\n", "\n"), "\n") {
+		if line == "" {
+			continue
+		}
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") || strings.HasPrefix(line, "\t") {
+			continue
+		}
+		colon := strings.Index(line, ":")
+		if colon <= 0 {
+			continue
+		}
+		name := strings.TrimSpace(line[:colon])
+		rest := strings.TrimSpace(line[colon+1:])
+		if name == "" || strings.Contains(name, " ") || strings.HasPrefix(name, ".") {
+			continue
+		}
+		if strings.HasPrefix(rest, "=") {
+			continue
+		}
 		if seen[name] {
 			continue
 		}
