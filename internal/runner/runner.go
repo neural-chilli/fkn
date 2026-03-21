@@ -29,6 +29,7 @@ type Options struct {
 	DryRun bool
 	Stdout io.Writer
 	Stderr io.Writer
+	Env    map[string]string
 }
 
 type Runner struct {
@@ -285,7 +286,7 @@ func (r *Runner) runCommand(parent context.Context, label string, task config.Ta
 	if task.Dir != "" {
 		cmd.Dir = filepath.Join(r.repoRoot, task.Dir)
 	}
-	cmd.Env = mergeEnv(os.Environ(), r.globalEnv, task.Env)
+	cmd.Env = mergeEnv(os.Environ(), r.globalEnv, task.Env, opts.Env)
 
 	var stdoutBuf, stderrBuf bytes.Buffer
 	cmd.Stdout = io.MultiWriter(&stdoutBuf, prefixedWriter(prefix, opts.Stdout))

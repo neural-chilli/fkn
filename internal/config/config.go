@@ -18,6 +18,7 @@ type Config struct {
 	Scopes      map[string][]string `yaml:"scopes"`
 	Prompts     map[string]Prompt   `yaml:"prompts"`
 	Context     ContextConfig       `yaml:"context"`
+	Serve       ServeConfig         `yaml:"serve"`
 }
 
 type Task struct {
@@ -64,6 +65,12 @@ type ContextCaps struct {
 	TodosMax        int `yaml:"todos_max"`
 	AgentFileLines  int `yaml:"agent_file_lines"`
 	DependencyLines int `yaml:"dependency_lines"`
+}
+
+type ServeConfig struct {
+	Transport string `yaml:"transport"`
+	Port      int    `yaml:"port"`
+	TokenEnv  string `yaml:"token_env"`
 }
 
 func (t Task) AgentEnabled() bool {
@@ -124,6 +131,15 @@ func (c *Config) applyDefaults() {
 	}
 	if c.Context.Caps.DependencyLines == 0 {
 		c.Context.Caps.DependencyLines = 100
+	}
+	if c.Serve.Transport == "" {
+		c.Serve.Transport = "stdio"
+	}
+	if c.Serve.Port == 0 {
+		c.Serve.Port = 8080
+	}
+	if c.Serve.TokenEnv == "" {
+		c.Serve.TokenEnv = "FKN_MCP_TOKEN"
 	}
 }
 

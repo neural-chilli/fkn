@@ -73,3 +73,8 @@ context:
     file_lines: 80
     git_diff_lines: 120
     agent_file_lines: 120
+
+serve:
+  transport: stdio
+  port: 8080
+  token_env: FKN_MCP_TOKEN

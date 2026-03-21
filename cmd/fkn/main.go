@@ -1,21 +1,25 @@
 package main
 
 import (
+	stdcontext "context"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"runtime"
 	"sort"
 	"strings"
+	"syscall"
 
 	"fkn/internal/config"
 	contextpkg "fkn/internal/context"
 	"fkn/internal/guard"
 	"fkn/internal/initcmd"
+	"fkn/internal/mcp"
 	"fkn/internal/prompt"
 	"fkn/internal/runner"
 	"fkn/internal/scope"
@@ -52,6 +56,8 @@ func run(args []string, stdout, stderr *os.File) int {
 		return runInit(stdout, stderr)
 	case "list":
 		return runList(args[1:], stdout, stderr)
+	case "serve":
+		return runServe(args[1:], stdout, stderr)
 	case "context":
 		return runContext(args[1:], stdout, stderr)
 	case "prompt":
@@ -264,31 +270,7 @@ func runList(args []string, stdout, stderr *os.File) int {
 	}
 
 	if *mcpOut {
-		tools := make([]mcpTool, 0, len(cfg.Tasks))
-		for _, name := range sortedTaskNames(cfg.Tasks) {
-			task := cfg.Tasks[name]
-			if !task.AgentEnabled() {
-				continue
-			}
-			tools = append(tools, mcpTool{
-				Name:        name,
-				Description: task.Desc,
-				InputSchema: map[string]any{
-					"type": "object",
-					"properties": map[string]any{
-						"env": map[string]any{
-							"type":        "object",
-							"description": "Optional env var overrides for this invocation",
-						},
-						"dry_run": map[string]any{
-							"type":        "boolean",
-							"description": "Print the command without executing it",
-						},
-					},
-				},
-			})
-		}
-
+		tools := mcp.New(cfg, "", nil).Tools()
 		return printJSON(stdout, map[string]any{"tools": tools})
 	}
 
@@ -323,6 +305,47 @@ func runList(args []string, stdout, stderr *os.File) int {
 	}
 	for _, item := range items {
 		fmt.Fprintf(stdout, "%-*s  %s\n", width, item.Name, item.Desc)
+	}
+	return 0
+}
+
+func runServe(args []string, stdout, stderr *os.File) int {
+	fs := flag.NewFlagSet("serve", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	httpMode := fs.Bool("http", false, "")
+	port := fs.Int("port", 0, "")
+	if err := fs.Parse(reorderSubcommandArgs(args, map[string]bool{"--http": true, "--port": false})); err != nil {
+		return 2
+	}
+
+	cfg, repoRoot, err := loadConfig()
+	if err != nil {
+		printError(stderr, err)
+		return 1
+	}
+
+	serveHTTP := *httpMode || strings.EqualFold(cfg.Serve.Transport, "http")
+	servePort := cfg.Serve.Port
+	if *port != 0 {
+		servePort = *port
+	}
+
+	ctx, stop := signal.NotifyContext(stdcontext.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	taskRunner := runner.New(cfg, repoRoot)
+	server := mcp.New(cfg, repoRoot, taskRunner)
+	if serveHTTP {
+		if err := server.ServeHTTP(ctx, servePort, stderr); err != nil {
+			printError(stderr, err)
+			return 1
+		}
+		return 0
+	}
+
+	if err := server.ServeStdio(ctx, os.Stdin, stdout, stderr); err != nil && !errors.Is(err, stdcontext.Canceled) {
+		printError(stderr, err)
+		return 1
 	}
 	return 0
 }
@@ -391,6 +414,7 @@ func printUsage(stdout *os.File) {
 		"fkn guard [name] [--json]",
 		"fkn init",
 		"fkn list [--json] [--mcp]",
+		"fkn serve [--http] [--port <n>]",
 		"fkn prompt <name> [--copy]",
 		"fkn scope <name> [--json] [--format prompt]",
 		"fkn version",
@@ -502,10 +526,4 @@ type listTask struct {
 	Steps    []string `json:"steps,omitempty"`
 	Scope    *string  `json:"scope"`
 	Agent    bool     `json:"agent"`
-}
-
-type mcpTool struct {
-	Name        string         `json:"name"`
-	Description string         `json:"description"`
-	InputSchema map[string]any `json:"inputSchema"`
 }
