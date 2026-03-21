@@ -15,6 +15,7 @@ import (
 	"fkn/internal/config"
 	contextpkg "fkn/internal/context"
 	"fkn/internal/guard"
+	"fkn/internal/initcmd"
 	"fkn/internal/prompt"
 	"fkn/internal/runner"
 	"fkn/internal/scope"
@@ -47,6 +48,8 @@ func run(args []string, stdout, stderr *os.File) int {
 		return 0
 	case "guard":
 		return runGuard(args[1:], stdout, stderr)
+	case "init":
+		return runInit(stdout, stderr)
 	case "list":
 		return runList(args[1:], stdout, stderr)
 	case "context":
@@ -58,6 +61,23 @@ func run(args []string, stdout, stderr *os.File) int {
 	default:
 		return runTask(args, stdout, stderr)
 	}
+}
+
+func runInit(stdout, stderr *os.File) int {
+	repoRoot, err := os.Getwd()
+	if err != nil {
+		printError(stderr, err)
+		return 1
+	}
+
+	message, err := initcmd.Run(repoRoot)
+	if err != nil {
+		printError(stderr, err)
+		return 1
+	}
+
+	fmt.Fprintln(stdout, message)
+	return 0
 }
 
 func runGuard(args []string, stdout, stderr *os.File) int {
@@ -369,6 +389,7 @@ func printUsage(stdout *os.File) {
 		"fkn <task> [--dry-run] [--json]",
 		"fkn context [--agent] [--task <name>] [--out <file>] [--copy] [--max-tokens <n>]",
 		"fkn guard [name] [--json]",
+		"fkn init",
 		"fkn list [--json] [--mcp]",
 		"fkn prompt <name> [--copy]",
 		"fkn scope <name> [--json] [--format prompt]",

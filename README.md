@@ -25,6 +25,7 @@ This repository currently includes the first working slice:
 - `fkn scope <name>` to print a named path scope
 - `fkn prompt <name>` to render a repo-versioned prompt template
 - `fkn context` to generate a bounded markdown repo briefing
+- `fkn init` to scaffold a starter config and ignore runtime state
 - `fkn <task> --dry-run` to print resolved commands
 - `fkn <task> --json` for machine-readable execution results
 - `fkn guard --json` for structured guard reports
@@ -37,7 +38,6 @@ Planned but not built yet:
 
 - `fkn watch`
 - `fkn serve`
-- `fkn init`
 
 ## Why Open Source
 
@@ -73,6 +73,7 @@ go run ./cmd/fkn scope cli
 go run ./cmd/fkn prompt continue-cli
 go run ./cmd/fkn context
 go run ./cmd/fkn context --agent --task check
+go run ./cmd/fkn init
 go run ./cmd/fkn list --mcp
 ```
 
@@ -110,6 +111,7 @@ fkn context
 fkn context --agent --task <name>
 fkn context --out <file>
 fkn context --copy
+fkn init
 fkn prompt <name>
 fkn prompt <name> --copy
 fkn scope <name>
