@@ -42,6 +42,7 @@ Implemented today:
 - guards can reuse pipeline tasks
 - generated agent guidance via `AGENTS_FKN.md`
 - embedded offline docs in the CLI
+- config validation via `fkn validate`
 - MCP serve mode
 - watch mode
 - help output and task suggestions
@@ -181,6 +182,8 @@ fkn prompt <name> --copy
 fkn scope <name>
 fkn scope <name> --json
 fkn scope <name> --format prompt
+fkn validate
+fkn validate --json
 fkn list
 fkn list --json
 fkn list --mcp

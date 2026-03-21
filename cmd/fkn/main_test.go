@@ -291,6 +291,59 @@ tasks:
 	}
 }
 
+func TestRunValidateReportsSuccess(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "fkn.yaml"), []byte(`
+tasks:
+  test:
+    desc: Run tests
+    cmd: printf ok
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	restore := chdirForTest(t, dir)
+	defer restore()
+
+	stdout, readStdout := tempOutputFile(t)
+	stderr, readStderr := tempOutputFile(t)
+
+	code := run([]string{"validate"}, stdout, stderr)
+	if code != 0 {
+		t.Fatalf("run(validate) code = %d, want 0; stderr=%s", code, readStderr())
+	}
+	if got := readStdout(); !strings.Contains(got, "fkn.yaml is valid") {
+		t.Fatalf("stdout = %q, want validation success", got)
+	}
+}
+
+func TestRunValidateJSONReportsFailure(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "fkn.yaml"), []byte(`
+tasks:
+  broken:
+    desc: Broken
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	restore := chdirForTest(t, dir)
+	defer restore()
+
+	stdout, readStdout := tempOutputFile(t)
+	stderr, readStderr := tempOutputFile(t)
+
+	code := run([]string{"validate", "--json"}, stdout, stderr)
+	if code == 0 {
+		t.Fatal("run(validate --json) code = 0, want failure")
+	}
+	if !strings.Contains(readStderr(), `set exactly one of cmd or steps`) {
+		t.Fatalf("stderr = %q, want validation error", readStderr())
+	}
+	output := readStdout()
+	if !strings.Contains(output, `"valid": false`) || !strings.Contains(output, `"error":`) {
+		t.Fatalf("stdout = %q, want JSON failure payload", output)
+	}
+}
+
 func TestRunListShowsReadableMetadata(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "fkn.yaml"), []byte(`

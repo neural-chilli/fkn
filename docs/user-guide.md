@@ -72,6 +72,17 @@ The generated `AGENTS_FKN.md` now includes:
 - scopes and prompts
 - context, MCP, and watch configuration highlights
 
+## Validate Config
+
+Use `fkn validate` to check `fkn.yaml` without running a task:
+
+```bash
+fkn validate
+fkn validate --json
+```
+
+That is the simplest way to confirm a config edit before you try `list`, `guard`, `context`, or a task run.
+
 ## Mental Model
 
 Treat `fkn.yaml` as the operational API of your repository.

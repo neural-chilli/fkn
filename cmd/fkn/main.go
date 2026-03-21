@@ -75,6 +75,8 @@ func run(args []string, stdout, stderr *os.File) int {
 		return runPrompt(args[1:], stdout, stderr)
 	case "scope":
 		return runScope(args[1:], stdout, stderr)
+	case "validate":
+		return runValidate(args[1:], stdout, stderr)
 	default:
 		return runTask(args, stdout, stderr)
 	}
@@ -277,6 +279,39 @@ func runScope(args []string, stdout, stderr *os.File) int {
 	for _, path := range result.Paths {
 		fmt.Fprintln(stdout, path)
 	}
+	return 0
+}
+
+func runValidate(args []string, stdout, stderr *os.File) int {
+	fs := flag.NewFlagSet("validate", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	jsonOut := fs.Bool("json", false, "")
+	if err := fs.Parse(reorderSubcommandArgs(args, map[string]bool{"--json": true})); err != nil {
+		return 2
+	}
+
+	cfg, repoRoot, err := loadConfig()
+	if err != nil {
+		printError(stderr, err)
+		if *jsonOut {
+			_ = printJSON(stdout, map[string]any{
+				"valid": false,
+				"error": err.Error(),
+			})
+		}
+		return 1
+	}
+
+	result := map[string]any{
+		"valid":     true,
+		"project":   cfg.Project,
+		"repo_root": repoRoot,
+	}
+	if *jsonOut {
+		return printJSON(stdout, result)
+	}
+
+	fmt.Fprintln(stdout, "fkn.yaml is valid")
 	return 0
 }
 
@@ -660,6 +695,7 @@ func printUsage(stdout *os.File) {
 		"fkn watch <target> [--path <glob>]",
 		"fkn prompt <name> [--copy]",
 		"fkn scope <name> [--json] [--format prompt]",
+		"fkn validate [--json]",
 		"fkn version",
 	}
 	fmt.Fprintln(stdout, strings.Join(lines, "\n"))
