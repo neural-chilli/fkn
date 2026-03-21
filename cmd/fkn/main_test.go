@@ -226,6 +226,39 @@ tasks:
 	}
 }
 
+func TestRunHelpShowsShellConfiguration(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "fkn.yaml"), []byte(`
+tasks:
+  strict:
+    desc: Run in strict shell mode
+    cmd: printf ok
+    shell: /bin/sh
+    shell_args:
+      - -eu
+      - -c
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	restore := chdirForTest(t, dir)
+	defer restore()
+
+	stdout, readStdout := tempOutputFile(t)
+	stderr, readStderr := tempOutputFile(t)
+
+	code := run([]string{"help", "strict"}, stdout, stderr)
+	if code != 0 {
+		t.Fatalf("run(help strict) code = %d, want 0; stderr=%s", code, readStderr())
+	}
+	output := readStdout()
+	if !strings.Contains(output, "Shell: /bin/sh") {
+		t.Fatalf("stdout = %q, want shell", output)
+	}
+	if !strings.Contains(output, "Shell Args: -eu -c") {
+		t.Fatalf("stdout = %q, want shell args", output)
+	}
+}
+
 func TestRunListShowsReadableMetadata(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "fkn.yaml"), []byte(`

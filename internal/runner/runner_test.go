@@ -193,6 +193,48 @@ func TestRunCmdTaskRejectsMissingRequiredParam(t *testing.T) {
 	}
 }
 
+func TestRunCmdTaskUsesCustomShell(t *testing.T) {
+	t.Parallel()
+
+	r := newTestRunner(t, map[string]config.Task{
+		"echo": {
+			Desc:      "echo",
+			Cmd:       "printf shell-ok",
+			Shell:     "/bin/sh",
+			ShellArgs: []string{"-c"},
+		},
+	})
+
+	result, err := r.Run("echo", Options{Stdout: io.Discard, Stderr: io.Discard})
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if result.Stdout != "shell-ok" {
+		t.Fatalf("Stdout = %q, want custom shell output", result.Stdout)
+	}
+}
+
+func TestRunCmdTaskUsesCustomShellArgs(t *testing.T) {
+	t.Parallel()
+
+	r := newTestRunner(t, map[string]config.Task{
+		"strict": {
+			Desc:      "strict",
+			Cmd:       "printf strict-ok",
+			Shell:     "/bin/sh",
+			ShellArgs: []string{"-eu", "-c"},
+		},
+	})
+
+	result, err := r.Run("strict", Options{Stdout: io.Discard, Stderr: io.Discard})
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if result.Stdout != "strict-ok" {
+		t.Fatalf("Stdout = %q, want custom shell arg output", result.Stdout)
+	}
+}
+
 func newTestRunner(t *testing.T, tasks map[string]config.Task) *Runner {
 	t.Helper()
 	return New(&config.Config{Tasks: tasks}, t.TempDir())

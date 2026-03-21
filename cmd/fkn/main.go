@@ -686,6 +686,12 @@ func printTaskHelp(stdout *os.File, invokedName, resolvedName string, task confi
 	if task.Dir != "" {
 		fmt.Fprintf(stdout, "Dir: %s\n", task.Dir)
 	}
+	if task.Shell != "" {
+		fmt.Fprintf(stdout, "Shell: %s\n", task.Shell)
+	}
+	if len(task.ShellArgs) > 0 {
+		fmt.Fprintf(stdout, "Shell Args: %s\n", strings.Join(task.ShellArgs, " "))
+	}
 	if task.Timeout != "" {
 		fmt.Fprintf(stdout, "Timeout: %s\n", task.Timeout)
 	}

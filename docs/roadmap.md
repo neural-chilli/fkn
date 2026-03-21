@@ -17,9 +17,6 @@ This roadmap focuses on the major features that would make `fkn` feel more compl
 
 ## Workflow Features
 
-- task-level shell configuration
-  - configurable shell and shell args
-  - better Windows support
 - stronger working-directory controls
   - global defaults
   - per-task overrides that are easier to reason about

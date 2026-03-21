@@ -262,6 +262,8 @@ Tasks can also include:
 - `params`
 - `env`
 - `dir`
+- `shell`
+- `shell_args`
 - `timeout`
 - `continue_on_error`
 - `agent`
@@ -275,6 +277,10 @@ tasks:
     desc: Run integration tests
     cmd: go test -tags=integration ./...
     dir: .
+    shell: /bin/sh
+    shell_args:
+      - -eu
+      - -c
     timeout: 5m
     env:
       APP_ENV: test
@@ -283,6 +289,7 @@ tasks:
 
 Notes:
 
+- `shell` and `shell_args` let a task opt into a specific interpreter or shell mode.
 - `continue_on_error` only affects sequential pipelines.
 - Parallel pipelines still fail fast in the current implementation.
 - `agent: false` hides a task from the MCP tool manifest.

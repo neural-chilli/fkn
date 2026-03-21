@@ -290,7 +290,9 @@ func (r *Runner) runCommand(parent context.Context, label string, task config.Ta
 		defer cancel()
 	}
 
-	cmd := exec.CommandContext(ctx, shellCommand(), shellArg(), command)
+	shell, shellArgs := resolveShell(task)
+	cmdArgs := append(append([]string{}, shellArgs...), command)
+	cmd := exec.CommandContext(ctx, shell, cmdArgs...)
 	cmd.Dir = r.repoRoot
 	if task.Dir != "" {
 		cmd.Dir = filepath.Join(r.repoRoot, task.Dir)
@@ -474,7 +476,7 @@ func loadEnvFile(path string) map[string]string {
 	return env
 }
 
-func shellCommand() string {
+func defaultShellCommand() string {
 	if runtime.GOOS == "windows" {
 		return "cmd.exe"
 	}
@@ -484,11 +486,23 @@ func shellCommand() string {
 	return "/bin/sh"
 }
 
-func shellArg() string {
+func defaultShellArgs() []string {
 	if runtime.GOOS == "windows" {
-		return "/C"
+		return []string{"/C"}
 	}
-	return "-lc"
+	return []string{"-lc"}
+}
+
+func resolveShell(task config.Task) (string, []string) {
+	command := defaultShellCommand()
+	if task.Shell != "" {
+		command = task.Shell
+	}
+	args := defaultShellArgs()
+	if len(task.ShellArgs) > 0 {
+		args = append([]string{}, task.ShellArgs...)
+	}
+	return command, args
 }
 
 func prefixedWriter(prefix string, target io.Writer) io.Writer {

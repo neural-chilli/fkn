@@ -51,6 +51,7 @@ Implemented today:
 - safer helper-task import with `agent: false` for mutating targets
 - task params with CLI, runner, and MCP support
 - direct task param flags like `--feature auth`
+- task-level shell configuration
 - task aliases
 - explicit default task behavior
 - richer human-readable `list` and `help` output

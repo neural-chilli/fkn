@@ -32,6 +32,8 @@ type Task struct {
 	Params          map[string]Param  `yaml:"params"`
 	Env             map[string]string `yaml:"env"`
 	Dir             string            `yaml:"dir"`
+	Shell           string            `yaml:"shell"`
+	ShellArgs       []string          `yaml:"shell_args"`
 	Timeout         string            `yaml:"timeout"`
 	ContinueOnError bool              `yaml:"continue_on_error"`
 	Agent           *bool             `yaml:"agent"`
