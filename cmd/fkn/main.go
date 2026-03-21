@@ -32,6 +32,8 @@ func run(args []string, stdout, stderr *os.File) int {
 		return runVersion(args[1:], stdout, stderr)
 	case "help":
 		return runHelp(args[1:], stdout, stderr)
+	case "agent-brief":
+		return runAgentBrief(args[1:], stdout, stderr)
 	case "docs":
 		return runDocs(args[1:], stdout, stderr)
 	case "explain":

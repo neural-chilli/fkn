@@ -61,6 +61,7 @@ Implemented today:
 - guided repair output via `fkn repair`
 - file-targeted impact planning via `fkn plan`
 - git-diff-aware planning via `fkn diff-plan`
+- composed agent handoff briefs via `fkn agent-brief`
 - JSON Schema for `fkn.yaml`
 - codemap-backed repo explanations via `fkn explain`
 - topic-targeted context via `fkn context --about`
@@ -128,6 +129,8 @@ go run ./cmd/fkn guard
 go run ./cmd/fkn repair
 go run ./cmd/fkn plan --file cmd/fkn/main.go
 go run ./cmd/fkn diff-plan
+go run ./cmd/fkn agent-brief --task check
+go run ./cmd/fkn agent-brief --diff
 go run ./cmd/fkn explain internal/runner
 go run ./cmd/fkn context --about transport
 go run ./cmd/fkn scope cli
@@ -221,6 +224,8 @@ Tasks can also declare `error_format` when they emit machine-parseable diagnosti
 
 `fkn diff-plan` uses the current git diff, staged changes, and untracked files to answer the same question after you have already started editing.
 
+`fkn agent-brief` composes those pieces into one handoff artifact. Point it at a task, a file set, or the current diff and it will combine the existing context output with a relevant change plan when one exists.
+
 `codemap` adds a semantic layer to `fkn.yaml`, and `fkn explain` turns those entries into targeted repo briefings for packages, entry points, glossary terms, and tasks.
 
 ## Commands Available Today
@@ -231,6 +236,7 @@ fkn <task> --dry-run
 fkn <task> --json
 fkn docs [name] [--list]
 fkn diff-plan [--json]
+fkn agent-brief [--task <name> | --diff | --file <path>...] [--json] [--max-tokens <approx-n>]
 fkn explain <target> [--json]
 fkn help [task|group]
 fkn plan [--json] [--file <path>] [files...]

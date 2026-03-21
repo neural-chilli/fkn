@@ -16,6 +16,7 @@ func printUsage(stdout *os.File) {
 	lines := []string{
 		"fkn [<task>] [--name value] [--param name=value] [--dry-run] [--json]",
 		"If fkn.yaml sets `default`, running `fkn` with no task runs that task.",
+		"fkn agent-brief [--task <name> | --diff | --file <path>...] [--json] [--max-tokens <approx-n>]",
 		"fkn docs [name] [--list]",
 		"fkn diff-plan [--json]",
 		"fkn explain <target> [--json]",

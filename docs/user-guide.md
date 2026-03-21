@@ -727,6 +727,28 @@ fkn diff-plan --json
 
 This is especially useful after an edit, when you want a quick answer to “what should I rerun now?” without manually listing the files you changed.
 
+## Agent Brief
+
+`fkn agent-brief` is the higher-level handoff command. It reuses the existing context and planning features so you can generate one markdown or JSON payload for an agent instead of running multiple commands and stitching the results together yourself.
+
+Examples:
+
+```bash
+fkn agent-brief
+fkn agent-brief --task check
+fkn agent-brief --file cmd/fkn/main.go
+fkn agent-brief --diff
+fkn agent-brief --json
+```
+
+Current behavior:
+
+- with `--task <name>`, it emits the same task-focused context used by `fkn context --agent --task <name>`
+- with `--file` or positional file arguments, it includes the same impact plan produced by `fkn plan`
+- with `--diff`, it includes the same git-aware plan produced by `fkn diff-plan`
+- with no selector, it emits a broad repo brief using the standard context generator
+- `--json` returns the structured context payload, the optional structured plan payload, and the combined markdown brief
+
 ## Context
 
 `fkn context` generates a bounded markdown briefing for humans or agents.
