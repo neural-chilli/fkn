@@ -481,6 +481,8 @@ fkn context --copy
 fkn context --max-tokens 500
 ```
 
+`--max-tokens` is a rough character-based token estimate, not an exact model tokenizer count.
+
 The current implementation can include:
 
 - project summary

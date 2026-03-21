@@ -373,11 +373,28 @@ func truncateLines(lines []string, cap int) string {
 }
 
 func truncateToTokenBudget(text string, maxTokens int) string {
-	words := strings.Fields(text)
-	if len(words) <= maxTokens {
+	if approximateTokenCount(text) <= maxTokens {
 		return text
 	}
-	return strings.Join(append(words[:maxTokens], "[output truncated by max token budget]"), " ")
+	maxChars := maxTokens * 4
+	runes := []rune(text)
+	if len(runes) <= maxChars {
+		return text
+	}
+	marker := "\n[output truncated by max token budget]"
+	available := maxChars - len([]rune(marker))
+	if available <= 0 {
+		return marker
+	}
+	return string(runes[:available]) + marker
+}
+
+func approximateTokenCount(text string) int {
+	runes := len([]rune(text))
+	if runes == 0 {
+		return 0
+	}
+	return (runes + 3) / 4
 }
 
 func sortedKeys[T any](items map[string]T) []string {

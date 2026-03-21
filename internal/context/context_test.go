@@ -83,3 +83,30 @@ func TestTruncateLinesAddsOmissionMarker(t *testing.T) {
 		t.Fatalf("truncateLines() = %q, want %q", got, want)
 	}
 }
+
+func TestTruncateToTokenBudgetUsesApproximateTokenCount(t *testing.T) {
+	t.Parallel()
+
+	text := strings.Repeat("a", 40)
+	got := truncateToTokenBudget(text, 5)
+	if !strings.Contains(got, "[output truncated by max token budget]") {
+		t.Fatalf("truncateToTokenBudget() = %q, want truncation marker", got)
+	}
+	if got == text {
+		t.Fatalf("truncateToTokenBudget() = %q, want truncated output", got)
+	}
+}
+
+func TestApproximateTokenCount(t *testing.T) {
+	t.Parallel()
+
+	if got := approximateTokenCount(""); got != 0 {
+		t.Fatalf("approximateTokenCount(\"\") = %d, want 0", got)
+	}
+	if got := approximateTokenCount("abcd"); got != 1 {
+		t.Fatalf("approximateTokenCount(\"abcd\") = %d, want 1", got)
+	}
+	if got := approximateTokenCount("abcde"); got != 2 {
+		t.Fatalf("approximateTokenCount(\"abcde\") = %d, want 2", got)
+	}
+}
