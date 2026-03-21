@@ -203,6 +203,8 @@ The current product direction is described in [fkn-prd-v4.1.md](/Users/josephfro
 
 `fkn docs` now serves embedded copies of the README, user guide, MCP guide, and release guide so installed binaries can explain themselves offline.
 
+`fkn init --agents` now generates a richer `AGENTS_FKN.md` that summarizes tasks, guards, scopes, prompts, context, MCP settings, and watch paths for agents.
+
 ## Contributing
 
 Contributions are welcome. For the best starting point, read [CONTRIBUTING.md](/Users/josephfrost/code/fkn/CONTRIBUTING.md).

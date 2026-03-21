@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/neural-chilli/fkn/internal/config"
 )
 
 func TestRunCreatesStarterFiles(t *testing.T) {
@@ -160,6 +162,12 @@ func TestRunWithAgentsWritesCompanionFiles(t *testing.T) {
 	if !strings.Contains(gotAgentFKN, "`test`: Run the test suite") {
 		t.Fatalf("AGENTS_FKN.md = %q, want task summary", gotAgentFKN)
 	}
+	if !strings.Contains(gotAgentFKN, "## Context") {
+		t.Fatalf("AGENTS_FKN.md = %q, want context section", gotAgentFKN)
+	}
+	if !strings.Contains(gotAgentFKN, "Command: `go test ./...`") {
+		t.Fatalf("AGENTS_FKN.md = %q, want command detail", gotAgentFKN)
+	}
 
 	agentRoot, err := os.ReadFile(filepath.Join(dir, "AGENTS.md"))
 	if err != nil {
@@ -199,5 +207,65 @@ func TestRunWithAgentsIsIdempotent(t *testing.T) {
 	}
 	if string(before) != string(after) {
 		t.Fatalf("AGENTS.md changed unexpectedly on second run:\nBEFORE:\n%s\nAFTER:\n%s", string(before), string(after))
+	}
+}
+
+func TestRenderAgentsFKNIncludesScopesAndPrompts(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{
+		Project:     "demo",
+		Description: "Demo repo",
+		Tasks: map[string]config.Task{
+			"check": {
+				Desc:  "Run checks",
+				Steps: []string{"test", "build"},
+				Scope: "backend",
+			},
+			"test": {
+				Desc: "Run tests",
+				Cmd:  "go test ./...",
+			},
+		},
+		Guards: map[string]config.Guard{
+			"default": {Steps: []string{"test", "build"}},
+		},
+		Scopes: map[string][]string{
+			"backend": {"cmd/", "internal/"},
+		},
+		Prompts: map[string]config.Prompt{
+			"continue-backend": {Desc: "Continue backend work"},
+		},
+		Context: config.ContextConfig{
+			AgentFiles: []string{"README.md"},
+			Include:    []string{"cmd/", "internal/"},
+		},
+		Serve: config.ServeConfig{
+			Transport: "stdio",
+			Port:      8080,
+		},
+		Watch: config.WatchConfig{
+			DebounceMS: 500,
+			Paths:      []string{"cmd/", "internal/"},
+		},
+	}
+
+	got, err := renderAgentsFKN(cfg)
+	if err != nil {
+		t.Fatalf("renderAgentsFKN() error = %v", err)
+	}
+	for _, want := range []string{
+		"## Scopes",
+		"`backend`: `cmd/`, `internal/`",
+		"## Prompts",
+		"`continue-backend`: Continue backend work",
+		"Scope: `backend`",
+		"Steps: `test`, `build`",
+		"## MCP",
+		"## Watch",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("renderAgentsFKN() = %q, want %q", got, want)
+		}
 	}
 }

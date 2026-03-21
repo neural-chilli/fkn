@@ -56,6 +56,13 @@ That writes:
 - `AGENTS_FKN.md` with repo-specific `fkn` workflow guidance
 - a small managed `fkn` section in `AGENTS.md` pointing agents at `AGENTS_FKN.md`
 
+The generated `AGENTS_FKN.md` now includes:
+
+- task summaries, including scopes, commands, and pipeline steps
+- guard summaries
+- scopes and prompts
+- context, MCP, and watch configuration highlights
+
 ## Mental Model
 
 Treat `fkn.yaml` as the operational API of your repository.

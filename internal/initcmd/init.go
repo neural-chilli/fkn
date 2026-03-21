@@ -128,13 +128,65 @@ func renderAgentsFKN(cfg *config.Config) (string, error) {
 	for _, name := range sortedTaskNames(cfg.Tasks) {
 		task := cfg.Tasks[name]
 		builder.WriteString(fmt.Sprintf("- `%s`: %s\n", name, task.Desc))
+		if task.Scope != "" {
+			builder.WriteString(fmt.Sprintf("  Scope: `%s`\n", task.Scope))
+		}
+		if len(task.Steps) > 0 {
+			builder.WriteString(fmt.Sprintf("  Steps: `%s`\n", strings.Join(task.Steps, "`, `")))
+		}
+		if task.Cmd != "" {
+			builder.WriteString(fmt.Sprintf("  Command: `%s`\n", task.Cmd))
+		}
+		builder.WriteString(fmt.Sprintf("  Agent visible: `%t`\n", task.AgentEnabled()))
 	}
 
 	if len(cfg.Guards) > 0 {
 		builder.WriteString("\n## Guards\n\n")
 		for _, name := range sortedGuardNames(cfg.Guards) {
-			builder.WriteString(fmt.Sprintf("- `%s`\n", name))
+			guardCfg := cfg.Guards[name]
+			builder.WriteString(fmt.Sprintf("- `%s`: `%s`\n", name, strings.Join(guardCfg.Steps, "`, `")))
 		}
+	}
+
+	if len(cfg.Scopes) > 0 {
+		builder.WriteString("\n## Scopes\n\n")
+		for _, name := range sortedScopeNames(cfg.Scopes) {
+			paths := cfg.Scopes[name]
+			builder.WriteString(fmt.Sprintf("- `%s`: `%s`\n", name, strings.Join(paths, "`, `")))
+		}
+	}
+
+	if len(cfg.Prompts) > 0 {
+		builder.WriteString("\n## Prompts\n\n")
+		for _, name := range sortedPromptNames(cfg.Prompts) {
+			promptCfg := cfg.Prompts[name]
+			builder.WriteString(fmt.Sprintf("- `%s`: %s\n", name, promptCfg.Desc))
+		}
+	}
+
+	builder.WriteString("\n## Context\n\n")
+	builder.WriteString("- Use `fkn context` for a general repo briefing.\n")
+	builder.WriteString("- Use `fkn context --agent --task <task>` when working on a specific task.\n")
+	if len(cfg.Context.AgentFiles) > 0 {
+		builder.WriteString(fmt.Sprintf("- Agent files: `%s`\n", strings.Join(cfg.Context.AgentFiles, "`, `")))
+	}
+	if len(cfg.Context.Include) > 0 {
+		builder.WriteString(fmt.Sprintf("- Included paths: `%s`\n", strings.Join(cfg.Context.Include, "`, `")))
+	}
+
+	if cfg.Serve.Transport != "" || cfg.Serve.Port != 0 {
+		builder.WriteString("\n## MCP\n\n")
+		builder.WriteString(fmt.Sprintf("- Serve transport: `%s`\n", cfg.Serve.Transport))
+		if cfg.Serve.Port != 0 {
+			builder.WriteString(fmt.Sprintf("- HTTP port: `%d`\n", cfg.Serve.Port))
+		}
+		builder.WriteString("- Use `fkn list --mcp` to inspect exposed agent tools.\n")
+	}
+
+	if len(cfg.Watch.Paths) > 0 {
+		builder.WriteString("\n## Watch\n\n")
+		builder.WriteString(fmt.Sprintf("- Watched paths: `%s`\n", strings.Join(cfg.Watch.Paths, "`, `")))
+		builder.WriteString(fmt.Sprintf("- Debounce: `%dms`\n", cfg.Watch.DebounceMS))
 	}
 
 	builder.WriteString("\n## Suggested Command Order\n\n")
@@ -396,6 +448,24 @@ func sortedTaskNames(tasks map[string]config.Task) []string {
 func sortedGuardNames(guards map[string]config.Guard) []string {
 	names := make([]string, 0, len(guards))
 	for name := range guards {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}
+
+func sortedPromptNames(prompts map[string]config.Prompt) []string {
+	names := make([]string, 0, len(prompts))
+	for name := range prompts {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}
+
+func sortedScopeNames(scopes map[string][]string) []string {
+	names := make([]string, 0, len(scopes))
+	for name := range scopes {
 		names = append(names, name)
 	}
 	sort.Strings(names)
