@@ -50,6 +50,7 @@ Implemented today:
 - direct task param flags like `--feature auth`
 - task aliases
 - explicit default task behavior
+- richer human-readable `list` and `help` output
 
 ## Why Open Source
 
@@ -148,6 +149,8 @@ aliases:
 ```
 
 Running `fkn` with no task name executes the configured default task when `default:` is set.
+
+`fkn list` now also shows summary metadata like task type, default marker, aliases, scope, and params in the human-readable view, and `fkn help <task>` includes a concrete usage line.
 
 ## Commands Available Today
 

@@ -215,6 +215,39 @@ fkn
 
 The default can point at either a task name or an alias.
 
+## Reading Tasks Quickly
+
+`fkn list` is meant to be the fast discovery command.
+
+Example output:
+
+```text
+check  Run local verification [pipeline | default | scope:cli]
+build  Build the binary [cmd | aliases:b | params:--target]
+```
+
+That summary view now includes:
+
+- task type
+- whether the task is the configured default
+- scope
+- aliases
+- declared params
+- whether a task is hidden from agents
+
+For a single task, `fkn help <task>` gives the fuller view, including a concrete usage line.
+
+Example:
+
+```text
+build
+
+Description: Build the binary
+Aliases: b
+Usage: fkn build --target <value> [--dry-run] [--json]
+Type: cmd
+```
+
 ## Task Options
 
 Tasks can also include:

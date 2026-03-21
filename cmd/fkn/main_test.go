@@ -45,6 +45,12 @@ func TestRunHelpForTask(t *testing.T) {
 	if !strings.Contains(output, "Description: Run the default local verification pipeline") {
 		t.Fatalf("stdout = %q, want task description", output)
 	}
+	if !strings.Contains(output, "Default: true") {
+		t.Fatalf("stdout = %q, want default marker", output)
+	}
+	if !strings.Contains(output, "Usage: fkn check [--dry-run] [--json]") {
+		t.Fatalf("stdout = %q, want usage", output)
+	}
 	if !strings.Contains(output, "Steps:\n- fmt\n- test\n- build") {
 		t.Fatalf("stdout = %q, want steps", output)
 	}
@@ -70,6 +76,7 @@ func TestRunUnknownTaskShowsSuggestion(t *testing.T) {
 func TestRunHelpForAlias(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "fkn.yaml"), []byte(`
+default: b
 tasks:
   build:
     desc: Build the project
@@ -92,6 +99,15 @@ aliases:
 	output := readStdout()
 	if !strings.Contains(output, "Alias For: build") {
 		t.Fatalf("stdout = %q, want alias target", output)
+	}
+	if !strings.Contains(output, "Default: true") {
+		t.Fatalf("stdout = %q, want default marker", output)
+	}
+	if !strings.Contains(output, "Aliases: b") {
+		t.Fatalf("stdout = %q, want aliases list", output)
+	}
+	if !strings.Contains(output, "Usage: fkn b [--dry-run] [--json]") {
+		t.Fatalf("stdout = %q, want alias usage", output)
 	}
 }
 
@@ -207,6 +223,53 @@ tasks:
 	}
 	if got := readStdout(); !strings.Contains(got, "auth") {
 		t.Fatalf("stdout = %q, want direct param flag output", got)
+	}
+}
+
+func TestRunListShowsReadableMetadata(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "fkn.yaml"), []byte(`
+default: verify
+tasks:
+  build:
+    desc: Build the project
+    cmd: echo build
+    scope: cli
+    params:
+      target:
+        desc: Build target
+        env: TARGET
+        required: true
+      profile:
+        desc: Build profile
+        env: PROFILE
+aliases:
+  b: build
+  verify: build
+scopes:
+  cli:
+    - cmd/
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	restore := chdirForTest(t, dir)
+	defer restore()
+
+	stdout, readStdout := tempOutputFile(t)
+	stderr, readStderr := tempOutputFile(t)
+
+	code := run([]string{"list"}, stdout, stderr)
+	if code != 0 {
+		t.Fatalf("run(list) code = %d, want 0; stderr=%s", code, readStderr())
+	}
+	output := readStdout()
+	for _, want := range []string{
+		"Build the project",
+		"[cmd | default | scope:cli | aliases:b,verify | params:--profile?,--target]",
+	} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("stdout = %q, want %q", output, want)
+		}
 	}
 }
 

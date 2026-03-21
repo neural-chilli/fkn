@@ -12,8 +12,6 @@ This roadmap focuses on the major features that would make `fkn` feel more compl
   - clearer defaults and validation rules
   - better command-line ergonomics than repeated `--param`
 - richer help and list output
-  - clearer param rendering
-  - more concise summaries
   - ordering and filtering options
 - improved importer coverage
   - better `justfile` import

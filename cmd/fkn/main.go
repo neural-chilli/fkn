@@ -128,7 +128,7 @@ func runHelp(args []string, stdout, stderr *os.File) int {
 
 	name := args[0]
 	if resolved, ok := cfg.ResolveTaskName(name); ok {
-		printTaskHelp(stdout, name, resolved, cfg.Tasks[resolved])
+		printTaskHelp(stdout, name, resolved, cfg.Tasks[resolved], aliasesForTask(cfg.Aliases, resolved), isDefaultTask(cfg, resolved))
 		return 0
 	}
 	if guardCfg, ok := cfg.Guards[name]; ok {
@@ -390,10 +390,11 @@ func runList(args []string, stdout, stderr *os.File) int {
 	for _, name := range sortedTaskNames(cfg.Tasks) {
 		task := cfg.Tasks[name]
 		item := listTask{
-			Name:  name,
-			Desc:  task.Desc,
-			Type:  task.Type(),
-			Agent: task.AgentEnabled(),
+			Name:    name,
+			Desc:    task.Desc,
+			Type:    task.Type(),
+			Agent:   task.AgentEnabled(),
+			Default: isDefaultTask(cfg, name),
 		}
 		item.Aliases = aliasesForTask(cfg.Aliases, name)
 		if task.Scope != "" {
@@ -433,7 +434,7 @@ func runList(args []string, stdout, stderr *os.File) int {
 		}
 	}
 	for _, item := range items {
-		fmt.Fprintf(stdout, "%-*s  %s\n", width, item.Name, item.Desc)
+		fmt.Fprintf(stdout, "%-*s  %s\n", width, item.Name, formatListSummary(item))
 	}
 	return 0
 }
@@ -647,7 +648,7 @@ func sortedTaskNames(tasks map[string]config.Task) []string {
 
 func printUsage(stdout *os.File) {
 	lines := []string{
-		"fkn [<task>] [--param name=value] [--dry-run] [--json]",
+		"fkn [<task>] [--name value] [--param name=value] [--dry-run] [--json]",
 		"If fkn.yaml sets `default`, running `fkn` with no task runs that task.",
 		"fkn docs [name] [--list]",
 		"fkn help [task]",
@@ -664,12 +665,19 @@ func printUsage(stdout *os.File) {
 	fmt.Fprintln(stdout, strings.Join(lines, "\n"))
 }
 
-func printTaskHelp(stdout *os.File, invokedName, resolvedName string, task config.Task) {
+func printTaskHelp(stdout *os.File, invokedName, resolvedName string, task config.Task, aliases []string, isDefault bool) {
 	fmt.Fprintf(stdout, "%s\n\n", invokedName)
 	fmt.Fprintf(stdout, "Description: %s\n", task.Desc)
 	if invokedName != resolvedName {
 		fmt.Fprintf(stdout, "Alias For: %s\n", resolvedName)
 	}
+	if isDefault {
+		fmt.Fprintln(stdout, "Default: true")
+	}
+	if len(aliases) > 0 {
+		fmt.Fprintf(stdout, "Aliases: %s\n", strings.Join(aliases, ", "))
+	}
+	fmt.Fprintf(stdout, "Usage: %s\n", taskUsage(invokedName, task))
 	fmt.Fprintf(stdout, "Type: %s\n", task.Type())
 	if task.Scope != "" {
 		fmt.Fprintf(stdout, "Scope: %s\n", task.Scope)
@@ -895,6 +903,7 @@ type listTask struct {
 	Steps    []string             `json:"steps,omitempty"`
 	Scope    *string              `json:"scope"`
 	Agent    bool                 `json:"agent"`
+	Default  bool                 `json:"default,omitempty"`
 	Aliases  []string             `json:"aliases,omitempty"`
 	Params   map[string]listParam `json:"params,omitempty"`
 }
@@ -912,6 +921,67 @@ func aliasesForTask(aliases map[string]string, taskName string) []string {
 		if target == taskName {
 			names = append(names, alias)
 		}
+	}
+	sort.Strings(names)
+	return names
+}
+
+func isDefaultTask(cfg *config.Config, taskName string) bool {
+	if cfg.Default == "" {
+		return false
+	}
+	resolved, ok := cfg.ResolveTaskName(cfg.Default)
+	return ok && resolved == taskName
+}
+
+func taskUsage(name string, task config.Task) string {
+	parts := []string{"fkn", name}
+	for _, paramName := range sortedParamNames(task.Params) {
+		flag := "--" + paramName + " <value>"
+		if task.Params[paramName].Required {
+			parts = append(parts, flag)
+			continue
+		}
+		parts = append(parts, "["+flag+"]")
+	}
+	parts = append(parts, "[--dry-run]", "[--json]")
+	return strings.Join(parts, " ")
+}
+
+func formatListSummary(item listTask) string {
+	parts := []string{item.Desc}
+	meta := []string{item.Type}
+	if item.Default {
+		meta = append(meta, "default")
+	}
+	if item.Scope != nil && *item.Scope != "" {
+		meta = append(meta, "scope:"+*item.Scope)
+	}
+	if len(item.Aliases) > 0 {
+		meta = append(meta, "aliases:"+strings.Join(item.Aliases, ","))
+	}
+	if len(item.Params) > 0 {
+		params := make([]string, 0, len(item.Params))
+		for _, name := range sortedListParamNames(item.Params) {
+			param := item.Params[name]
+			label := "--" + name
+			if !param.Required {
+				label += "?"
+			}
+			params = append(params, label)
+		}
+		meta = append(meta, "params:"+strings.Join(params, ","))
+	}
+	if !item.Agent {
+		meta = append(meta, "agent:false")
+	}
+	return strings.Join([]string{parts[0], "[" + strings.Join(meta, " | ") + "]"}, " ")
+}
+
+func sortedListParamNames(params map[string]listParam) []string {
+	names := make([]string, 0, len(params))
+	for name := range params {
+		names = append(names, name)
 	}
 	sort.Strings(names)
 	return names
