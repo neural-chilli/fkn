@@ -69,6 +69,7 @@ Implemented today:
 - explicit default task behavior
 - positional and variadic task params
 - richer human-readable `list` and `help` output
+- structured `fkn version --json`
 
 ## Why Open Source
 
@@ -247,6 +248,7 @@ fkn list --json
 fkn list --mcp
 fkn version
 fkn --version
+fkn version --json
 ```
 
 ## Project Layout

@@ -142,6 +142,21 @@ func safetyAnnotations(task config.Task) map[string]any {
 	return annotations
 }
 
+func (s *Server) instructions() string {
+	var parts []string
+	if s.cfg.Project != "" {
+		parts = append(parts, "Project: "+s.cfg.Project)
+	}
+	if s.cfg.Description != "" {
+		parts = append(parts, s.cfg.Description)
+	}
+	parts = append(parts, "Use tools/list to discover agent-visible tasks and resources/list for repo context resources.")
+	if len(s.cfg.Guards) > 0 {
+		parts = append(parts, "Common verification usually starts with fkn guard.")
+	}
+	return strings.Join(parts, " ")
+}
+
 func (s *Server) Resources() []Resource {
 	resources := []Resource{
 		{
@@ -213,6 +228,7 @@ func (s *Server) handleRequest(req JSONRPCRequest, errOut io.Writer) JSONRPCResp
 	case "initialize":
 		resp.Result = map[string]any{
 			"protocolVersion": ProtocolVersion,
+			"instructions":    s.instructions(),
 			"capabilities": map[string]any{
 				"tools":     map[string]any{"listChanged": false},
 				"resources": map[string]any{"listChanged": false},

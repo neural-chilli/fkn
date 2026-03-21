@@ -148,6 +148,8 @@ Current MCP methods:
 
 That is enough for a useful first integration surface, but it is still intentionally small.
 
+`initialize` now also includes a short `instructions` string summarizing the repo and pointing clients toward `tools/list`, `resources/list`, and `fkn guard` when guards are configured.
+
 ## Tool Call Behavior
 
 `tools/call` routes directly into the `fkn` task runner.

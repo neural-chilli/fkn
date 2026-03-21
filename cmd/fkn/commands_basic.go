@@ -81,6 +81,25 @@ func runDocs(args []string, stdout, stderr *os.File) int {
 	return 0
 }
 
+func runVersion(args []string, stdout, stderr *os.File) int {
+	fs := flag.NewFlagSet("version", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	jsonOut := fs.Bool("json", false, "")
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+
+	if *jsonOut {
+		return printJSON(stdout, map[string]any{
+			"name":    "fkn",
+			"version": resolvedVersion(),
+		})
+	}
+
+	fmt.Fprintf(stdout, "fkn %s\n", resolvedVersion())
+	return 0
+}
+
 func runInit(args []string, stdout, stderr *os.File) int {
 	fs := flag.NewFlagSet("init", flag.ContinueOnError)
 	fs.SetOutput(stderr)

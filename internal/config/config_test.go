@@ -91,6 +91,28 @@ tasks:
 	}
 }
 
+func TestLoadRejectsTaskSelfReference(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "fkn.yaml"), []byte(`
+tasks:
+  check:
+    desc: Check
+    steps: [check]
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := Load(filepath.Join(dir, "fkn.yaml"))
+	if err == nil {
+		t.Fatal("Load() error = nil, want self-reference cycle error")
+	}
+	if !strings.Contains(err.Error(), "circular task dependency") {
+		t.Fatalf("Load() error = %v, want cycle message", err)
+	}
+}
+
 func TestLoadRejectsCircularDependencies(t *testing.T) {
 	t.Parallel()
 

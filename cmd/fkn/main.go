@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"runtime/debug"
 )
@@ -24,14 +23,13 @@ func run(args []string, stdout, stderr *os.File) int {
 	}
 
 	if args[0] == "--version" {
-		fmt.Fprintf(stdout, "fkn %s\n", resolvedVersion())
+		_, _ = stdout.WriteString("fkn " + resolvedVersion() + "\n")
 		return 0
 	}
 
 	switch args[0] {
 	case "version":
-		fmt.Fprintf(stdout, "fkn %s\n", resolvedVersion())
-		return 0
+		return runVersion(args[1:], stdout, stderr)
 	case "help":
 		return runHelp(args[1:], stdout, stderr)
 	case "docs":

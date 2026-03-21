@@ -322,8 +322,6 @@ func TestRunDocsList(t *testing.T) {
 }
 
 func TestResolvedVersionPrefersExplicitLdflagsValue(t *testing.T) {
-	t.Parallel()
-
 	previous := version
 	version = "v9.9.9"
 	t.Cleanup(func() {
@@ -332,6 +330,26 @@ func TestResolvedVersionPrefersExplicitLdflagsValue(t *testing.T) {
 
 	if got := resolvedVersion(); got != "v9.9.9" {
 		t.Fatalf("resolvedVersion() = %q, want explicit version", got)
+	}
+}
+
+func TestRunVersionJSON(t *testing.T) {
+	previous := version
+	version = "v1.2.3"
+	t.Cleanup(func() {
+		version = previous
+	})
+
+	stdout, readStdout := tempOutputFile(t)
+	stderr, readStderr := tempOutputFile(t)
+
+	code := run([]string{"version", "--json"}, stdout, stderr)
+	if code != 0 {
+		t.Fatalf("run(version --json) code = %d, want 0; stderr=%s", code, readStderr())
+	}
+	output := readStdout()
+	if !strings.Contains(output, `"name": "fkn"`) || !strings.Contains(output, `"version": "v1.2.3"`) {
+		t.Fatalf("stdout = %q, want JSON version payload", output)
 	}
 }
 

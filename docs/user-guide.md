@@ -565,6 +565,17 @@ scopes:
 
 If a scope has a description, `fkn scope cli --format prompt`, `fkn help <task>`, generated repair briefs, and generated agent docs include that intent alongside the path list.
 
+## Version
+
+Use:
+
+```bash
+fkn version
+fkn version --json
+```
+
+`--json` is useful for scripts or agent checks that want structured version info without scraping plain text.
+
 ## Codemap
 
 `codemap` lets you add a lightweight semantic layer to `fkn.yaml` so agents can ask what a package or concept means without reading half the repo first.

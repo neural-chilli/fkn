@@ -60,6 +60,43 @@ func TestHandlePayloadToolsList(t *testing.T) {
 	}
 }
 
+func TestHandlePayloadInitializeIncludesInstructions(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{
+		Project:     "demo",
+		Description: "Demo repository",
+		Tasks: map[string]config.Task{
+			"test": {Desc: "Test", Cmd: "echo test"},
+		},
+		Guards: map[string]config.Guard{
+			"default": {Steps: []string{"test"}},
+		},
+	}
+	server := New(cfg, t.TempDir(), runner.New(cfg, t.TempDir()))
+
+	resp, notify, err := server.HandlePayload([]byte(`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}`), nil)
+	if err != nil {
+		t.Fatalf("HandlePayload() error = %v", err)
+	}
+	if notify {
+		t.Fatal("HandlePayload() notify = true, want false")
+	}
+
+	var payload JSONRPCResponse
+	if err := json.Unmarshal(resp, &payload); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v", err)
+	}
+	result := payload.Result.(map[string]any)
+	instructions, ok := result["instructions"].(string)
+	if !ok || instructions == "" {
+		t.Fatalf("result.instructions = %#v, want non-empty string", result["instructions"])
+	}
+	if !strings.Contains(instructions, "Project: demo") || !strings.Contains(instructions, "fkn guard") {
+		t.Fatalf("instructions = %q, want project and guard guidance", instructions)
+	}
+}
+
 func TestHandlePayloadToolsCallDryRun(t *testing.T) {
 	t.Parallel()
 
