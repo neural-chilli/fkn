@@ -170,7 +170,7 @@ If you want to help early, the highest-leverage areas are:
 - command UX rough edges
 - JSON contract feedback
 - guard/context implementation
-- tests for config validation and runner behavior
+- expanded tests for runner, watch, and context edge cases
 
 ## License
 
