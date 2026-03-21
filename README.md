@@ -33,6 +33,7 @@ Implemented today:
 
 - task execution
 - sequential and parallel pipelines
+- nested pipeline composition
 - guards
 - scopes with optional descriptions and reusable path intent
 - prompts
@@ -214,6 +215,8 @@ Groups give you a lightweight way to model task families. `fkn list` uses them t
 Tasks can declare positional params with `position`, and the last positional param can be variadic with `variadic: true`. Named `--param` and direct `--name value` flags still work too, so task authors can support both natural positional invocation and explicit named invocation.
 
 `needs` gives a task reusable prerequisites without forcing it to become a pipeline. Dependencies run before the task itself, can point at either command tasks or pipeline tasks, and surface in JSON output as nested dependency results.
+
+Pipeline steps can now also reference other pipeline tasks directly, so larger workflows can be composed hierarchically instead of flattening every step into one long task.
 
 Tasks can also declare `safety` as one of `safe`, `idempotent`, `destructive`, or `external`. This shows up in `fkn help`, `fkn list`, generated agent docs, and MCP tool annotations so agents can make better decisions about what to run autonomously.
 

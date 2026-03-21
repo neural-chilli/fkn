@@ -150,12 +150,21 @@ func collectResultErrors(result Result) []ErrorEntry {
 	if len(result.Errors) > 0 {
 		return append([]ErrorEntry(nil), result.Errors...)
 	}
-	var errors []ErrorEntry
-	for _, step := range result.Steps {
-		errors = append(errors, step.Errors...)
-	}
+	errors := collectStepErrors(result.Steps)
 	if len(errors) == 0 {
 		return nil
+	}
+	return errors
+}
+
+func collectStepErrors(steps []StepResult) []ErrorEntry {
+	var errors []ErrorEntry
+	for _, step := range steps {
+		if len(step.Errors) > 0 {
+			errors = append(errors, step.Errors...)
+			continue
+		}
+		errors = append(errors, collectStepErrors(step.Steps)...)
 	}
 	return errors
 }

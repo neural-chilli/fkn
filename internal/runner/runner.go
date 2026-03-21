@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/neural-chilli/fkn/internal/config"
@@ -54,7 +53,9 @@ type Result struct {
 type StepResult struct {
 	Index       int          `json:"index"`
 	Name        string       `json:"name"`
+	Type        string       `json:"type,omitempty"`
 	ResolvedCmd *string      `json:"resolved_cmd"`
+	Parallel    bool         `json:"parallel,omitempty"`
 	Status      string       `json:"status"`
 	ExitCode    int          `json:"exit_code"`
 	Stdout      *string      `json:"stdout"`
@@ -63,6 +64,7 @@ type StepResult struct {
 	DurationMS  *int64       `json:"duration_ms"`
 	StartedAt   *string      `json:"started_at"`
 	FinishedAt  *string      `json:"finished_at"`
+	Steps       []StepResult `json:"steps,omitempty"`
 }
 
 type ErrorEntry struct {
@@ -163,15 +165,7 @@ func (r *Runner) RunGuardStep(stepName string, opts Options) (StepResult, error)
 	}
 	stderr := result.Stderr
 	if stderr == "" && len(result.Steps) > 0 {
-		var parts []string
-		for _, step := range result.Steps {
-			if step.Stderr != nil && *step.Stderr != "" {
-				parts = append(parts, fmt.Sprintf("[%s]\n%s", step.Name, strings.TrimRight(*step.Stderr, "\n")))
-			}
-		}
-		if len(parts) > 0 {
-			stderr = strings.Join(parts, "\n")
-		}
+		stderr = nestedStepsStderr(result.Steps)
 	}
 
 	duration := result.DurationMS
@@ -180,7 +174,9 @@ func (r *Runner) RunGuardStep(stepName string, opts Options) (StepResult, error)
 	return StepResult{
 		Index:       0,
 		Name:        stepName,
+		Type:        result.Type,
 		ResolvedCmd: result.ResolvedCmd,
+		Parallel:    result.Parallel,
 		Status:      result.Status,
 		ExitCode:    result.ExitCode,
 		Stderr:      strPtr(stderr),
@@ -188,5 +184,6 @@ func (r *Runner) RunGuardStep(stepName string, opts Options) (StepResult, error)
 		DurationMS:  &duration,
 		StartedAt:   &started,
 		FinishedAt:  &finished,
+		Steps:       append([]StepResult(nil), result.Steps...),
 	}, nil
 }

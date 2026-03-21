@@ -3,6 +3,7 @@ package runner
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -15,7 +16,7 @@ func (r *Runner) runSequential(ctx context.Context, taskName string, task config
 	overallCode := 0
 
 	for i, step := range task.Steps {
-		stepRes, err := r.runStep(ctx, i, taskName, step, opts)
+		stepRes, err := r.runStep(ctx, i, step, opts)
 		if err != nil {
 			return Result{}, err
 		}
@@ -40,6 +41,7 @@ func (r *Runner) runSequential(ctx context.Context, taskName string, task config
 		Parallel:   false,
 		Status:     overallStatus,
 		ExitCode:   overallCode,
+		Errors:     collectStepErrors(steps),
 		DurationMS: finished.Sub(started).Milliseconds(),
 		StartedAt:  started.UTC().Format(time.RFC3339),
 		FinishedAt: finished.UTC().Format(time.RFC3339),
@@ -65,7 +67,7 @@ func (r *Runner) runParallel(parent context.Context, taskName string, task confi
 		wg.Add(1)
 		go func(i int, step string) {
 			defer wg.Done()
-			stepRes, err := r.runStep(ctx, i, taskName, step, opts)
+			stepRes, err := r.runStep(ctx, i, step, opts)
 			if err != nil {
 				errCh <- err
 				return
@@ -112,6 +114,7 @@ func (r *Runner) runParallel(parent context.Context, taskName string, task confi
 		Parallel:   true,
 		Status:     overallStatus,
 		ExitCode:   overallCode,
+		Errors:     collectStepErrors(steps),
 		DurationMS: finished.Sub(started).Milliseconds(),
 		StartedAt:  started.UTC().Format(time.RFC3339),
 		FinishedAt: finished.UTC().Format(time.RFC3339),
@@ -138,23 +141,13 @@ func (r *Runner) runNeeds(ctx context.Context, task config.Task, opts Options) (
 	return results, nil, nil
 }
 
-func (r *Runner) runStep(ctx context.Context, index int, parentTaskName, step string, opts Options) (StepResult, error) {
-	task, ok := r.cfg.Tasks[step]
-	if ok {
-		if task.Cmd == "" {
-			return StepResult{}, fmt.Errorf("task %q references pipeline task %q, but nested pipeline steps are not implemented yet", parentTaskName, step)
-		}
-		paramValues, err := resolveParamValues(task, opts.Params)
-		if err != nil {
-			return StepResult{}, fmt.Errorf("task %q: %w", step, err)
-		}
-		outcome, err := r.runCommand(ctx, step, task, interpolateParams(task.Cmd, paramValues), opts, step)
+func (r *Runner) runStep(ctx context.Context, index int, step string, opts Options) (StepResult, error) {
+	if _, ok := r.cfg.Tasks[step]; ok {
+		result, err := r.runTask(ctx, step, opts)
 		if err != nil {
 			return StepResult{}, err
 		}
-		stepResult := toStepResult(index, step, interpolateParams(task.Cmd, paramValues), outcome)
-		stepResult.Errors = extractErrors(task.ErrorFormat, outcome.stderr)
-		return stepResult, nil
+		return resultToStepResult(index, step, result), nil
 	}
 
 	outcome, err := r.runCommand(ctx, inlineStepName(index), config.Task{}, step, opts, inlineStepName(index))
@@ -171,6 +164,7 @@ func toStepResult(index int, name, resolved string, outcome runOutcome) StepResu
 	return StepResult{
 		Index:       index,
 		Name:        name,
+		Type:        "cmd",
 		ResolvedCmd: strPtr(resolved),
 		Status:      outcome.status,
 		ExitCode:    outcome.exitCode,
@@ -181,6 +175,46 @@ func toStepResult(index int, name, resolved string, outcome runOutcome) StepResu
 		StartedAt:   &started,
 		FinishedAt:  &finished,
 	}
+}
+
+func resultToStepResult(index int, name string, result Result) StepResult {
+	duration := result.DurationMS
+	started := result.StartedAt
+	finished := result.FinishedAt
+	stdout := result.Stdout
+	stderr := result.Stderr
+	if stderr == "" && len(result.Steps) > 0 {
+		stderr = nestedStepsStderr(result.Steps)
+	}
+	return StepResult{
+		Index:       index,
+		Name:        name,
+		Type:        result.Type,
+		ResolvedCmd: result.ResolvedCmd,
+		Parallel:    result.Parallel,
+		Status:      result.Status,
+		ExitCode:    result.ExitCode,
+		Stdout:      strPtr(stdout),
+		Stderr:      strPtr(stderr),
+		Errors:      collectResultErrors(result),
+		DurationMS:  &duration,
+		StartedAt:   &started,
+		FinishedAt:  &finished,
+		Steps:       append([]StepResult(nil), result.Steps...),
+	}
+}
+
+func nestedStepsStderr(steps []StepResult) string {
+	var parts []string
+	for _, step := range steps {
+		if step.Stderr != nil && *step.Stderr != "" {
+			parts = append(parts, fmt.Sprintf("[%s]\n%s", step.Name, strings.TrimRight(*step.Stderr, "\n")))
+		}
+		if nested := nestedStepsStderr(step.Steps); nested != "" {
+			parts = append(parts, nested)
+		}
+	}
+	return strings.Join(parts, "\n")
 }
 
 func cancelledStep(index int, name string) StepResult {

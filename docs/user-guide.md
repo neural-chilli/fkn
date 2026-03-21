@@ -194,6 +194,25 @@ tasks:
       - build
 ```
 
+Nested pipeline:
+
+```yaml
+tasks:
+  verify:
+    desc: Shared verification workflow
+    steps:
+      - lint
+      - test
+
+  ci:
+    desc: CI entrypoint
+    steps:
+      - verify
+      - build
+```
+
+Nested pipeline steps now execute recursively, and the JSON output keeps the child step structure so agents can still see where failures happened inside the composed workflow.
+
 ## Structured Errors
 
 If a task emits stable compiler or test diagnostics, you can tell `fkn` how to parse them:
@@ -362,6 +381,7 @@ Notes:
 
 - `needs` runs reusable prerequisite tasks before the task itself.
 - dependencies can point at either command tasks or pipeline tasks.
+- pipeline steps can point at either command tasks, inline shell steps, or other pipeline tasks.
 - `defaults.dir` sets the global working directory for tasks that do not declare their own `dir`.
 - task `dir` overrides `defaults.dir`.
 - `shell` and `shell_args` let a task opt into a specific interpreter or shell mode.
