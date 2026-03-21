@@ -19,6 +19,7 @@ type Config struct {
 	Prompts     map[string]Prompt   `yaml:"prompts"`
 	Context     ContextConfig       `yaml:"context"`
 	Serve       ServeConfig         `yaml:"serve"`
+	Watch       WatchConfig         `yaml:"watch"`
 }
 
 type Task struct {
@@ -71,6 +72,11 @@ type ServeConfig struct {
 	Transport string `yaml:"transport"`
 	Port      int    `yaml:"port"`
 	TokenEnv  string `yaml:"token_env"`
+}
+
+type WatchConfig struct {
+	DebounceMS int      `yaml:"debounce_ms"`
+	Paths      []string `yaml:"paths"`
 }
 
 func (t Task) AgentEnabled() bool {
@@ -140,6 +146,9 @@ func (c *Config) applyDefaults() {
 	}
 	if c.Serve.TokenEnv == "" {
 		c.Serve.TokenEnv = "FKN_MCP_TOKEN"
+	}
+	if c.Watch.DebounceMS == 0 {
+		c.Watch.DebounceMS = 500
 	}
 }
 

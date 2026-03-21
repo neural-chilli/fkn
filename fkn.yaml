@@ -78,3 +78,11 @@ serve:
   transport: stdio
   port: 8080
   token_env: FKN_MCP_TOKEN
+
+watch:
+  debounce_ms: 500
+  paths:
+    - README.md
+    - cmd/
+    - internal/
+    - fkn.yaml

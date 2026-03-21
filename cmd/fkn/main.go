@@ -14,6 +14,7 @@ import (
 	"sort"
 	"strings"
 	"syscall"
+	"time"
 
 	"fkn/internal/config"
 	contextpkg "fkn/internal/context"
@@ -23,6 +24,7 @@ import (
 	"fkn/internal/prompt"
 	"fkn/internal/runner"
 	"fkn/internal/scope"
+	watchpkg "fkn/internal/watch"
 )
 
 var version = "dev"
@@ -58,6 +60,8 @@ func run(args []string, stdout, stderr *os.File) int {
 		return runList(args[1:], stdout, stderr)
 	case "serve":
 		return runServe(args[1:], stdout, stderr)
+	case "watch":
+		return runWatch(args[1:], stdout, stderr)
 	case "context":
 		return runContext(args[1:], stdout, stderr)
 	case "prompt":
@@ -350,6 +354,95 @@ func runServe(args []string, stdout, stderr *os.File) int {
 	return 0
 }
 
+func runWatch(args []string, stdout, stderr *os.File) int {
+	fs := flag.NewFlagSet("watch", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	var paths multiFlag
+	fs.Var(&paths, "path", "")
+	if err := fs.Parse(reorderSubcommandArgs(args, map[string]bool{"--path": false})); err != nil {
+		return 2
+	}
+	if fs.NArg() == 0 {
+		printError(stderr, fmt.Errorf("watch target is required"))
+		return 1
+	}
+
+	repoRoot, err := os.Getwd()
+	if err != nil {
+		printError(stderr, err)
+		return 1
+	}
+
+	cfg, _, err := loadConfig()
+	if err != nil {
+		printError(stderr, err)
+		return 1
+	}
+
+	watchPaths := paths
+	if len(watchPaths) == 0 {
+		watchPaths = append(watchPaths, cfg.Watch.Paths...)
+	}
+	if len(watchPaths) == 0 {
+		watchPaths = []string{"."}
+	}
+
+	target := fs.Arg(0)
+	ctx, stop := signal.NotifyContext(stdcontext.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	watcher := watchpkg.New(repoRoot)
+	err = watcher.Run(ctx, watchpkg.Options{
+		Paths:    watchPaths,
+		Debounce: time.Duration(cfg.Watch.DebounceMS) * time.Millisecond,
+		OnTrigger: func(triggeredAt time.Time) error {
+			fmt.Fprintf(stdout, "\n[fkn watch %s]\n\n", triggeredAt.UTC().Format(time.RFC3339))
+			return runWatchTarget(target, stdout, stderr)
+		},
+	})
+	if err != nil {
+		printError(stderr, err)
+		return 1
+	}
+	return 0
+}
+
+func runWatchTarget(target string, stdout, stderr *os.File) error {
+	cfg, repoRoot, err := loadConfig()
+	if err != nil {
+		return err
+	}
+
+	if target == "guard" || strings.HasPrefix(target, "guard:") {
+		guardName := ""
+		if strings.HasPrefix(target, "guard:") {
+			guardName = strings.TrimPrefix(target, "guard:")
+		}
+		taskRunner := runner.New(cfg, repoRoot)
+		report, err := guard.New(cfg, repoRoot, taskRunner).Run(guardName, runner.Options{
+			Stdout: stdout,
+			Stderr: stderr,
+		})
+		if err != nil {
+			return err
+		}
+		printGuardReport(stdout, report)
+		return nil
+	}
+
+	result, err := runner.New(cfg, repoRoot).Run(target, runner.Options{
+		Stdout: stdout,
+		Stderr: stderr,
+	})
+	if err != nil {
+		return err
+	}
+	if result.ExitCode != 0 {
+		fmt.Fprintf(stderr, "\nwatch target exited with code %d\n", result.ExitCode)
+	}
+	return nil
+}
+
 func runTask(args []string, stdout, stderr *os.File) int {
 	fs := flag.NewFlagSet("task", flag.ContinueOnError)
 	fs.SetOutput(stderr)
@@ -415,6 +508,7 @@ func printUsage(stdout *os.File) {
 		"fkn init",
 		"fkn list [--json] [--mcp]",
 		"fkn serve [--http] [--port <n>]",
+		"fkn watch <target> [--path <glob>]",
 		"fkn prompt <name> [--copy]",
 		"fkn scope <name> [--json] [--format prompt]",
 		"fkn version",
@@ -526,4 +620,15 @@ type listTask struct {
 	Steps    []string `json:"steps,omitempty"`
 	Scope    *string  `json:"scope"`
 	Agent    bool     `json:"agent"`
+}
+
+type multiFlag []string
+
+func (m *multiFlag) String() string {
+	return strings.Join(*m, ",")
+}
+
+func (m *multiFlag) Set(value string) error {
+	*m = append(*m, value)
+	return nil
 }
