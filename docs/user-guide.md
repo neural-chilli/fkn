@@ -12,11 +12,19 @@ If you just want the CLI:
 go install github.com/neural-chilli/fkn/cmd/fkn@latest
 ```
 
+If you prefer not to install with Go, tagged releases now also publish prebuilt archives for macOS, Linux, and Windows on GitHub.
+
 If you are working from a local checkout:
 
 ```bash
 make build
 ./bin/fkn list
+```
+
+For local cross-platform release artifacts:
+
+```bash
+make dist
 ```
 
 You can read the bundled docs from the installed binary too:

@@ -106,6 +106,8 @@ For a tagged release:
 go install github.com/neural-chilli/fkn/cmd/fkn@v0.1.0
 ```
 
+Tagged releases also publish prebuilt archives for macOS, Linux, and Windows on the GitHub Releases page, along with a `checksums.txt` file.
+
 ### Build
 
 ```bash
@@ -113,6 +115,14 @@ make build
 ```
 
 This produces `bin/fkn`.
+
+To build cross-platform release archives locally:
+
+```bash
+make dist
+```
+
+That writes versioned `.tar.gz` and `.zip` artifacts plus checksums into `dist/`.
 
 The built binary reports a stamped version, and tagged `go install` builds report their module version instead of `dev`.
 

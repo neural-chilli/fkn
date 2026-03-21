@@ -1,6 +1,6 @@
 # Releasing fkn
 
-This project does not have an automated release pipeline yet, but it is ready for a simple tagged release flow.
+This project now has a tag-driven GitHub release workflow that runs tests, builds cross-platform archives, and publishes them to GitHub Releases.
 
 ## Before Tagging
 
@@ -37,6 +37,19 @@ git push origin v0.1.0
 
 If you build via `make build`, the Makefile now stamps the binary version automatically from `git describe`.
 
+If you want to preview the release artifacts locally before tagging:
+
+```bash
+make dist VERSION=v0.1.0
+```
+
+That writes:
+
+- macOS archives for `amd64` and `arm64`
+- Linux archives for `amd64` and `arm64`
+- Windows archives for `amd64` and `arm64`
+- `dist/checksums.txt`
+
 ## Release Notes
 
 For the first release, keep the notes practical:
@@ -59,3 +72,5 @@ For development builds, `@latest` also works:
 ```bash
 go install github.com/neural-chilli/fkn/cmd/fkn@latest
 ```
+
+They can also download the published release archives directly from GitHub Releases if they do not want to install with Go.
