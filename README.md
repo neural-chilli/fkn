@@ -35,6 +35,7 @@ Implemented today:
 - prompts
 - context generation
 - init scaffolding
+- repo-aware init scaffolding from existing task surfaces
 - MCP serve mode
 - watch mode
 - help output and task suggestions
@@ -89,6 +90,7 @@ go run ./cmd/fkn prompt continue-cli
 go run ./cmd/fkn context
 go run ./cmd/fkn context --agent --task check
 go run ./cmd/fkn init
+go run ./cmd/fkn init --from-repo
 go run ./cmd/fkn serve
 go run ./cmd/fkn serve --http --port 8080
 go run ./cmd/fkn watch test --path README.md
@@ -137,7 +139,7 @@ fkn context
 fkn context --agent --task <name>
 fkn context --out <file>
 fkn context --copy
-fkn init
+fkn init [--from-repo]
 fkn serve
 fkn serve --http --port <n>
 fkn watch <target>

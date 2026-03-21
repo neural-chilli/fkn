@@ -19,6 +19,24 @@ make build
 ./bin/fkn list
 ```
 
+## Bootstrapping An Existing Repo
+
+If a repo already has a `Makefile`, `package.json`, or a `go.mod`, start here:
+
+```bash
+fkn init --from-repo
+```
+
+That tells `fkn` to infer a first pass from what the repo already exposes instead of dropping in the generic starter.
+
+Current inference sources:
+
+- common `Makefile` targets like `test`, `build`, `check`, and `lint`
+- common `package.json` scripts like `test`, `build`, `check`, `lint`, `dev`, and `start`
+- Go module repos via `go.mod`
+
+The goal is not to guess everything perfectly. The goal is to give you a believable first `fkn.yaml` that humans and agents can edit confidently.
+
 ## Mental Model
 
 Treat `fkn.yaml` as the operational API of your repository.
