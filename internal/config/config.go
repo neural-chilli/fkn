@@ -12,6 +12,7 @@ import (
 type Config struct {
 	Project     string              `yaml:"project"`
 	Description string              `yaml:"description"`
+	Default     string              `yaml:"default"`
 	EnvFile     string              `yaml:"env_file"`
 	Tasks       map[string]Task     `yaml:"tasks"`
 	Aliases     map[string]string   `yaml:"aliases"`
@@ -213,6 +214,12 @@ func (c *Config) Validate(repoRoot string) error {
 		}
 		if _, ok := c.Tasks[target]; !ok {
 			return fmt.Errorf("alias %q references unknown task %q", alias, target)
+		}
+	}
+
+	if c.Default != "" {
+		if _, ok := c.ResolveTaskName(c.Default); !ok {
+			return fmt.Errorf("default task %q does not match a task or alias", c.Default)
 		}
 	}
 

@@ -38,6 +38,10 @@ func main() {
 
 func run(args []string, stdout, stderr *os.File) int {
 	if len(args) == 0 {
+		cfg, _, err := loadConfig()
+		if err == nil && cfg.Default != "" {
+			return runTask([]string{cfg.Default}, stdout, stderr)
+		}
 		printUsage(stdout)
 		return 0
 	}
@@ -415,7 +419,11 @@ func runList(args []string, stdout, stderr *os.File) int {
 	}
 
 	if *jsonOut {
-		return printJSON(stdout, map[string]any{"tasks": items})
+		payload := map[string]any{"tasks": items}
+		if cfg.Default != "" {
+			payload["default"] = cfg.Default
+		}
+		return printJSON(stdout, payload)
 	}
 
 	width := 0
@@ -637,7 +645,8 @@ func sortedTaskNames(tasks map[string]config.Task) []string {
 
 func printUsage(stdout *os.File) {
 	lines := []string{
-		"fkn <task> [--param name=value] [--dry-run] [--json]",
+		"fkn [<task>] [--param name=value] [--dry-run] [--json]",
+		"If fkn.yaml sets `default`, running `fkn` with no task runs that task.",
 		"fkn docs [name] [--list]",
 		"fkn help [task]",
 		"fkn context [--agent] [--task <name>] [--out <file>] [--copy] [--max-tokens <n>]",

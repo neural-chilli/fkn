@@ -86,6 +86,7 @@ If a repo has a `README`, `Makefile`, scattered scripts, and tribal knowledge, `
 ```yaml
 project: my-service
 description: Example Go service
+default: check
 
 tasks:
   test:
@@ -112,6 +113,8 @@ fkn check
 fkn check --dry-run
 fkn test --json
 ```
+
+When `default:` is set, running plain `fkn` executes that task.
 
 ## Task Basics
 
@@ -180,6 +183,37 @@ fkn help b
 ```
 
 Aliases do not create separate tasks. They point at an existing task and reuse its behavior.
+
+## Default Task
+
+If you want `fkn` on its own to do something useful, set a top-level default task:
+
+```yaml
+default: check
+
+tasks:
+  test:
+    desc: Run tests
+    cmd: go test ./...
+
+  build:
+    desc: Build the app
+    cmd: go build ./...
+
+  check:
+    desc: Run the default local verification pipeline
+    steps:
+      - test
+      - build
+```
+
+Then this works:
+
+```bash
+fkn
+```
+
+The default can point at either a task name or an alias.
 
 ## Task Options
 

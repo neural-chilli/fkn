@@ -1,5 +1,6 @@
 project: fkn
 description: Function Kit Nextgen
+default: check
 
 tasks:
   fmt:

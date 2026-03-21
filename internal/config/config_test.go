@@ -163,3 +163,51 @@ aliases:
 		t.Fatalf("Load() error = %v, want alias conflict validation", err)
 	}
 }
+
+func TestLoadAcceptsDefaultAlias(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "fkn.yaml"), []byte(`
+default: verify
+tasks:
+  check:
+    desc: Check the repo
+    cmd: echo check
+aliases:
+  verify: check
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := Load(filepath.Join(dir, "fkn.yaml"))
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if cfg.Default != "verify" {
+		t.Fatalf("Default = %q, want verify", cfg.Default)
+	}
+}
+
+func TestLoadRejectsUnknownDefaultTask(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "fkn.yaml"), []byte(`
+default: missing
+tasks:
+  check:
+    desc: Check the repo
+    cmd: echo check
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := Load(filepath.Join(dir, "fkn.yaml"))
+	if err == nil {
+		t.Fatal("Load() error = nil, want default validation error")
+	}
+	if !strings.Contains(err.Error(), `default task "missing" does not match a task or alias`) {
+		t.Fatalf("Load() error = %v, want default validation", err)
+	}
+}

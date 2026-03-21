@@ -28,6 +28,9 @@ func TestRunCreatesStarterFiles(t *testing.T) {
 	if !strings.Contains(string(cfg), "tasks:") {
 		t.Fatalf("fkn.yaml = %q, want starter tasks", string(cfg))
 	}
+	if !strings.Contains(string(cfg), "default: check") {
+		t.Fatalf("fkn.yaml = %q, want starter default task", string(cfg))
+	}
 
 	gitignore, err := os.ReadFile(filepath.Join(dir, ".gitignore"))
 	if err != nil {
@@ -94,6 +97,9 @@ func TestRunFromRepoInfersGoTasks(t *testing.T) {
 	if !strings.Contains(got, "cmd: go test ./...") {
 		t.Fatalf("fkn.yaml = %q, want Go test task", got)
 	}
+	if !strings.Contains(got, "default: check") {
+		t.Fatalf("fkn.yaml = %q, want inferred default task", got)
+	}
 	if !strings.Contains(got, "cmd: go build ./...") {
 		t.Fatalf("fkn.yaml = %q, want Go build task", got)
 	}
@@ -125,6 +131,9 @@ func TestRunFromRepoPrefersMakeTargets(t *testing.T) {
 	got := string(cfg)
 	if !strings.Contains(got, "cmd: make test") {
 		t.Fatalf("fkn.yaml = %q, want make-backed test task", got)
+	}
+	if !strings.Contains(got, "default: check") {
+		t.Fatalf("fkn.yaml = %q, want inferred default task", got)
 	}
 	if !strings.Contains(got, "cmd: make build") {
 		t.Fatalf("fkn.yaml = %q, want make-backed build task", got)

@@ -48,6 +48,7 @@ Implemented today:
 - broader Makefile/justfile task import during `init --from-repo`
 - task params with CLI, runner, and MCP support
 - task aliases
+- explicit default task behavior
 
 ## Why Open Source
 
@@ -123,6 +124,7 @@ For realistic examples and a full config walkthrough:
 ```yaml
 project: my-service
 description: Example repository
+default: check
 
 tasks:
   test:
@@ -144,10 +146,12 @@ aliases:
   b: build
 ```
 
+Running `fkn` with no task name executes the configured default task when `default:` is set.
+
 ## Commands Available Today
 
 ```text
-fkn <task> [--param name=value]
+fkn [<task>] [--param name=value]
 fkn <task> --dry-run
 fkn <task> --json
 fkn docs [name] [--list]

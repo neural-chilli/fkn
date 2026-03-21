@@ -68,8 +68,6 @@ func TestRunUnknownTaskShowsSuggestion(t *testing.T) {
 }
 
 func TestRunHelpForAlias(t *testing.T) {
-	t.Parallel()
-
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "fkn.yaml"), []byte(`
 tasks:
@@ -98,8 +96,6 @@ aliases:
 }
 
 func TestRunTaskViaAlias(t *testing.T) {
-	t.Parallel()
-
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "fkn.yaml"), []byte(`
 tasks:
@@ -123,6 +119,34 @@ aliases:
 	}
 	if !strings.Contains(readStdout(), "build") {
 		t.Fatalf("stdout = %q, want task output", readStdout())
+	}
+}
+
+func TestRunNoArgsUsesDefaultTask(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "fkn.yaml"), []byte(`
+default: verify
+tasks:
+  check:
+    desc: Check the project
+    cmd: printf check
+aliases:
+  verify: check
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	restore := chdirForTest(t, dir)
+	defer restore()
+
+	stdout, readStdout := tempOutputFile(t)
+	stderr, readStderr := tempOutputFile(t)
+
+	code := run(nil, stdout, stderr)
+	if code != 0 {
+		t.Fatalf("run() code = %d, want 0; stderr=%s", code, readStderr())
+	}
+	if !strings.Contains(readStdout(), "check") {
+		t.Fatalf("stdout = %q, want default task output", readStdout())
 	}
 }
 
