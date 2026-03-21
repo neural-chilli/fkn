@@ -43,6 +43,7 @@ Implemented today:
 - generated agent guidance via `AGENTS_FKN.md`
 - embedded offline docs in the CLI
 - config validation via `fkn validate`
+- structured context output via `fkn context --json`
 - MCP serve mode
 - watch mode
 - help output and task suggestions
@@ -170,6 +171,7 @@ fkn help [task]
 fkn guard
 fkn guard --json
 fkn context
+fkn context --json
 fkn context --agent --task <name>
 fkn context --out <file>
 fkn context --copy

@@ -473,6 +473,12 @@ Agent mode:
 fkn context --agent --task check
 ```
 
+Structured mode:
+
+```bash
+fkn context --json
+```
+
 Useful flags:
 
 ```bash
@@ -492,6 +498,7 @@ The current implementation can include:
 - recent git log
 - configured files and agent files
 - current git diff in agent mode
+- a structured JSON form via `--json` with section titles, bodies, and rendered markdown
 - cached last guard output in agent mode
 
 ### Context Config

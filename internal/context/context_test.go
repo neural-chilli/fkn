@@ -110,3 +110,33 @@ func TestApproximateTokenCount(t *testing.T) {
 		t.Fatalf("approximateTokenCount(\"abcde\") = %d, want 2", got)
 	}
 }
+
+func TestGenerateJSONIncludesSectionsAndMarkdown(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	cfg := &config.Config{
+		Project:     "demo",
+		Description: "Demo repo",
+		Tasks: map[string]config.Task{
+			"test": {Desc: "Run tests", Cmd: "echo test"},
+		},
+	}
+
+	out, err := New(cfg, dir).GenerateJSON(Options{})
+	if err != nil {
+		t.Fatalf("GenerateJSON() error = %v", err)
+	}
+	if out.Project != "demo" {
+		t.Fatalf("Project = %q, want demo", out.Project)
+	}
+	if out.RepoRoot != dir {
+		t.Fatalf("RepoRoot = %q, want %q", out.RepoRoot, dir)
+	}
+	if len(out.Sections) == 0 {
+		t.Fatal("Sections = empty, want structured sections")
+	}
+	if !strings.Contains(out.Markdown, "# fkn context") {
+		t.Fatalf("Markdown = %q, want rendered markdown", out.Markdown)
+	}
+}

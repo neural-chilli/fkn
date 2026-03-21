@@ -29,11 +29,66 @@ type section struct {
 	body  string
 }
 
+type JSONSection struct {
+	Title string `json:"title"`
+	Body  string `json:"body"`
+}
+
+type JSONOutput struct {
+	Project   string        `json:"project,omitempty"`
+	RepoRoot  string        `json:"repo_root"`
+	Agent     bool          `json:"agent"`
+	Task      string        `json:"task,omitempty"`
+	MaxTokens int           `json:"max_tokens,omitempty"`
+	Sections  []JSONSection `json:"sections"`
+	Markdown  string        `json:"markdown"`
+}
+
 func New(cfg *config.Config, repoRoot string) *Generator {
 	return &Generator{cfg: cfg, repoRoot: repoRoot}
 }
 
 func (g *Generator) Generate(opts Options) (string, error) {
+	sections, err := g.sections(opts)
+	if err != nil {
+		return "", err
+	}
+	rendered := renderSections(sections)
+	if opts.MaxTokens > 0 {
+		rendered = truncateToTokenBudget(rendered, opts.MaxTokens)
+	}
+	return rendered, nil
+}
+
+func (g *Generator) GenerateJSON(opts Options) (JSONOutput, error) {
+	sections, err := g.sections(opts)
+	if err != nil {
+		return JSONOutput{}, err
+	}
+	rendered := renderSections(sections)
+	if opts.MaxTokens > 0 {
+		rendered = truncateToTokenBudget(rendered, opts.MaxTokens)
+	}
+
+	out := JSONOutput{
+		Project:   g.cfg.Project,
+		RepoRoot:  g.repoRoot,
+		Agent:     opts.Agent,
+		Task:      opts.Task,
+		MaxTokens: opts.MaxTokens,
+		Sections:  make([]JSONSection, 0, len(sections)),
+		Markdown:  rendered,
+	}
+	for _, sec := range sections {
+		out.Sections = append(out.Sections, JSONSection{
+			Title: sec.title,
+			Body:  sec.body,
+		})
+	}
+	return out, nil
+}
+
+func (g *Generator) sections(opts Options) ([]section, error) {
 	sections := []section{
 		{title: "Project", body: g.projectSection()},
 	}
@@ -41,7 +96,7 @@ func (g *Generator) Generate(opts Options) (string, error) {
 	if opts.Agent {
 		agentBody, err := g.agentSection(opts.Task)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		sections = append(sections, section{title: "Agent Task", body: agentBody})
 	}
@@ -85,21 +140,27 @@ func (g *Generator) Generate(opts Options) (string, error) {
 			sections = append(sections, section{title: "Last Guard", body: body})
 		}
 	}
+	return filterEmptySections(sections), nil
+}
 
+func renderSections(sections []section) string {
 	var out []string
 	out = append(out, "# fkn context")
+	for _, sec := range sections {
+		out = append(out, fmt.Sprintf("\n## %s\n\n%s", sec.title, sec.body))
+	}
+	return strings.Join(out, "\n")
+}
+
+func filterEmptySections(sections []section) []section {
+	out := make([]section, 0, len(sections))
 	for _, sec := range sections {
 		if sec.body == "" {
 			continue
 		}
-		out = append(out, fmt.Sprintf("\n## %s\n\n%s", sec.title, sec.body))
+		out = append(out, sec)
 	}
-
-	rendered := strings.Join(out, "\n")
-	if opts.MaxTokens > 0 {
-		rendered = truncateToTokenBudget(rendered, opts.MaxTokens)
-	}
-	return rendered, nil
+	return out
 }
 
 func (g *Generator) projectSection() string {

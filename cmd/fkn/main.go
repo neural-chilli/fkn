@@ -358,11 +358,12 @@ func runContext(args []string, stdout, stderr *os.File) int {
 	fs := flag.NewFlagSet("context", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	agent := fs.Bool("agent", false, "")
+	jsonOut := fs.Bool("json", false, "")
 	taskName := fs.String("task", "", "")
 	outPath := fs.String("out", "", "")
 	copyOut := fs.Bool("copy", false, "")
 	maxTokens := fs.Int("max-tokens", 0, "")
-	if err := fs.Parse(reorderSubcommandArgs(args, map[string]bool{"--agent": true, "--task": false, "--out": false, "--copy": true, "--max-tokens": false})); err != nil {
+	if err := fs.Parse(reorderSubcommandArgs(args, map[string]bool{"--agent": true, "--json": true, "--task": false, "--out": false, "--copy": true, "--max-tokens": false})); err != nil {
 		return 2
 	}
 
@@ -372,11 +373,22 @@ func runContext(args []string, stdout, stderr *os.File) int {
 		return 1
 	}
 
-	rendered, err := contextpkg.New(cfg, repoRoot).Generate(contextpkg.Options{
+	generator := contextpkg.New(cfg, repoRoot)
+	options := contextpkg.Options{
 		Agent:     *agent,
 		Task:      *taskName,
 		MaxTokens: *maxTokens,
-	})
+	}
+	if *jsonOut {
+		result, err := generator.GenerateJSON(options)
+		if err != nil {
+			printError(stderr, err)
+			return 1
+		}
+		return printJSON(stdout, result)
+	}
+
+	rendered, err := generator.Generate(options)
 	if err != nil {
 		printError(stderr, err)
 		return 1
@@ -687,7 +699,7 @@ func printUsage(stdout *os.File) {
 		"If fkn.yaml sets `default`, running `fkn` with no task runs that task.",
 		"fkn docs [name] [--list]",
 		"fkn help [task]",
-		"fkn context [--agent] [--task <name>] [--out <file>] [--copy] [--max-tokens <n>]",
+		"fkn context [--agent] [--json] [--task <name>] [--out <file>] [--copy] [--max-tokens <n>]",
 		"fkn guard [name] [--json]",
 		"fkn init [--from-repo] [--agents]",
 		"fkn list [--json] [--mcp]",

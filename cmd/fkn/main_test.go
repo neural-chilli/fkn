@@ -344,6 +344,35 @@ tasks:
 	}
 }
 
+func TestRunContextJSON(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "fkn.yaml"), []byte(`
+project: demo
+tasks:
+  test:
+    desc: Run tests
+    cmd: printf ok
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	restore := chdirForTest(t, dir)
+	defer restore()
+
+	stdout, readStdout := tempOutputFile(t)
+	stderr, readStderr := tempOutputFile(t)
+
+	code := run([]string{"context", "--json"}, stdout, stderr)
+	if code != 0 {
+		t.Fatalf("run(context --json) code = %d, want 0; stderr=%s", code, readStderr())
+	}
+	output := readStdout()
+	for _, want := range []string{`"project": "demo"`, `"repo_root":`, `"sections":`, `"markdown":`} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("stdout = %q, want %q", output, want)
+		}
+	}
+}
+
 func TestRunListShowsReadableMetadata(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "fkn.yaml"), []byte(`
