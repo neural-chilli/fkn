@@ -139,6 +139,10 @@ func runHelp(args []string, stdout, stderr *os.File) int {
 		printTaskHelp(stdout, name, resolved, cfg, cfg.Tasks[resolved], aliasesForTask(cfg.Aliases, resolved), isDefaultTask(cfg, resolved))
 		return 0
 	}
+	if group, ok := cfg.Groups[name]; ok {
+		printGroupHelp(stdout, name, group, cfg)
+		return 0
+	}
 	if guardCfg, ok := cfg.Guards[name]; ok {
 		printGuardHelp(stdout, name, guardCfg)
 		return 0
@@ -487,6 +491,7 @@ func runList(args []string, stdout, stderr *os.File) int {
 			Default: isDefaultTask(cfg, name),
 		}
 		item.Aliases = aliasesForTask(cfg.Aliases, name)
+		item.Groups = groupNamesForTask(cfg.Groups, name)
 		if task.Scope != "" {
 			item.Scope = &task.Scope
 		}
@@ -514,6 +519,9 @@ func runList(args []string, stdout, stderr *os.File) int {
 		if cfg.Default != "" {
 			payload["default"] = cfg.Default
 		}
+		if len(cfg.Groups) > 0 {
+			payload["groups"] = listGroups(cfg.Groups)
+		}
 		return printJSON(stdout, payload)
 	}
 
@@ -523,8 +531,46 @@ func runList(args []string, stdout, stderr *os.File) int {
 			width = len(item.Name)
 		}
 	}
+	groupedTasks := map[string][]listTask{}
+	seen := map[string]bool{}
 	for _, item := range items {
-		fmt.Fprintf(stdout, "%-*s  %s\n", width, item.Name, formatListSummary(item))
+		for _, groupName := range item.Groups {
+			groupedTasks[groupName] = append(groupedTasks[groupName], item)
+			seen[item.Name] = true
+		}
+	}
+
+	if len(groupedTasks) > 0 {
+		for _, groupName := range sortedGroupNames(cfg.Groups) {
+			group := cfg.Groups[groupName]
+			fmt.Fprintf(stdout, "%s\n", groupName)
+			if group.Desc != "" {
+				fmt.Fprintf(stdout, "  %s\n", group.Desc)
+			}
+			for _, item := range groupedTasks[groupName] {
+				fmt.Fprintf(stdout, "  %-*s  %s\n", width, item.Name, formatListSummary(item))
+			}
+			fmt.Fprintln(stdout)
+		}
+	}
+
+	ungrouped := make([]listTask, 0, len(items))
+	for _, item := range items {
+		if !seen[item.Name] {
+			ungrouped = append(ungrouped, item)
+		}
+	}
+	if len(ungrouped) > 0 {
+		if len(groupedTasks) > 0 {
+			fmt.Fprintln(stdout, "ungrouped")
+		}
+		for _, item := range ungrouped {
+			prefix := ""
+			if len(groupedTasks) > 0 {
+				prefix = "  "
+			}
+			fmt.Fprintf(stdout, "%s%-*s  %s\n", prefix, width, item.Name, formatListSummary(item))
+		}
 	}
 	return 0
 }
@@ -752,7 +798,7 @@ func printUsage(stdout *os.File) {
 		"If fkn.yaml sets `default`, running `fkn` with no task runs that task.",
 		"fkn docs [name] [--list]",
 		"fkn explain <target> [--json]",
-		"fkn help [task]",
+		"fkn help [task|group]",
 		"fkn context [--agent] [--json] [--task <name>] [--about <topic>] [--out <file>] [--copy] [--max-tokens <approx-n>]",
 		"fkn guard [name] [--json]",
 		"fkn repair [name] [--json] [--copy]",
@@ -779,6 +825,9 @@ func printTaskHelp(stdout *os.File, invokedName, resolvedName string, cfg *confi
 	}
 	if len(aliases) > 0 {
 		fmt.Fprintf(stdout, "Aliases: %s\n", strings.Join(aliases, ", "))
+	}
+	if groups := groupNamesForTask(cfg.Groups, resolvedName); len(groups) > 0 {
+		fmt.Fprintf(stdout, "Groups: %s\n", strings.Join(groups, ", "))
 	}
 	fmt.Fprintf(stdout, "Usage: %s\n", taskUsage(invokedName, task))
 	fmt.Fprintf(stdout, "Type: %s\n", task.Type())
@@ -913,6 +962,18 @@ func printGuardHelp(stdout *os.File, name string, guardCfg config.Guard) {
 	}
 }
 
+func printGroupHelp(stdout *os.File, name string, group config.Group, cfg *config.Config) {
+	fmt.Fprintf(stdout, "group %s\n\n", name)
+	if group.Desc != "" {
+		fmt.Fprintf(stdout, "Description: %s\n", group.Desc)
+	}
+	fmt.Fprintln(stdout, "Tasks:")
+	for _, taskName := range group.Tasks {
+		task := cfg.Tasks[taskName]
+		fmt.Fprintf(stdout, "- %s: %s\n", taskName, task.Desc)
+	}
+}
+
 func printError(stderr *os.File, err error) {
 	fmt.Fprintf(stderr, "error: %v\n", err)
 }
@@ -1044,6 +1105,7 @@ type listTask struct {
 	Agent    bool                 `json:"agent"`
 	Default  bool                 `json:"default,omitempty"`
 	Aliases  []string             `json:"aliases,omitempty"`
+	Groups   []string             `json:"groups,omitempty"`
 	Params   map[string]listParam `json:"params,omitempty"`
 }
 
@@ -1099,6 +1161,9 @@ func formatListSummary(item listTask) string {
 	if len(item.Aliases) > 0 {
 		meta = append(meta, "aliases:"+strings.Join(item.Aliases, ","))
 	}
+	if len(item.Groups) > 0 {
+		meta = append(meta, "groups:"+strings.Join(item.Groups, ","))
+	}
 	if len(item.Params) > 0 {
 		params := make([]string, 0, len(item.Params))
 		for _, name := range sortedListParamNames(item.Params) {
@@ -1124,6 +1189,47 @@ func sortedListParamNames(params map[string]listParam) []string {
 	}
 	sort.Strings(names)
 	return names
+}
+
+type listGroup struct {
+	Name  string   `json:"name"`
+	Desc  string   `json:"desc,omitempty"`
+	Tasks []string `json:"tasks"`
+}
+
+func sortedGroupNames(groups map[string]config.Group) []string {
+	names := make([]string, 0, len(groups))
+	for name := range groups {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}
+
+func groupNamesForTask(groups map[string]config.Group, taskName string) []string {
+	names := []string{}
+	for _, groupName := range sortedGroupNames(groups) {
+		for _, member := range groups[groupName].Tasks {
+			if member == taskName {
+				names = append(names, groupName)
+				break
+			}
+		}
+	}
+	return names
+}
+
+func listGroups(groups map[string]config.Group) []listGroup {
+	items := make([]listGroup, 0, len(groups))
+	for _, name := range sortedGroupNames(groups) {
+		group := groups[name]
+		items = append(items, listGroup{
+			Name:  name,
+			Desc:  group.Desc,
+			Tasks: append([]string(nil), group.Tasks...),
+		})
+	}
+	return items
 }
 
 type multiFlag []string

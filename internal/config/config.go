@@ -17,6 +17,7 @@ type Config struct {
 	EnvFile     string            `yaml:"env_file"`
 	Tasks       map[string]Task   `yaml:"tasks"`
 	Aliases     map[string]string `yaml:"aliases"`
+	Groups      map[string]Group  `yaml:"groups"`
 	Guards      map[string]Guard  `yaml:"guards"`
 	Scopes      map[string]Scope  `yaml:"scopes"`
 	Prompts     map[string]Prompt `yaml:"prompts"`
@@ -52,6 +53,11 @@ type Param struct {
 
 type Guard struct {
 	Steps []string `yaml:"steps"`
+}
+
+type Group struct {
+	Desc  string   `yaml:"desc,omitempty"`
+	Tasks []string `yaml:"tasks"`
 }
 
 type Scope struct {
@@ -308,6 +314,17 @@ func (c *Config) Validate(repoRoot string) error {
 		for _, step := range guard.Steps {
 			if _, ok := c.Tasks[step]; !ok {
 				return fmt.Errorf("guard %q references unknown task %q", name, step)
+			}
+		}
+	}
+
+	for name, group := range c.Groups {
+		if len(group.Tasks) == 0 {
+			return fmt.Errorf("group %q: tasks are required", name)
+		}
+		for _, taskName := range group.Tasks {
+			if _, ok := c.Tasks[taskName]; !ok {
+				return fmt.Errorf("group %q references unknown task %q", name, taskName)
 			}
 		}
 	}

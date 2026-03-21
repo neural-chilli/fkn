@@ -62,6 +62,7 @@ Implemented today:
 - task-level shell configuration
 - global default working directory with task overrides
 - task aliases
+- task groups for related command families
 - explicit default task behavior
 - richer human-readable `list` and `help` output
 
@@ -163,6 +164,14 @@ aliases:
   t: test
   b: build
 
+groups:
+  core:
+    desc: Everyday local development commands.
+    tasks:
+      - test
+      - build
+      - check
+
 scopes:
   backend:
     desc: Backend application code and closely-related internals.
@@ -174,6 +183,8 @@ scopes:
 Running `fkn` with no task name executes the configured default task when `default:` is set.
 
 Scopes can still be simple path lists, but the richer object form lets you attach intent that shows up in `fkn scope`, `fkn help <task>`, repair briefs, generated agent docs, and MCP scope resources.
+
+Groups give you a lightweight way to model task families. `fkn list` uses them to organize larger configs, and `fkn help <group>` prints the group description and member tasks.
 
 `fkn list` now also shows summary metadata like task type, default marker, aliases, scope, and params in the human-readable view, and `fkn help <task>` includes a concrete usage line.
 
@@ -191,7 +202,7 @@ fkn <task> --dry-run
 fkn <task> --json
 fkn docs [name] [--list]
 fkn explain <target> [--json]
-fkn help [task]
+fkn help [task|group]
 fkn guard
 fkn guard --json
 fkn repair [name] [--json] [--copy]

@@ -26,6 +26,15 @@ tasks:
       - test
       - build
 
+groups:
+  core:
+    desc: Everyday development and verification tasks.
+    tasks:
+      - fmt
+      - test
+      - build
+      - check
+
 guards:
   default:
     steps:

@@ -17,8 +17,6 @@ This roadmap focuses on the major features that would make `fkn` feel more compl
 
 ## Workflow Features
 
-- aliases and task groups
-  - a cleaner way to model families of related commands
 - better dependency semantics
   - more expressive task-to-task relationships
   - cleaner support for reusable prerequisite tasks

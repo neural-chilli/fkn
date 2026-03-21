@@ -31,6 +31,9 @@ func TestRunCreatesStarterFiles(t *testing.T) {
 	if !strings.Contains(string(cfg), "desc: Main CLI commands and closely-related execution packages.") {
 		t.Fatalf("fkn.yaml = %q, want starter scope description", string(cfg))
 	}
+	if !strings.Contains(string(cfg), "groups:\n  core:\n") {
+		t.Fatalf("fkn.yaml = %q, want starter task group", string(cfg))
+	}
 	if !strings.Contains(string(cfg), "default: check") {
 		t.Fatalf("fkn.yaml = %q, want starter default task", string(cfg))
 	}
@@ -331,6 +334,9 @@ func TestRunWithAgentsWritesCompanionFiles(t *testing.T) {
 	if !strings.Contains(gotAgentFKN, "Command: `go test ./...`") {
 		t.Fatalf("AGENTS_FKN.md = %q, want command detail", gotAgentFKN)
 	}
+	if !strings.Contains(gotAgentFKN, "## Groups") {
+		t.Fatalf("AGENTS_FKN.md = %q, want groups section", gotAgentFKN)
+	}
 
 	agentRoot, err := os.ReadFile(filepath.Join(dir, "AGENTS.md"))
 	if err != nil {
@@ -399,6 +405,9 @@ func TestRenderAgentsFKNIncludesScopesAndPrompts(t *testing.T) {
 		Prompts: map[string]config.Prompt{
 			"continue-backend": {Desc: "Continue backend work"},
 		},
+		Groups: map[string]config.Group{
+			"qa": {Desc: "Verification tasks", Tasks: []string{"test", "check"}},
+		},
 		Context: config.ContextConfig{
 			AgentFiles: []string{"README.md"},
 			Include:    []string{"cmd/", "internal/"},
@@ -421,6 +430,9 @@ func TestRenderAgentsFKNIncludesScopesAndPrompts(t *testing.T) {
 		"## Scopes",
 		"`backend`: `cmd/`, `internal/`",
 		"Description: Backend workflows",
+		"## Groups",
+		"`qa`: `test`, `check`",
+		"Description: Verification tasks",
 		"## Prompts",
 		"`continue-backend`: Continue backend work",
 		"Scope: `backend`",

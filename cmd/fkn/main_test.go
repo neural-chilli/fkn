@@ -114,6 +114,43 @@ aliases:
 	}
 }
 
+func TestRunHelpForGroup(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "fkn.yaml"), []byte(`
+tasks:
+  test:
+    desc: Run tests
+    cmd: echo test
+  build:
+    desc: Build the app
+    cmd: echo build
+groups:
+  qa:
+    desc: Verification tasks
+    tasks:
+      - test
+      - build
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	restore := chdirForTest(t, dir)
+	defer restore()
+
+	stdout, readStdout := tempOutputFile(t)
+	stderr, readStderr := tempOutputFile(t)
+
+	code := run([]string{"help", "qa"}, stdout, stderr)
+	if code != 0 {
+		t.Fatalf("run(help qa) code = %d, want 0; stderr=%s", code, readStderr())
+	}
+	output := readStdout()
+	for _, want := range []string{"group qa", "Description: Verification tasks", "- test: Run tests", "- build: Build the app"} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("stdout = %q, want %q", output, want)
+		}
+	}
+}
+
 func TestRunTaskViaAlias(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "fkn.yaml"), []byte(`
@@ -396,6 +433,11 @@ tasks:
 aliases:
   b: build
   verify: build
+groups:
+  core:
+    desc: Everyday development commands
+    tasks:
+      - build
 scopes:
   cli:
     desc: CLI command surface
@@ -416,9 +458,44 @@ scopes:
 	}
 	output := readStdout()
 	for _, want := range []string{
+		"core",
+		"Everyday development commands",
 		"Build the project",
-		"[cmd | default | scope:cli | aliases:b,verify | params:--profile?,--target]",
+		"[cmd | default | scope:cli | aliases:b,verify | groups:core | params:--profile?,--target]",
 	} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("stdout = %q, want %q", output, want)
+		}
+	}
+}
+
+func TestRunListJSONIncludesGroups(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "fkn.yaml"), []byte(`
+tasks:
+  test:
+    desc: Run tests
+    cmd: echo test
+groups:
+  qa:
+    desc: Verification tasks
+    tasks:
+      - test
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	restore := chdirForTest(t, dir)
+	defer restore()
+
+	stdout, readStdout := tempOutputFile(t)
+	stderr, readStderr := tempOutputFile(t)
+
+	code := run([]string{"list", "--json"}, stdout, stderr)
+	if code != 0 {
+		t.Fatalf("run(list --json) code = %d, want 0; stderr=%s", code, readStderr())
+	}
+	output := readStdout()
+	for _, want := range []string{`"groups": [`, `"name": "qa"`, `"desc": "Verification tasks"`, `"groups": [`, `"qa"`} {
 		if !strings.Contains(output, want) {
 			t.Fatalf("stdout = %q, want %q", output, want)
 		}

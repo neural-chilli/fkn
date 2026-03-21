@@ -418,6 +418,32 @@ If one guard step fails, later steps still run so you get a fuller report.
 
 Guard steps can now reference either cmd tasks or pipeline tasks, so you can reuse something like `check` directly instead of duplicating its underlying steps.
 
+## Groups
+
+Groups are named task families. They do not change execution semantics, but they make discovery and repo documentation much easier once a config grows beyond a handful of tasks.
+
+Example:
+
+```yaml
+groups:
+  qa:
+    desc: Verification and quality checks.
+    tasks:
+      - test
+      - lint
+      - check
+```
+
+Use them with:
+
+```bash
+fkn list
+fkn help qa
+fkn list --json
+```
+
+`fkn list` shows grouped sections in the human-readable view, and `fkn help <group>` prints the group description and member tasks.
+
 ## Scopes
 
 Scopes are named path groups, and they can also carry a short description of why that part of the repo exists.
@@ -734,6 +760,15 @@ tasks:
       - test
       - build
     scope: backend
+
+groups:
+  core:
+    desc: Everyday development and verification tasks.
+    tasks:
+      - test
+      - build
+      - run
+      - check
 
 guards:
   default:

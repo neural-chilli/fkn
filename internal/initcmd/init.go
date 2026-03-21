@@ -38,6 +38,14 @@ tasks:
       - test
       - build
 
+groups:
+  core:
+    desc: Everyday local development commands.
+    tasks:
+      - test
+      - build
+      - check
+
 scopes:
   cli:
     desc: Main CLI commands and closely-related execution packages.
@@ -182,6 +190,17 @@ func renderAgentsFKN(cfg *config.Config) (string, error) {
 		for _, name := range sortedGuardNames(cfg.Guards) {
 			guardCfg := cfg.Guards[name]
 			builder.WriteString(fmt.Sprintf("- `%s`: `%s`\n", name, strings.Join(guardCfg.Steps, "`, `")))
+		}
+	}
+
+	if len(cfg.Groups) > 0 {
+		builder.WriteString("\n## Groups\n\n")
+		for _, name := range sortedGroupNames(cfg.Groups) {
+			group := cfg.Groups[name]
+			builder.WriteString(fmt.Sprintf("- `%s`: `%s`\n", name, strings.Join(group.Tasks, "`, `")))
+			if group.Desc != "" {
+				builder.WriteString(fmt.Sprintf("  Description: %s\n", group.Desc))
+			}
 		}
 	}
 
@@ -601,6 +620,15 @@ func sortedParamNames(params map[string]config.Param) []string {
 func sortedGuardNames(guards map[string]config.Guard) []string {
 	names := make([]string, 0, len(guards))
 	for name := range guards {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}
+
+func sortedGroupNames(groups map[string]config.Group) []string {
+	names := make([]string, 0, len(groups))
+	for name := range groups {
 		names = append(names, name)
 	}
 	sort.Strings(names)

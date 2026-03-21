@@ -260,6 +260,34 @@ tasks:
 	}
 }
 
+func TestLoadRejectsGroupWithUnknownTask(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "fkn.yaml"), []byte(`
+tasks:
+  test:
+    desc: Run tests
+    cmd: echo test
+groups:
+  qa:
+    desc: Verification tasks
+    tasks:
+      - test
+      - missing
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := Load(filepath.Join(dir, "fkn.yaml"))
+	if err == nil {
+		t.Fatal("Load() error = nil, want group validation error")
+	}
+	if !strings.Contains(err.Error(), `group "qa" references unknown task "missing"`) {
+		t.Fatalf("Load() error = %v, want group validation", err)
+	}
+}
+
 func TestLoadRejectsUnknownDefaultDir(t *testing.T) {
 	t.Parallel()
 
