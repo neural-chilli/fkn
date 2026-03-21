@@ -36,6 +36,7 @@ Implemented today:
 - context generation
 - init scaffolding
 - repo-aware init scaffolding from existing task surfaces
+- embedded offline docs in the CLI
 - MCP serve mode
 - watch mode
 - help output and task suggestions
@@ -82,6 +83,8 @@ This produces `bin/fkn`.
 
 ```bash
 go run ./cmd/fkn list
+go run ./cmd/fkn docs
+go run ./cmd/fkn docs user-guide
 go run ./cmd/fkn test
 go run ./cmd/fkn check --dry-run
 go run ./cmd/fkn guard
@@ -132,6 +135,7 @@ tasks:
 fkn <task>
 fkn <task> --dry-run
 fkn <task> --json
+fkn docs [name] [--list]
 fkn help [task]
 fkn guard
 fkn guard --json
@@ -194,6 +198,8 @@ go run ./cmd/fkn check --dry-run
 GitHub Actions now verifies formatting, runs `go test ./...`, and builds `./cmd/fkn` on pushes to `main` and on pull requests.
 
 The current product direction is described in [fkn-prd-v4.1.md](/Users/josephfrost/code/fkn/fkn-prd-v4.1.md).
+
+`fkn docs` now serves embedded copies of the README, user guide, MCP guide, and release guide so installed binaries can explain themselves offline.
 
 ## Contributing
 

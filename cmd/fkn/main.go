@@ -16,6 +16,7 @@ import (
 	"syscall"
 	"time"
 
+	fkndocs "github.com/neural-chilli/fkn"
 	"github.com/neural-chilli/fkn/internal/config"
 	contextpkg "github.com/neural-chilli/fkn/internal/context"
 	"github.com/neural-chilli/fkn/internal/guard"
@@ -51,6 +52,8 @@ func run(args []string, stdout, stderr *os.File) int {
 		return 0
 	case "help":
 		return runHelp(args[1:], stdout, stderr)
+	case "docs":
+		return runDocs(args[1:], stdout, stderr)
 	case "guard":
 		return runGuard(args[1:], stdout, stderr)
 	case "init":
@@ -96,6 +99,36 @@ func runHelp(args []string, stdout, stderr *os.File) int {
 
 	printError(stderr, unknownTaskError(name, cfg))
 	return 1
+}
+
+func runDocs(args []string, stdout, stderr *os.File) int {
+	fs := flag.NewFlagSet("docs", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	listOnly := fs.Bool("list", false, "")
+	if err := fs.Parse(reorderSubcommandArgs(args, map[string]bool{"--list": true})); err != nil {
+		return 2
+	}
+
+	if *listOnly {
+		for _, name := range fkndocs.DocNames() {
+			fmt.Fprintln(stdout, name)
+		}
+		return 0
+	}
+
+	name := "readme"
+	if fs.NArg() > 0 {
+		name = fs.Arg(0)
+	}
+
+	doc, err := fkndocs.Doc(name)
+	if err != nil {
+		printError(stderr, err)
+		return 1
+	}
+
+	fmt.Fprintln(stdout, strings.TrimRight(doc, "\n"))
+	return 0
 }
 
 func runInit(args []string, stdout, stderr *os.File) int {
@@ -542,6 +575,7 @@ func sortedTaskNames(tasks map[string]config.Task) []string {
 func printUsage(stdout *os.File) {
 	lines := []string{
 		"fkn <task> [--dry-run] [--json]",
+		"fkn docs [name] [--list]",
 		"fkn help [task]",
 		"fkn context [--agent] [--task <name>] [--out <file>] [--copy] [--max-tokens <n>]",
 		"fkn guard [name] [--json]",

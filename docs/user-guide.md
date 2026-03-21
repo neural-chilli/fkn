@@ -19,6 +19,14 @@ make build
 ./bin/fkn list
 ```
 
+You can read the bundled docs from the installed binary too:
+
+```bash
+fkn docs
+fkn docs user-guide
+fkn docs --list
+```
+
 ## Bootstrapping An Existing Repo
 
 If a repo already has a `Makefile`, `package.json`, or a `go.mod`, start here:

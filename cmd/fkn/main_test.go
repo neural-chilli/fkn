@@ -67,6 +67,39 @@ func TestRunUnknownTaskShowsSuggestion(t *testing.T) {
 	}
 }
 
+func TestRunDocsPrintsEmbeddedGuide(t *testing.T) {
+	t.Parallel()
+
+	stdout, readStdout := tempOutputFile(t)
+	stderr, readStderr := tempOutputFile(t)
+
+	code := run([]string{"docs", "user-guide"}, stdout, stderr)
+	if code != 0 {
+		t.Fatalf("run(docs user-guide) code = %d, want 0; stderr=%s", code, readStderr())
+	}
+	if !strings.Contains(readStdout(), "# fkn User Guide") {
+		t.Fatalf("stdout = %q, want embedded docs output", readStdout())
+	}
+}
+
+func TestRunDocsList(t *testing.T) {
+	t.Parallel()
+
+	stdout, readStdout := tempOutputFile(t)
+	stderr, readStderr := tempOutputFile(t)
+
+	code := run([]string{"docs", "--list"}, stdout, stderr)
+	if code != 0 {
+		t.Fatalf("run(docs --list) code = %d, want 0; stderr=%s", code, readStderr())
+	}
+	output := readStdout()
+	for _, want := range []string{"readme", "user-guide", "mcp", "releasing"} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("stdout = %q, want %q", output, want)
+		}
+	}
+}
+
 func repoRootForTest(t *testing.T) string {
 	t.Helper()
 	root, err := filepath.Abs(filepath.Join("..", ".."))
