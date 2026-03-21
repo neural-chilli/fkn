@@ -484,7 +484,6 @@ func TestRunFromRepoIncludesMostMakeTargets(t *testing.T) {
 		"  APP_NAME:\n",
 		"  KETUU:\n",
 		"  BIN:\n",
-		"  clean:\n",
 		"  add-feature-git:\n",
 	} {
 		if strings.Contains(got, unwanted) {
@@ -496,5 +495,45 @@ func TestRunFromRepoIncludesMostMakeTargets(t *testing.T) {
 	}
 	if !strings.Contains(got, "      feature:\n") || !strings.Contains(got, "        env: FEATURE\n") {
 		t.Fatalf("fkn.yaml = %q, want inferred FEATURE param", got)
+	}
+	for _, want := range []string{
+		"  add-feature:\n    desc: Run the repository add-feature target\n    cmd: make add-feature\n    agent: false\n",
+		"  codemap-sync:\n    desc: Run the repository codemap-sync target\n    cmd: make codemap-sync\n    agent: false\n",
+		"  ci-init:\n    desc: Run the repository ci-init target\n    cmd: make ci-init\n    agent: false\n",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("fkn.yaml = %q, want agent-safe helper target %q", got, want)
+		}
+	}
+}
+
+func TestRunFromRepoMarksParameterizedPackageHelpersAgentFalse(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	packageJSON := `{
+  "scripts": {
+    "release": "node ./scripts/release.js --version=$npm_config_version",
+    "build": "vite build"
+  }
+}`
+	if err := os.WriteFile(filepath.Join(dir, "package.json"), []byte(packageJSON), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := Run(dir, Options{FromRepo: true}); err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+
+	cfg, err := os.ReadFile(filepath.Join(dir, "fkn.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(cfg)
+	if !strings.Contains(got, "release:\n    desc: Run the package.json release script\n    cmd: npm run release -- --version={{params.version}}\n    agent: false\n") {
+		t.Fatalf("fkn.yaml = %q, want release helper marked agent:false", got)
+	}
+	if !strings.Contains(got, "build:\n    desc: Run the package.json build script\n    cmd: npm run build\n") {
+		t.Fatalf("fkn.yaml = %q, want regular build script", got)
 	}
 }

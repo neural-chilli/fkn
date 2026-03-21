@@ -365,7 +365,7 @@ func inferTasks(repoRoot string) []inferredTask {
 			target.Name,
 			inferredTargetDesc("repository", target.Name, "target"),
 			fmt.Sprintf("make %s", target.Name),
-			inferredTargetAgent(target.Name),
+			inferredTargetAgent(target.Name, len(target.Params) > 0),
 			inferredParams(target.Params),
 		)
 	}
@@ -378,7 +378,7 @@ func inferTasks(repoRoot string) []inferredTask {
 			recipe.Name,
 			inferredTargetDesc("repository", recipe.Name, "recipe"),
 			buildJustCommand(recipe),
-			inferredTargetAgent(recipe.Name),
+			inferredTargetAgent(recipe.Name, len(recipe.Params) > 0),
 			inferredJustParams(recipe.Params),
 		)
 	}
@@ -391,27 +391,16 @@ func inferTasks(repoRoot string) []inferredTask {
 	sort.Strings(scriptNames)
 	for _, name := range scriptNames {
 		script := scripts[name]
-		switch name {
-		case "check":
-			addTask("check", "Run the package.json check script", script.Cmd, nil, script.Params)
-		case "test":
-			addTask("test", "Run the package.json test script", script.Cmd, nil, script.Params)
-		case "build":
-			addTask("build", "Run the package.json build script", script.Cmd, nil, script.Params)
-		case "lint":
-			addTask("lint", "Run the package.json lint script", script.Cmd, nil, script.Params)
-		case "dev":
-			addTask("dev", "Run the package.json dev script", script.Cmd, nil, script.Params)
-		case "start":
-			addTask("start", "Run the package.json start script", script.Cmd, nil, script.Params)
-		default:
-			if strings.HasPrefix(name, "test:") {
-				addTask(scriptTaskName(name), fmt.Sprintf("Run the package.json %s script", name), script.Cmd, nil, script.Params)
-			}
-			if strings.HasPrefix(name, "lint:") {
-				addTask(scriptTaskName(name), fmt.Sprintf("Run the package.json %s script", name), script.Cmd, nil, script.Params)
-			}
+		if !shouldInferPackageScript(name, script) {
+			continue
 		}
+		addTask(
+			scriptTaskName(name),
+			fmt.Sprintf("Run the package.json %s script", name),
+			script.Cmd,
+			inferredTargetAgent(name, len(script.Params) > 0),
+			script.Params,
+		)
 	}
 
 	if hasFile(repoRoot, "go.mod") {
@@ -481,8 +470,8 @@ func inferAliases(repoRoot string, tasks []inferredTask) map[string]string {
 	return aliases
 }
 
-func inferredTargetAgent(name string) *bool {
-	if name == "clean" {
+func inferredTargetAgent(name string, hasParams bool) *bool {
+	if shouldHideFromAgents(name, hasParams) {
 		value := false
 		return &value
 	}
@@ -491,11 +480,41 @@ func inferredTargetAgent(name string) *bool {
 
 func shouldSkipInferredTarget(name string) bool {
 	switch name {
-	case "clean", "add-feature-git":
+	case "add-feature-git":
 		return true
 	default:
 		return false
 	}
+}
+
+func shouldHideFromAgents(name string, hasParams bool) bool {
+	lower := strings.ToLower(name)
+	if lower == "clean" {
+		return true
+	}
+	if hasParams && (strings.Contains(lower, "add") || strings.Contains(lower, "create") || strings.Contains(lower, "init") || strings.Contains(lower, "generate") || strings.Contains(lower, "release") || strings.Contains(lower, "deploy") || strings.Contains(lower, "publish") || strings.Contains(lower, "migrate") || strings.Contains(lower, "seed") || strings.Contains(lower, "sync")) {
+		return true
+	}
+	for _, token := range []string{"init", "sync", "release", "deploy", "publish", "migrate", "seed"} {
+		if lower == token || strings.HasPrefix(lower, token+"-") || strings.HasSuffix(lower, "-"+token) {
+			return true
+		}
+	}
+	return false
+}
+
+func shouldInferPackageScript(name string, script packageScript) bool {
+	switch name {
+	case "check", "test", "build", "lint", "dev", "start", "release", "deploy", "publish", "generate":
+		return true
+	}
+	if strings.HasPrefix(name, "test:") || strings.HasPrefix(name, "lint:") {
+		return true
+	}
+	if len(script.Params) > 0 {
+		return true
+	}
+	return false
 }
 
 func inferredGuardSteps(tasks []inferredTask) []string {

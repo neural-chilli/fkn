@@ -14,7 +14,6 @@ This roadmap focuses on the major features that would make `fkn` feel more compl
 - richer help and list output
   - ordering and filtering options
 - improved importer coverage
-  - better handling of parameterized helper targets
 
 ## Workflow Features
 
