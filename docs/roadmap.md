@@ -7,10 +7,8 @@ This roadmap focuses on the major features that would make `fkn` feel more compl
 ## Near-Term
 
 - richer task parameters
-  - positional arguments
-  - optional variadic arguments
   - clearer defaults and validation rules
-  - better command-line ergonomics than repeated `--param`
+  - richer mixed positional/named invocation patterns
 - richer help and list output
   - ordering and filtering options
 - improved importer coverage

@@ -82,6 +82,7 @@ type justParam struct {
 	Name     string
 	Default  string
 	Required bool
+	Variadic bool
 }
 
 type packageScript struct {
@@ -343,6 +344,12 @@ func inferConfig(repoRoot string) string {
 				}
 				if param.Default != "" {
 					builder.WriteString(fmt.Sprintf("        default: %s\n", param.Default))
+				}
+				if param.Position > 0 {
+					builder.WriteString(fmt.Sprintf("        position: %d\n", param.Position))
+				}
+				if param.Variadic {
+					builder.WriteString("        variadic: true\n")
 				}
 			}
 		}
@@ -839,6 +846,14 @@ func parseJustParam(token string) (justParam, bool) {
 	}
 	required := true
 	defaultValue := ""
+	variadic := false
+	switch {
+	case strings.HasPrefix(token, "+"):
+		variadic = true
+	case strings.HasPrefix(token, "*"):
+		variadic = true
+		required = false
+	}
 	name := strings.TrimLeft(token, "+*$")
 	if parts := strings.SplitN(name, "=", 2); len(parts) == 2 {
 		name = strings.TrimSpace(parts[0])
@@ -849,7 +864,7 @@ func parseJustParam(token string) (justParam, bool) {
 	if name == "" {
 		return justParam{}, false
 	}
-	return justParam{Name: name, Default: defaultValue, Required: required}, true
+	return justParam{Name: name, Default: defaultValue, Required: required, Variadic: variadic}, true
 }
 
 func buildJustCommand(recipe justRecipe) string {
@@ -865,12 +880,14 @@ func inferredJustParams(params []justParam) map[string]config.Param {
 		return nil
 	}
 	out := make(map[string]config.Param, len(params))
-	for _, param := range params {
+	for i, param := range params {
 		out[param.Name] = config.Param{
 			Desc:     fmt.Sprintf("Value for the %s recipe parameter", param.Name),
 			Env:      strings.ToUpper(strings.ReplaceAll(param.Name, "-", "_")),
 			Required: param.Required,
 			Default:  param.Default,
+			Position: i + 1,
+			Variadic: param.Variadic,
 		}
 	}
 	return out

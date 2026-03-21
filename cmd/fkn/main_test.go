@@ -272,6 +272,141 @@ tasks:
 	}
 }
 
+func TestRunTaskAcceptsPositionalParams(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "fkn.yaml"), []byte(`
+tasks:
+  build:
+    desc: Build
+    cmd: printf "%s|%s" "{{params.target}}" "{{params.profile}}"
+    params:
+      target:
+        env: TARGET
+        required: true
+        position: 1
+      profile:
+        env: PROFILE
+        default: debug
+        position: 2
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	restore := chdirForTest(t, dir)
+	defer restore()
+
+	stdout, readStdout := tempOutputFile(t)
+	stderr, readStderr := tempOutputFile(t)
+
+	code := run([]string{"build", "app"}, stdout, stderr)
+	if code != 0 {
+		t.Fatalf("run(build app) code = %d, want 0; stderr=%s", code, readStderr())
+	}
+	if got := readStdout(); !strings.Contains(got, "app|debug") {
+		t.Fatalf("stdout = %q, want positional param output", got)
+	}
+}
+
+func TestRunTaskAcceptsVariadicPositionalParam(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "fkn.yaml"), []byte(`
+tasks:
+  pack:
+    desc: Pack
+    cmd: printf "%s|%s" "{{params.target}}" "{{params.files}}"
+    params:
+      target:
+        env: TARGET
+        required: true
+        position: 1
+      files:
+        env: FILES
+        position: 2
+        variadic: true
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	restore := chdirForTest(t, dir)
+	defer restore()
+
+	stdout, readStdout := tempOutputFile(t)
+	stderr, readStderr := tempOutputFile(t)
+
+	code := run([]string{"pack", "release", "a.txt", "b.txt"}, stdout, stderr)
+	if code != 0 {
+		t.Fatalf("run(pack release a.txt b.txt) code = %d, want 0; stderr=%s", code, readStderr())
+	}
+	if got := readStdout(); !strings.Contains(got, "release|a.txt b.txt") {
+		t.Fatalf("stdout = %q, want variadic positional output", got)
+	}
+}
+
+func TestRunTaskRejectsDuplicatePositionalAndNamedParam(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "fkn.yaml"), []byte(`
+tasks:
+  build:
+    desc: Build
+    cmd: printf ok
+    params:
+      target:
+        env: TARGET
+        required: true
+        position: 1
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	restore := chdirForTest(t, dir)
+	defer restore()
+
+	stdout, _ := tempOutputFile(t)
+	stderr, readStderr := tempOutputFile(t)
+
+	code := run([]string{"build", "app", "--target", "other"}, stdout, stderr)
+	if code != 2 {
+		t.Fatalf("run(build app --target other) code = %d, want 2; stderr=%s", code, readStderr())
+	}
+	if !strings.Contains(readStderr(), `param "target" was provided more than once`) {
+		t.Fatalf("stderr = %q, want duplicate param error", readStderr())
+	}
+}
+
+func TestRunHelpShowsPositionalUsage(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "fkn.yaml"), []byte(`
+tasks:
+  build:
+    desc: Build
+    cmd: printf ok
+    params:
+      target:
+        env: TARGET
+        required: true
+        position: 1
+      files:
+        env: FILES
+        position: 2
+        variadic: true
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	restore := chdirForTest(t, dir)
+	defer restore()
+
+	stdout, readStdout := tempOutputFile(t)
+	stderr, readStderr := tempOutputFile(t)
+
+	code := run([]string{"help", "build"}, stdout, stderr)
+	if code != 0 {
+		t.Fatalf("run(help build) code = %d, want 0; stderr=%s", code, readStderr())
+	}
+	output := readStdout()
+	for _, want := range []string{"Usage: fkn build <target> [<files...>] [--dry-run] [--json]", "positional[1]", "positional[2...]"} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("stdout = %q, want %q", output, want)
+		}
+	}
+}
+
 func TestRunHelpShowsShellConfiguration(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "fkn.yaml"), []byte(`

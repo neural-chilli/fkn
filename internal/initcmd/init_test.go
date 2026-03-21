@@ -186,7 +186,7 @@ _helper:
 		"cmd: just build {{params.target}} {{params.profile}}",
 		"cmd: just test",
 		"aliases:\n  b: build\n",
-		"target:\n        desc: Value for the target recipe parameter\n        env: TARGET\n        required: true\n",
+		"target:\n        desc: Value for the target recipe parameter\n        env: TARGET\n        required: true\n        position: 1\n",
 		"profile:\n        desc: Value for the profile recipe parameter\n        env: PROFILE\n        default: \"debug\"\n",
 		"default: check",
 		"justfile",

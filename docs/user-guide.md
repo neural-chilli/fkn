@@ -272,7 +272,7 @@ Example output:
 
 ```text
 check  Run local verification [pipeline | default | scope:cli]
-build  Build the binary [cmd | aliases:b | params:--target]
+build  Build the binary [cmd | aliases:b | params:<target>]
 ```
 
 That summary view now includes:
@@ -386,7 +386,7 @@ If a dependency fails, later dependencies and the main task are skipped.
 
 ## Task Params
 
-Tasks can declare named params that map to environment variables and can also be interpolated into commands via `{{params.<name>}}`.
+Tasks can declare named or positional params that map to environment variables and can also be interpolated into commands via `{{params.<name>}}`.
 
 Example:
 
@@ -409,6 +409,30 @@ fkn add-feature --feature auth
 fkn add-feature --param feature=auth
 ```
 
+Positional params use `position`, and the last positional param can be variadic:
+
+```yaml
+tasks:
+  pack:
+    desc: Pack release artifacts
+    cmd: ./scripts/pack.sh {{params.target}} {{params.files}}
+    params:
+      target:
+        env: TARGET
+        required: true
+        position: 1
+      files:
+        env: FILES
+        position: 2
+        variadic: true
+```
+
+Then this works naturally:
+
+```bash
+fkn pack release dist/a.tgz dist/b.tgz
+```
+
 Template interpolation also works:
 
 ```yaml
@@ -427,6 +451,8 @@ Notes:
 
 - declared params can be passed as direct flags like `--feature auth` or `--feature=auth`
 - repeated `--param name=value` still works
+- positional params are assigned by ascending `position`
+- a variadic param must be the last positional param
 - required params fail fast if omitted
 - params are exposed in MCP tool schemas for agent callers
 

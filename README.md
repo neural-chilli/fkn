@@ -65,6 +65,7 @@ Implemented today:
 - task groups for related command families
 - reusable task dependencies via `needs`
 - explicit default task behavior
+- positional and variadic task params
 - richer human-readable `list` and `help` output
 
 ## Why Open Source
@@ -114,6 +115,8 @@ go run ./cmd/fkn docs
 go run ./cmd/fkn docs user-guide
 go run ./cmd/fkn test
 go run ./cmd/fkn add-feature --feature auth
+go run ./cmd/fkn build web
+go run ./cmd/fkn pack release dist/a.tgz dist/b.tgz
 go run ./cmd/fkn check --dry-run
 go run ./cmd/fkn guard
 go run ./cmd/fkn repair
@@ -188,7 +191,9 @@ Scopes can still be simple path lists, but the richer object form lets you attac
 
 Groups give you a lightweight way to model task families. `fkn list` uses them to organize larger configs, and `fkn help <group>` prints the group description and member tasks.
 
-`fkn list` now also shows summary metadata like task type, default marker, aliases, scope, and params in the human-readable view, and `fkn help <task>` includes a concrete usage line.
+`fkn list` now also shows summary metadata like task type, default marker, aliases, scope, dependencies, and params in the human-readable view, and `fkn help <task>` includes a concrete usage line.
+
+Tasks can declare positional params with `position`, and the last positional param can be variadic with `variadic: true`. Named `--param` and direct `--name value` flags still work too, so task authors can support both natural positional invocation and explicit named invocation.
 
 `needs` gives a task reusable prerequisites without forcing it to become a pipeline. Dependencies run before the task itself, can point at either command tasks or pipeline tasks, and surface in JSON output as nested dependency results.
 

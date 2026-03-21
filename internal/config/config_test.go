@@ -143,6 +143,91 @@ tasks:
 	}
 }
 
+func TestLoadRejectsDuplicateParamPositions(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "fkn.yaml"), []byte(`
+tasks:
+  build:
+    desc: Build
+    cmd: echo build
+    params:
+      target:
+        env: TARGET
+        position: 1
+      profile:
+        env: PROFILE
+        position: 1
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := Load(filepath.Join(dir, "fkn.yaml"))
+	if err == nil {
+		t.Fatal("Load() error = nil, want duplicate position error")
+	}
+	if !strings.Contains(err.Error(), `share position 1`) {
+		t.Fatalf("Load() error = %v, want duplicate position validation", err)
+	}
+}
+
+func TestLoadRejectsVariadicParamWithoutPosition(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "fkn.yaml"), []byte(`
+tasks:
+  build:
+    desc: Build
+    cmd: echo build
+    params:
+      files:
+        env: FILES
+        variadic: true
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := Load(filepath.Join(dir, "fkn.yaml"))
+	if err == nil {
+		t.Fatal("Load() error = nil, want variadic position error")
+	}
+	if !strings.Contains(err.Error(), `variadic params must also declare a position`) {
+		t.Fatalf("Load() error = %v, want variadic position validation", err)
+	}
+}
+
+func TestLoadRejectsVariadicParamThatIsNotLast(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "fkn.yaml"), []byte(`
+tasks:
+  build:
+    desc: Build
+    cmd: echo build
+    params:
+      files:
+        env: FILES
+        position: 1
+        variadic: true
+      target:
+        env: TARGET
+        position: 2
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := Load(filepath.Join(dir, "fkn.yaml"))
+	if err == nil {
+		t.Fatal("Load() error = nil, want variadic ordering error")
+	}
+	if !strings.Contains(err.Error(), `variadic param must have the highest position`) {
+		t.Fatalf("Load() error = %v, want variadic ordering validation", err)
+	}
+}
+
 func TestLoadRejectsAliasToUnknownTask(t *testing.T) {
 	t.Parallel()
 

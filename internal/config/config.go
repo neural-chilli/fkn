@@ -50,6 +50,8 @@ type Param struct {
 	Env      string `yaml:"env"`
 	Required bool   `yaml:"required"`
 	Default  string `yaml:"default"`
+	Position int    `yaml:"position,omitempty"`
+	Variadic bool   `yaml:"variadic,omitempty"`
 }
 
 type Guard struct {
@@ -289,6 +291,12 @@ func (c *Config) Validate(repoRoot string) error {
 			if param.Env == "" {
 				return fmt.Errorf("task %q param %q: env is required", name, paramName)
 			}
+			if param.Position < 0 {
+				return fmt.Errorf("task %q param %q: position must be greater than or equal to 1", name, paramName)
+			}
+		}
+		if err := validateParamPositions(name, task.Params); err != nil {
+			return err
 		}
 	}
 
@@ -354,6 +362,44 @@ func isReservedParamName(name string) bool {
 	default:
 		return false
 	}
+}
+
+func validateParamPositions(taskName string, params map[string]Param) error {
+	positions := map[int]string{}
+	var variadicName string
+	var variadicPosition int
+	maxPosition := 0
+
+	for name, param := range params {
+		if param.Position == 0 {
+			if param.Variadic {
+				return fmt.Errorf("task %q param %q: variadic params must also declare a position", taskName, name)
+			}
+			continue
+		}
+		if param.Position < 1 {
+			return fmt.Errorf("task %q param %q: position must be greater than or equal to 1", taskName, name)
+		}
+		if existing, ok := positions[param.Position]; ok {
+			return fmt.Errorf("task %q params %q and %q share position %d", taskName, existing, name, param.Position)
+		}
+		positions[param.Position] = name
+		if param.Position > maxPosition {
+			maxPosition = param.Position
+		}
+		if param.Variadic {
+			if variadicName != "" {
+				return fmt.Errorf("task %q params %q and %q are both variadic", taskName, variadicName, name)
+			}
+			variadicName = name
+			variadicPosition = param.Position
+		}
+	}
+
+	if variadicName != "" && variadicPosition != maxPosition {
+		return fmt.Errorf("task %q param %q: variadic param must have the highest position", taskName, variadicName)
+	}
+	return nil
 }
 
 func (c *Config) validateCycles() error {

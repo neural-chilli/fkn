@@ -511,6 +511,8 @@ func runList(args []string, stdout, stderr *os.File) int {
 					Env:      param.Env,
 					Required: param.Required,
 					Default:  param.Default,
+					Position: param.Position,
+					Variadic: param.Variadic,
 				}
 			}
 		}
@@ -866,6 +868,13 @@ func printTaskHelp(stdout *os.File, invokedName, resolvedName string, cfg *confi
 			if param.Env != "" {
 				fmt.Fprintf(stdout, " (env: %s)", param.Env)
 			}
+			if param.Position > 0 {
+				if param.Variadic {
+					fmt.Fprintf(stdout, " positional[%d...] ", param.Position)
+				} else {
+					fmt.Fprintf(stdout, " positional[%d]", param.Position)
+				}
+			}
 			if param.Required {
 				fmt.Fprint(stdout, " required")
 			}
@@ -891,6 +900,7 @@ func printTaskHelp(stdout *os.File, invokedName, resolvedName string, cfg *confi
 
 func parseTaskInvocation(args []string, task config.Task) ([]string, map[string]string, error) {
 	var taskArgs []string
+	var positionals []string
 	params := map[string]string{}
 
 	for i := 0; i < len(args); i++ {
@@ -918,10 +928,56 @@ func parseTaskInvocation(args []string, task config.Task) ([]string, map[string]
 			}
 			continue
 		}
-		taskArgs = append(taskArgs, arg)
+		if strings.HasPrefix(arg, "-") {
+			taskArgs = append(taskArgs, arg)
+			continue
+		}
+		positionals = append(positionals, arg)
 	}
 
+	if err := assignPositionalParams(positionals, params, task); err != nil {
+		return nil, nil, err
+	}
 	return taskArgs, params, nil
+}
+
+func assignPositionalParams(positionals []string, params map[string]string, task config.Task) error {
+	ordered := positionalParamNames(task.Params)
+	if len(ordered) == 0 {
+		if len(positionals) > 0 {
+			return fmt.Errorf("unexpected positional arguments: %s", strings.Join(positionals, " "))
+		}
+		return nil
+	}
+
+	index := 0
+	for _, name := range ordered {
+		param := task.Params[name]
+		if param.Variadic {
+			if index >= len(positionals) {
+				return nil
+			}
+			if _, exists := params[name]; exists {
+				return fmt.Errorf("param %q was provided more than once", name)
+			}
+			params[name] = strings.Join(positionals[index:], " ")
+			index = len(positionals)
+			break
+		}
+		if index >= len(positionals) {
+			break
+		}
+		if _, exists := params[name]; exists {
+			return fmt.Errorf("param %q was provided more than once", name)
+		}
+		params[name] = positionals[index]
+		index++
+	}
+
+	if index < len(positionals) {
+		return fmt.Errorf("unexpected positional arguments: %s", strings.Join(positionals[index:], " "))
+	}
+	return nil
 }
 
 func parseDirectParam(arg string, args []string, index int, task config.Task) (string, string, bool, error) {
@@ -956,7 +1012,38 @@ func sortedParamNames(params map[string]config.Param) []string {
 	for name := range params {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	sort.Slice(names, func(i, j int) bool {
+		left := params[names[i]]
+		right := params[names[j]]
+		if left.Position == 0 && right.Position > 0 {
+			return false
+		}
+		if left.Position > 0 && right.Position == 0 {
+			return true
+		}
+		if left.Position > 0 && right.Position > 0 && left.Position != right.Position {
+			return left.Position < right.Position
+		}
+		return names[i] < names[j]
+	})
+	return names
+}
+
+func positionalParamNames(params map[string]config.Param) []string {
+	names := make([]string, 0, len(params))
+	for name, param := range params {
+		if param.Position > 0 {
+			names = append(names, name)
+		}
+	}
+	sort.Slice(names, func(i, j int) bool {
+		left := params[names[i]]
+		right := params[names[j]]
+		if left.Position != right.Position {
+			return left.Position < right.Position
+		}
+		return names[i] < names[j]
+	})
 	return names
 }
 
@@ -1121,6 +1208,8 @@ type listParam struct {
 	Env      string `json:"env"`
 	Required bool   `json:"required,omitempty"`
 	Default  string `json:"default,omitempty"`
+	Position int    `json:"position,omitempty"`
+	Variadic bool   `json:"variadic,omitempty"`
 }
 
 func aliasesForTask(aliases map[string]string, taskName string) []string {
@@ -1144,7 +1233,23 @@ func isDefaultTask(cfg *config.Config, taskName string) bool {
 
 func taskUsage(name string, task config.Task) string {
 	parts := []string{"fkn", name}
+	seen := map[string]bool{}
+	for _, paramName := range positionalParamNames(task.Params) {
+		param := task.Params[paramName]
+		label := "<" + paramName + ">"
+		if param.Variadic {
+			label = "<" + paramName + "...>"
+		}
+		if !param.Required || param.Default != "" {
+			label = "[" + label + "]"
+		}
+		parts = append(parts, label)
+		seen[paramName] = true
+	}
 	for _, paramName := range sortedParamNames(task.Params) {
+		if seen[paramName] {
+			continue
+		}
 		flag := "--" + paramName + " <value>"
 		if task.Params[paramName].Required {
 			parts = append(parts, flag)
@@ -1179,7 +1284,15 @@ func formatListSummary(item listTask) string {
 		for _, name := range sortedListParamNames(item.Params) {
 			param := item.Params[name]
 			label := "--" + name
-			if !param.Required {
+			if param.Position > 0 {
+				label = "<" + name + ">"
+				if param.Variadic {
+					label = "<" + name + "...>"
+				}
+				if !param.Required || param.Default != "" {
+					label = "[" + label + "]"
+				}
+			} else if !param.Required {
 				label += "?"
 			}
 			params = append(params, label)
@@ -1197,7 +1310,20 @@ func sortedListParamNames(params map[string]listParam) []string {
 	for name := range params {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	sort.Slice(names, func(i, j int) bool {
+		left := params[names[i]]
+		right := params[names[j]]
+		if left.Position == 0 && right.Position > 0 {
+			return false
+		}
+		if left.Position > 0 && right.Position == 0 {
+			return true
+		}
+		if left.Position > 0 && right.Position > 0 && left.Position != right.Position {
+			return left.Position < right.Position
+		}
+		return names[i] < names[j]
+	})
 	return names
 }
 
