@@ -259,6 +259,38 @@ tasks:
 	}
 }
 
+func TestRunHelpShowsInheritedDefaultDir(t *testing.T) {
+	dir := t.TempDir()
+	appDir := filepath.Join(dir, "app")
+	if err := os.MkdirAll(appDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "fkn.yaml"), []byte(`
+defaults:
+  dir: app
+tasks:
+  test:
+    desc: Run tests
+    cmd: printf ok
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	restore := chdirForTest(t, dir)
+	defer restore()
+
+	stdout, readStdout := tempOutputFile(t)
+	stderr, readStderr := tempOutputFile(t)
+
+	code := run([]string{"help", "test"}, stdout, stderr)
+	if code != 0 {
+		t.Fatalf("run(help test) code = %d, want 0; stderr=%s", code, readStderr())
+	}
+	output := readStdout()
+	if !strings.Contains(output, "Dir: app (inherited default)") {
+		t.Fatalf("stdout = %q, want inherited default dir", output)
+	}
+}
+
 func TestRunListShowsReadableMetadata(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "fkn.yaml"), []byte(`

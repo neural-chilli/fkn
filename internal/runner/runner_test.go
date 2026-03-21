@@ -4,6 +4,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/neural-chilli/fkn/internal/config"
@@ -232,6 +233,65 @@ func TestRunCmdTaskUsesCustomShellArgs(t *testing.T) {
 	}
 	if result.Stdout != "strict-ok" {
 		t.Fatalf("Stdout = %q, want custom shell arg output", result.Stdout)
+	}
+}
+
+func TestRunCmdTaskUsesDefaultWorkingDir(t *testing.T) {
+	t.Parallel()
+
+	repoRoot := t.TempDir()
+	workdir := filepath.Join(repoRoot, "app")
+	if err := os.MkdirAll(workdir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	r := New(&config.Config{
+		Defaults: config.DefaultsConfig{Dir: "app"},
+		Tasks: map[string]config.Task{
+			"pwd": {Desc: "pwd", Cmd: "pwd"},
+		},
+	}, repoRoot)
+
+	result, err := r.Run("pwd", Options{Stdout: io.Discard, Stderr: io.Discard})
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	got := strings.TrimSpace(result.Stdout)
+	if resolved, err := filepath.EvalSymlinks(workdir); err == nil {
+		workdir = resolved
+	}
+	if got != workdir {
+		t.Fatalf("Stdout = %q, want default workdir %q", got, workdir)
+	}
+}
+
+func TestRunCmdTaskDirOverridesDefaultWorkingDir(t *testing.T) {
+	t.Parallel()
+
+	repoRoot := t.TempDir()
+	defaultDir := filepath.Join(repoRoot, "app")
+	overrideDir := filepath.Join(repoRoot, "tools")
+	for _, dir := range []string{defaultDir, overrideDir} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	r := New(&config.Config{
+		Defaults: config.DefaultsConfig{Dir: "app"},
+		Tasks: map[string]config.Task{
+			"pwd": {Desc: "pwd", Cmd: "pwd", Dir: "tools"},
+		},
+	}, repoRoot)
+
+	result, err := r.Run("pwd", Options{Stdout: io.Discard, Stderr: io.Discard})
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	got := strings.TrimSpace(result.Stdout)
+	if resolved, err := filepath.EvalSymlinks(overrideDir); err == nil {
+		overrideDir = resolved
+	}
+	if got != overrideDir {
+		t.Fatalf("Stdout = %q, want override workdir %q", got, overrideDir)
 	}
 }
 

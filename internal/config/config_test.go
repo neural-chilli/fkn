@@ -236,3 +236,27 @@ tasks:
 		t.Fatalf("Load() error = %v, want reserved param validation", err)
 	}
 }
+
+func TestLoadRejectsUnknownDefaultDir(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "fkn.yaml"), []byte(`
+defaults:
+  dir: missing
+tasks:
+  test:
+    desc: Run tests
+    cmd: echo test
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := Load(filepath.Join(dir, "fkn.yaml"))
+	if err == nil {
+		t.Fatal("Load() error = nil, want defaults.dir validation error")
+	}
+	if !strings.Contains(err.Error(), `defaults.dir "missing"`) {
+		t.Fatalf("Load() error = %v, want defaults.dir validation", err)
+	}
+}

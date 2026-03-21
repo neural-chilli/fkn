@@ -293,10 +293,7 @@ func (r *Runner) runCommand(parent context.Context, label string, task config.Ta
 	shell, shellArgs := resolveShell(task)
 	cmdArgs := append(append([]string{}, shellArgs...), command)
 	cmd := exec.CommandContext(ctx, shell, cmdArgs...)
-	cmd.Dir = r.repoRoot
-	if task.Dir != "" {
-		cmd.Dir = filepath.Join(r.repoRoot, task.Dir)
-	}
+	cmd.Dir = r.resolveTaskDir(task)
 	paramValues, err := resolveParamValues(task, opts.Params)
 	if err != nil {
 		return runOutcome{}, fmt.Errorf("task %q: %w", label, err)
@@ -503,6 +500,16 @@ func resolveShell(task config.Task) (string, []string) {
 		args = append([]string{}, task.ShellArgs...)
 	}
 	return command, args
+}
+
+func (r *Runner) resolveTaskDir(task config.Task) string {
+	if task.Dir != "" {
+		return filepath.Join(r.repoRoot, task.Dir)
+	}
+	if r.cfg.Defaults.Dir != "" {
+		return filepath.Join(r.repoRoot, r.cfg.Defaults.Dir)
+	}
+	return r.repoRoot
 }
 
 func prefixedWriter(prefix string, target io.Writer) io.Writer {

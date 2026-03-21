@@ -272,11 +272,14 @@ Tasks can also include:
 Example:
 
 ```yaml
+defaults:
+  dir: services/api
+
 tasks:
   integration:
     desc: Run integration tests
     cmd: go test -tags=integration ./...
-    dir: .
+    dir: tools
     shell: /bin/sh
     shell_args:
       - -eu
@@ -289,6 +292,8 @@ tasks:
 
 Notes:
 
+- `defaults.dir` sets the global working directory for tasks that do not declare their own `dir`.
+- task `dir` overrides `defaults.dir`.
 - `shell` and `shell_args` let a task opt into a specific interpreter or shell mode.
 - `continue_on_error` only affects sequential pipelines.
 - Parallel pipelines still fail fast in the current implementation.

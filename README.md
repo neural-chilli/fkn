@@ -52,6 +52,7 @@ Implemented today:
 - task params with CLI, runner, and MCP support
 - direct task param flags like `--feature auth`
 - task-level shell configuration
+- global default working directory with task overrides
 - task aliases
 - explicit default task behavior
 - richer human-readable `list` and `help` output

@@ -128,7 +128,7 @@ func runHelp(args []string, stdout, stderr *os.File) int {
 
 	name := args[0]
 	if resolved, ok := cfg.ResolveTaskName(name); ok {
-		printTaskHelp(stdout, name, resolved, cfg.Tasks[resolved], aliasesForTask(cfg.Aliases, resolved), isDefaultTask(cfg, resolved))
+		printTaskHelp(stdout, name, resolved, cfg, cfg.Tasks[resolved], aliasesForTask(cfg.Aliases, resolved), isDefaultTask(cfg, resolved))
 		return 0
 	}
 	if guardCfg, ok := cfg.Guards[name]; ok {
@@ -665,7 +665,7 @@ func printUsage(stdout *os.File) {
 	fmt.Fprintln(stdout, strings.Join(lines, "\n"))
 }
 
-func printTaskHelp(stdout *os.File, invokedName, resolvedName string, task config.Task, aliases []string, isDefault bool) {
+func printTaskHelp(stdout *os.File, invokedName, resolvedName string, cfg *config.Config, task config.Task, aliases []string, isDefault bool) {
 	fmt.Fprintf(stdout, "%s\n\n", invokedName)
 	fmt.Fprintf(stdout, "Description: %s\n", task.Desc)
 	if invokedName != resolvedName {
@@ -685,6 +685,8 @@ func printTaskHelp(stdout *os.File, invokedName, resolvedName string, task confi
 	fmt.Fprintf(stdout, "Agent: %t\n", task.AgentEnabled())
 	if task.Dir != "" {
 		fmt.Fprintf(stdout, "Dir: %s\n", task.Dir)
+	} else if cfg.Defaults.Dir != "" {
+		fmt.Fprintf(stdout, "Dir: %s (inherited default)\n", cfg.Defaults.Dir)
 	}
 	if task.Shell != "" {
 		fmt.Fprintf(stdout, "Shell: %s\n", task.Shell)

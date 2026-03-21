@@ -13,6 +13,7 @@ type Config struct {
 	Project     string              `yaml:"project"`
 	Description string              `yaml:"description"`
 	Default     string              `yaml:"default"`
+	Defaults    DefaultsConfig      `yaml:"defaults"`
 	EnvFile     string              `yaml:"env_file"`
 	Tasks       map[string]Task     `yaml:"tasks"`
 	Aliases     map[string]string   `yaml:"aliases"`
@@ -54,6 +55,10 @@ type Guard struct {
 type Prompt struct {
 	Desc     string `yaml:"desc"`
 	Template string `yaml:"template"`
+}
+
+type DefaultsConfig struct {
+	Dir string `yaml:"dir"`
 }
 
 type ContextConfig struct {
@@ -179,6 +184,17 @@ func (c *Config) applyDefaults() {
 func (c *Config) Validate(repoRoot string) error {
 	if len(c.Tasks) == 0 {
 		return fmt.Errorf("fkn.yaml must define at least one task")
+	}
+
+	if c.Defaults.Dir != "" {
+		target := filepath.Join(repoRoot, c.Defaults.Dir)
+		info, err := os.Stat(target)
+		if err != nil {
+			return fmt.Errorf("defaults.dir %q: %w", c.Defaults.Dir, err)
+		}
+		if !info.IsDir() {
+			return fmt.Errorf("defaults.dir %q is not a directory", c.Defaults.Dir)
+		}
 	}
 
 	for name, task := range c.Tasks {
