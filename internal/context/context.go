@@ -10,7 +10,7 @@ import (
 	"sort"
 	"strings"
 
-	"fkn/internal/config"
+	"github.com/neural-chilli/fkn/internal/config"
 )
 
 type Generator struct {

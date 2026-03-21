@@ -6,8 +6,8 @@ import (
 	"io"
 	"sort"
 
-	"fkn/internal/config"
-	"fkn/internal/runner"
+	"github.com/neural-chilli/fkn/internal/config"
+	"github.com/neural-chilli/fkn/internal/runner"
 )
 
 const ProtocolVersion = "2024-11-05"

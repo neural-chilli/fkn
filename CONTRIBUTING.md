@@ -34,6 +34,8 @@ go run ./cmd/fkn list
 go run ./cmd/fkn check --dry-run
 ```
 
+CI runs `gofmt`, `go test ./...`, and `go build ./cmd/fkn` on pushes to `main` and on pull requests.
+
 ## Before Opening A PR
 
 - keep changes focused
@@ -50,6 +52,10 @@ Good PRs usually include:
 - the intended user-facing behavior
 - tradeoffs or follow-up work
 - sample command output if CLI behavior changed
+
+## Releases
+
+For the current lightweight release flow, see [docs/releasing.md](/Users/josephfrost/code/fkn/docs/releasing.md).
 
 ## Design Notes
 

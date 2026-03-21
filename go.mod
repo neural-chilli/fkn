@@ -1,4 +1,4 @@
-module fkn
+module github.com/neural-chilli/fkn
 
 go 1.22
 

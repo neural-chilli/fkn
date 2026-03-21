@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"fkn/internal/config"
+	"github.com/neural-chilli/fkn/internal/config"
 )
 
 func TestUnknownTaskErrorSuggestsNearestTask(t *testing.T) {

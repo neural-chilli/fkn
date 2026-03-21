@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"fkn/internal/config"
-	"fkn/internal/runner"
+	"github.com/neural-chilli/fkn/internal/config"
+	"github.com/neural-chilli/fkn/internal/runner"
 )
 
 type Runner struct {

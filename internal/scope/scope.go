@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"fkn/internal/config"
+	"github.com/neural-chilli/fkn/internal/config"
 )
 
 type Result struct {

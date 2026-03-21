@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	"fkn/internal/config"
+	"github.com/neural-chilli/fkn/internal/config"
 )
 
 const (

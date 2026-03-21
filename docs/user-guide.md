@@ -4,6 +4,21 @@
 
 This guide is the practical walkthrough: what to put in `fkn.yaml`, how the commands behave, and what a realistic setup looks like.
 
+## Installing fkn
+
+If you just want the CLI:
+
+```bash
+go install github.com/neural-chilli/fkn/cmd/fkn@latest
+```
+
+If you are working from a local checkout:
+
+```bash
+make build
+./bin/fkn list
+```
+
 ## Mental Model
 
 Treat `fkn.yaml` as the operational API of your repository.

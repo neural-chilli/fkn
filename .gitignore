@@ -1,4 +1,5 @@
 bin/
+/fkn
 tmp/
 tools/
 .fkn/

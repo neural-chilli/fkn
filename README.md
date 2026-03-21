@@ -20,6 +20,7 @@ Start here:
 
 - [User Guide](/Users/josephfrost/code/fkn/docs/user-guide.md)
 - [MCP Guide](/Users/josephfrost/code/fkn/docs/mcp.md)
+- [Release Guide](/Users/josephfrost/code/fkn/docs/releasing.md)
 
 The README is the short version. The user guide is the practical walkthrough with realistic examples. The MCP guide is the current compatibility and transport reference.
 
@@ -53,6 +54,20 @@ Implemented today:
 ### Prerequisites
 
 - Go 1.22+
+
+### Install
+
+For the latest version from GitHub:
+
+```bash
+go install github.com/neural-chilli/fkn/cmd/fkn@latest
+```
+
+For a tagged release:
+
+```bash
+go install github.com/neural-chilli/fkn/cmd/fkn@v0.1.0
+```
 
 ### Build
 
@@ -173,6 +188,8 @@ make test
 go test ./...
 go run ./cmd/fkn check --dry-run
 ```
+
+GitHub Actions now verifies formatting, runs `go test ./...`, and builds `./cmd/fkn` on pushes to `main` and on pull requests.
 
 The current product direction is described in [fkn-prd-v4.1.md](/Users/josephfrost/code/fkn/fkn-prd-v4.1.md).
 

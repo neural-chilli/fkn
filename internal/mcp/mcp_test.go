@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"testing"
 
-	"fkn/internal/config"
-	"fkn/internal/runner"
+	"github.com/neural-chilli/fkn/internal/config"
+	"github.com/neural-chilli/fkn/internal/runner"
 )
 
 func TestToolsSkipsAgentFalseTasks(t *testing.T) {

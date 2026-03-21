@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"fkn/internal/config"
+	"github.com/neural-chilli/fkn/internal/config"
 )
 
 func TestRunCmdTaskUsesInvocationEnvOverride(t *testing.T) {
