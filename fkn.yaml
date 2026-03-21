@@ -27,3 +27,11 @@ guards:
     steps:
       - test
       - build
+
+scopes:
+  cli:
+    - cmd/fkn/
+    - internal/config/
+    - internal/runner/
+    - internal/guard/
+    - internal/scope/

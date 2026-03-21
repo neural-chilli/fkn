@@ -22,9 +22,11 @@ This repository currently includes the first working slice:
 - `fkn <task>` to run named command tasks
 - sequential and parallel task pipelines
 - `fkn guard [name]` to run validation-oriented guard pipelines
+- `fkn scope <name>` to print a named path scope
 - `fkn <task> --dry-run` to print resolved commands
 - `fkn <task> --json` for machine-readable execution results
 - `fkn guard --json` for structured guard reports
+- `fkn scope <name> --json` for scope data
 - `fkn list` and `fkn list --json`
 - `fkn list --mcp` to preview the MCP manifest for agent-enabled tasks
 - config validation for required task shape and circular task references
@@ -68,6 +70,7 @@ go run ./cmd/fkn list
 go run ./cmd/fkn test
 go run ./cmd/fkn check --dry-run
 go run ./cmd/fkn guard
+go run ./cmd/fkn scope cli
 go run ./cmd/fkn list --mcp
 ```
 
@@ -101,6 +104,9 @@ fkn <task> --dry-run
 fkn <task> --json
 fkn guard
 fkn guard --json
+fkn scope <name>
+fkn scope <name> --json
+fkn scope <name> --format prompt
 fkn list
 fkn list --json
 fkn list --mcp
@@ -113,6 +119,7 @@ fkn --version
 ```text
 cmd/fkn/              # CLI entrypoint
 internal/config/      # fkn.yaml loading and validation
+internal/scope/       # named scope lookup and formatting
 internal/runner/      # task and pipeline execution
 fkn.yaml              # repo-local dogfood config
 fkn-prd-v4.1.md       # product requirements document

@@ -13,6 +13,7 @@ import (
 	"fkn/internal/config"
 	"fkn/internal/guard"
 	"fkn/internal/runner"
+	"fkn/internal/scope"
 )
 
 var version = "dev"
@@ -44,6 +45,8 @@ func run(args []string, stdout, stderr *os.File) int {
 		return runGuard(args[1:], stdout, stderr)
 	case "list":
 		return runList(args[1:], stdout, stderr)
+	case "scope":
+		return runScope(args[1:], stdout, stderr)
 	default:
 		return runTask(args, stdout, stderr)
 	}
@@ -53,7 +56,7 @@ func runGuard(args []string, stdout, stderr *os.File) int {
 	fs := flag.NewFlagSet("guard", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	jsonOut := fs.Bool("json", false, "")
-	if err := fs.Parse(args); err != nil {
+	if err := fs.Parse(reorderSubcommandArgs(args, map[string]bool{"--json": true})); err != nil {
 		return 2
 	}
 
@@ -85,6 +88,50 @@ func runGuard(args []string, stdout, stderr *os.File) int {
 
 	printGuardReport(stdout, report)
 	return report.ExitCode
+}
+
+func runScope(args []string, stdout, stderr *os.File) int {
+	fs := flag.NewFlagSet("scope", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	jsonOut := fs.Bool("json", false, "")
+	format := fs.String("format", "", "")
+	if err := fs.Parse(reorderSubcommandArgs(args, map[string]bool{"--json": true, "--format": false})); err != nil {
+		return 2
+	}
+	if fs.NArg() == 0 {
+		printError(stderr, fmt.Errorf("scope name is required"))
+		return 1
+	}
+
+	cfg, _, err := loadConfig()
+	if err != nil {
+		printError(stderr, err)
+		return 1
+	}
+
+	result, err := scope.Get(cfg, fs.Arg(0))
+	if err != nil {
+		printError(stderr, err)
+		return 1
+	}
+
+	if *jsonOut {
+		return printJSON(stdout, result)
+	}
+
+	if *format == "prompt" {
+		fmt.Fprintln(stdout, scope.FormatPrompt(result.Scope, result.Paths))
+		return 0
+	}
+	if *format != "" {
+		printError(stderr, fmt.Errorf("unknown scope format %q", *format))
+		return 1
+	}
+
+	for _, path := range result.Paths {
+		fmt.Fprintln(stdout, path)
+	}
+	return 0
 }
 
 func runList(args []string, stdout, stderr *os.File) int {
@@ -228,6 +275,7 @@ func printUsage(stdout *os.File) {
 		"fkn <task> [--dry-run] [--json]",
 		"fkn guard [name] [--json]",
 		"fkn list [--json] [--mcp]",
+		"fkn scope <name> [--json] [--format prompt]",
 		"fkn version",
 	}
 	fmt.Fprintln(stdout, strings.Join(lines, "\n"))
@@ -244,6 +292,32 @@ func printJSON(stdout *os.File, v any) int {
 		return 1
 	}
 	return 0
+}
+
+func reorderSubcommandArgs(args []string, flags map[string]bool) []string {
+	var flagArgs []string
+	var positionals []string
+
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		if !strings.HasPrefix(arg, "-") {
+			positionals = append(positionals, arg)
+			continue
+		}
+
+		if hasValue, ok := flags[arg]; ok {
+			flagArgs = append(flagArgs, arg)
+			if !hasValue && i+1 < len(args) {
+				i++
+				flagArgs = append(flagArgs, args[i])
+			}
+			continue
+		}
+
+		flagArgs = append(flagArgs, arg)
+	}
+
+	return append(flagArgs, positionals...)
 }
 
 func printGuardReport(stdout *os.File, report guard.Report) {

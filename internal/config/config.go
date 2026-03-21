@@ -10,11 +10,12 @@ import (
 )
 
 type Config struct {
-	Project     string           `yaml:"project"`
-	Description string           `yaml:"description"`
-	EnvFile     string           `yaml:"env_file"`
-	Tasks       map[string]Task  `yaml:"tasks"`
-	Guards      map[string]Guard `yaml:"guards"`
+	Project     string              `yaml:"project"`
+	Description string              `yaml:"description"`
+	EnvFile     string              `yaml:"env_file"`
+	Tasks       map[string]Task     `yaml:"tasks"`
+	Guards      map[string]Guard    `yaml:"guards"`
+	Scopes      map[string][]string `yaml:"scopes"`
 }
 
 type Task struct {
@@ -83,6 +84,11 @@ func (c *Config) Validate(repoRoot string) error {
 			}
 			if !info.IsDir() {
 				return fmt.Errorf("task %q: dir %q is not a directory", name, task.Dir)
+			}
+		}
+		if task.Scope != "" {
+			if _, ok := c.Scopes[task.Scope]; !ok {
+				return fmt.Errorf("task %q references unknown scope %q", name, task.Scope)
 			}
 		}
 	}
