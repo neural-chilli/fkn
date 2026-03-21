@@ -4,6 +4,8 @@ GO := go
 APP_NAME := fkn
 KETUU := ./tools/ketuu
 BIN := bin/$(APP_NAME)
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
+LDFLAGS := -X main.version=$(VERSION)
 
 tidy:
 	$(GO) mod tidy
@@ -76,7 +78,7 @@ test:
 	$(GO) test ./...
 
 build: tidy
-	$(GO) build -o $(BIN) ./cmd/$(APP_NAME)
+	$(GO) build -ldflags "$(LDFLAGS)" -o $(BIN) ./cmd/$(APP_NAME)
 
 run: build
 	$(BIN)

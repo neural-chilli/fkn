@@ -11,6 +11,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"runtime/debug"
 	"sort"
 	"strings"
 	"syscall"
@@ -42,13 +43,13 @@ func run(args []string, stdout, stderr *os.File) int {
 	}
 
 	if args[0] == "--version" {
-		fmt.Fprintf(stdout, "fkn %s\n", version)
+		fmt.Fprintf(stdout, "fkn %s\n", resolvedVersion())
 		return 0
 	}
 
 	switch args[0] {
 	case "version":
-		fmt.Fprintf(stdout, "fkn %s\n", version)
+		fmt.Fprintf(stdout, "fkn %s\n", resolvedVersion())
 		return 0
 	case "help":
 		return runHelp(args[1:], stdout, stderr)
@@ -73,6 +74,40 @@ func run(args []string, stdout, stderr *os.File) int {
 	default:
 		return runTask(args, stdout, stderr)
 	}
+}
+
+func resolvedVersion() string {
+	if version != "" && version != "dev" {
+		return version
+	}
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		return version
+	}
+	if info.Main.Version != "" && info.Main.Version != "(devel)" {
+		return info.Main.Version
+	}
+
+	var revision string
+	var modified string
+	for _, setting := range info.Settings {
+		switch setting.Key {
+		case "vcs.revision":
+			revision = setting.Value
+		case "vcs.modified":
+			modified = setting.Value
+		}
+	}
+	if revision == "" {
+		return version
+	}
+	if len(revision) > 7 {
+		revision = revision[:7]
+	}
+	if modified == "true" {
+		return revision + "-dirty"
+	}
+	return revision
 }
 
 func runHelp(args []string, stdout, stderr *os.File) int {

@@ -30,10 +30,12 @@ From a clean `main` branch:
 ```bash
 git pull origin main
 go test ./...
-go build ./cmd/fkn
+go build -ldflags "-X main.version=v0.1.0" ./cmd/fkn
 git tag v0.1.0
 git push origin v0.1.0
 ```
+
+If you build via `make build`, the Makefile now stamps the binary version automatically from `git describe`.
 
 ## Release Notes
 

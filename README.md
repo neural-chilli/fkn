@@ -80,6 +80,8 @@ make build
 
 This produces `bin/fkn`.
 
+The built binary reports a stamped version, and tagged `go install` builds report their module version instead of `dev`.
+
 ### Run
 
 ```bash

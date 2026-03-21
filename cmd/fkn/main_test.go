@@ -100,6 +100,20 @@ func TestRunDocsList(t *testing.T) {
 	}
 }
 
+func TestResolvedVersionPrefersExplicitLdflagsValue(t *testing.T) {
+	t.Parallel()
+
+	previous := version
+	version = "v9.9.9"
+	t.Cleanup(func() {
+		version = previous
+	})
+
+	if got := resolvedVersion(); got != "v9.9.9" {
+		t.Fatalf("resolvedVersion() = %q, want explicit version", got)
+	}
+}
+
 func repoRootForTest(t *testing.T) string {
 	t.Helper()
 	root, err := filepath.Abs(filepath.Join("..", ".."))
