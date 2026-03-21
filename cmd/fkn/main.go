@@ -396,10 +396,11 @@ func runContext(args []string, stdout, stderr *os.File) int {
 	agent := fs.Bool("agent", false, "Generate agent-focused context")
 	jsonOut := fs.Bool("json", false, "Emit structured JSON")
 	taskName := fs.String("task", "", "Task name required with --agent")
+	about := fs.String("about", "", "Generate topic-focused context using tasks, scopes, and codemap matches")
 	outPath := fs.String("out", "", "Write rendered markdown to a file")
 	copyOut := fs.Bool("copy", false, "Copy rendered markdown to the clipboard")
 	maxTokens := fs.Int("max-tokens", 0, "Approximate token budget; uses a rough estimate rather than a model tokenizer")
-	parsedArgs, err := parseSubcommandArgs(args, map[string]bool{"--agent": false, "--json": false, "--task": true, "--out": true, "--copy": false, "--max-tokens": true})
+	parsedArgs, err := parseSubcommandArgs(args, map[string]bool{"--agent": false, "--json": false, "--task": true, "--about": true, "--out": true, "--copy": false, "--max-tokens": true})
 	if err != nil {
 		printError(stderr, err)
 		return 2
@@ -418,6 +419,7 @@ func runContext(args []string, stdout, stderr *os.File) int {
 	options := contextpkg.Options{
 		Agent:     *agent,
 		Task:      *taskName,
+		About:     *about,
 		MaxTokens: *maxTokens,
 	}
 	if *jsonOut {
@@ -751,7 +753,7 @@ func printUsage(stdout *os.File) {
 		"fkn docs [name] [--list]",
 		"fkn explain <target> [--json]",
 		"fkn help [task]",
-		"fkn context [--agent] [--json] [--task <name>] [--out <file>] [--copy] [--max-tokens <approx-n>]",
+		"fkn context [--agent] [--json] [--task <name>] [--about <topic>] [--out <file>] [--copy] [--max-tokens <approx-n>]",
 		"fkn guard [name] [--json]",
 		"fkn repair [name] [--json] [--copy]",
 		"fkn init [--from-repo] [--agents]",

@@ -22,6 +22,7 @@ type Generator struct {
 type Options struct {
 	Agent     bool
 	Task      string
+	About     string
 	MaxTokens int
 }
 
@@ -40,6 +41,7 @@ type JSONOutput struct {
 	RepoRoot  string        `json:"repo_root"`
 	Agent     bool          `json:"agent"`
 	Task      string        `json:"task,omitempty"`
+	About     string        `json:"about,omitempty"`
 	MaxTokens int           `json:"max_tokens,omitempty"`
 	Sections  []JSONSection `json:"sections"`
 	Markdown  string        `json:"markdown"`
@@ -76,6 +78,7 @@ func (g *Generator) GenerateJSON(opts Options) (JSONOutput, error) {
 		RepoRoot:  g.repoRoot,
 		Agent:     opts.Agent,
 		Task:      opts.Task,
+		About:     opts.About,
 		MaxTokens: opts.MaxTokens,
 		Sections:  make([]JSONSection, 0, len(sections)),
 		Markdown:  rendered,
@@ -90,6 +93,10 @@ func (g *Generator) GenerateJSON(opts Options) (JSONOutput, error) {
 }
 
 func (g *Generator) sections(opts Options) ([]section, error) {
+	if opts.About != "" {
+		return g.aboutSections(opts)
+	}
+
 	sections := []section{
 		{title: "Project", body: g.projectSection()},
 	}
@@ -144,6 +151,35 @@ func (g *Generator) sections(opts Options) ([]section, error) {
 			sections = append(sections, section{title: "Last Guard", body: body})
 		}
 	}
+	return filterEmptySections(sections), nil
+}
+
+func (g *Generator) aboutSections(opts Options) ([]section, error) {
+	topic := strings.TrimSpace(opts.About)
+	sections := []section{
+		{title: "Project", body: g.projectSection()},
+		{title: "Topic", body: fmt.Sprintf("- Query: %s", topic)},
+	}
+
+	if body := g.aboutTasksSection(topic); body != "" {
+		sections = append(sections, section{title: "Matching Tasks", body: body})
+	}
+	if body := g.aboutScopesSection(topic); body != "" {
+		sections = append(sections, section{title: "Matching Scopes", body: body})
+	}
+	if body := g.aboutCodemapSection(topic); body != "" {
+		sections = append(sections, section{title: "Matching Codemap", body: body})
+	}
+	if body := g.aboutGlossarySection(topic); body != "" {
+		sections = append(sections, section{title: "Glossary", body: body})
+	}
+	if body := g.aboutRelevantPathsSection(topic); body != "" {
+		sections = append(sections, section{title: "Relevant Paths", body: body})
+	}
+	if body := g.gitDiffSection(); body != "" {
+		sections = append(sections, section{title: "Git Diff", body: body})
+	}
+
 	return filterEmptySections(sections), nil
 }
 
@@ -487,4 +523,126 @@ func (g *Generator) codemapSection(taskName string) string {
 		return ""
 	}
 	return codemap.RenderRelevantPackages(codemap.RelevantPackages(g.cfg, g.cfg.Scopes[task.Scope]))
+}
+
+func (g *Generator) aboutTasksSection(topic string) string {
+	query := strings.ToLower(topic)
+	var lines []string
+	for _, name := range sortedKeys(g.cfg.Tasks) {
+		task := g.cfg.Tasks[name]
+		if !matchesTopic(query, name, task.Desc, task.Scope, task.Cmd, strings.Join(task.Steps, " ")) {
+			continue
+		}
+		line := fmt.Sprintf("- `%s`: %s", name, task.Desc)
+		if task.Scope != "" {
+			line += fmt.Sprintf(" (scope: `%s`)", task.Scope)
+		}
+		lines = append(lines, line)
+	}
+	return strings.Join(lines, "\n")
+}
+
+func (g *Generator) aboutScopesSection(topic string) string {
+	query := strings.ToLower(topic)
+	var lines []string
+	for _, name := range sortedKeys(g.cfg.Scopes) {
+		paths := g.cfg.Scopes[name]
+		if !matchesTopic(query, name, strings.Join(paths, " ")) {
+			continue
+		}
+		lines = append(lines, fmt.Sprintf("- `%s`: %s", name, strings.Join(paths, ", ")))
+	}
+	return strings.Join(lines, "\n")
+}
+
+func (g *Generator) aboutCodemapSection(topic string) string {
+	query := strings.ToLower(topic)
+	var matches []codemap.PackageExplanation
+	for _, name := range sortedKeys(g.cfg.Codemap.Packages) {
+		entry := g.cfg.Codemap.Packages[name]
+		if !matchesTopic(query, name, entry.Desc, strings.Join(entry.KeyTypes, " "), strings.Join(entry.EntryPoints, " "), strings.Join(entry.Conventions, " "), strings.Join(entry.DependsOn, " ")) {
+			continue
+		}
+		matches = append(matches, codemap.PackageExplanation{
+			Name:        name,
+			Description: entry.Desc,
+			KeyTypes:    append([]string(nil), entry.KeyTypes...),
+			EntryPoints: append([]string(nil), entry.EntryPoints...),
+			Conventions: append([]string(nil), entry.Conventions...),
+			DependsOn:   append([]string(nil), entry.DependsOn...),
+		})
+	}
+	return codemap.RenderRelevantPackages(matches)
+}
+
+func (g *Generator) aboutGlossarySection(topic string) string {
+	query := strings.ToLower(topic)
+	var lines []string
+	for _, term := range sortedKeys(g.cfg.Codemap.Glossary) {
+		definition := g.cfg.Codemap.Glossary[term]
+		if !matchesTopic(query, term, definition) {
+			continue
+		}
+		lines = append(lines, fmt.Sprintf("- `%s`: %s", term, definition))
+	}
+	return strings.Join(lines, "\n")
+}
+
+func (g *Generator) aboutRelevantPathsSection(topic string) string {
+	query := strings.ToLower(topic)
+	seen := map[string]bool{}
+	var paths []string
+
+	for _, name := range sortedKeys(g.cfg.Tasks) {
+		task := g.cfg.Tasks[name]
+		if task.Scope == "" || !matchesTopic(query, name, task.Desc, task.Scope) {
+			continue
+		}
+		for _, path := range g.cfg.Scopes[task.Scope] {
+			if !seen[path] {
+				seen[path] = true
+				paths = append(paths, path)
+			}
+		}
+	}
+	for _, name := range sortedKeys(g.cfg.Scopes) {
+		if !matchesTopic(query, name, strings.Join(g.cfg.Scopes[name], " ")) {
+			continue
+		}
+		for _, path := range g.cfg.Scopes[name] {
+			if !seen[path] {
+				seen[path] = true
+				paths = append(paths, path)
+			}
+		}
+	}
+	for _, name := range sortedKeys(g.cfg.Codemap.Packages) {
+		entry := g.cfg.Codemap.Packages[name]
+		if !matchesTopic(query, name, entry.Desc, strings.Join(entry.KeyTypes, " "), strings.Join(entry.EntryPoints, " ")) {
+			continue
+		}
+		if !seen[name] {
+			seen[name] = true
+			paths = append(paths, name)
+		}
+	}
+
+	sort.Strings(paths)
+	if len(paths) == 0 {
+		return ""
+	}
+	var lines []string
+	for _, path := range paths {
+		lines = append(lines, "- `"+path+"`")
+	}
+	return strings.Join(lines, "\n")
+}
+
+func matchesTopic(query string, parts ...string) bool {
+	for _, part := range parts {
+		if strings.Contains(strings.ToLower(part), query) {
+			return true
+		}
+	}
+	return false
 }

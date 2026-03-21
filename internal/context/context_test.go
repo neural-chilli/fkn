@@ -170,3 +170,43 @@ func TestGenerateAgentIncludesCodemapForTaskScope(t *testing.T) {
 		t.Fatalf("output = %q, want codemap section", out)
 	}
 }
+
+func TestGenerateAboutIncludesMatchingCodemapAndTasks(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	cfg := &config.Config{
+		Project: "demo",
+		Tasks: map[string]config.Task{
+			"check": {Desc: "Run MCP transport checks", Cmd: "echo ok", Scope: "mcp"},
+			"test":  {Desc: "Run tests", Cmd: "echo test"},
+		},
+		Scopes: map[string][]string{
+			"mcp": {"internal/mcp/"},
+		},
+		Codemap: config.CodemapConfig{
+			Packages: map[string]config.CodemapPackage{
+				"internal/mcp": {
+					Desc:        "MCP transport and JSON-RPC handling",
+					EntryPoints: []string{"Server.ServeStdio"},
+				},
+			},
+			Glossary: map[string]string{
+				"transport": "How MCP messages move between client and server",
+			},
+		},
+		Context: config.ContextConfig{
+			GitDiff: false,
+		},
+	}
+
+	out, err := New(cfg, dir).Generate(Options{About: "transport"})
+	if err != nil {
+		t.Fatalf("Generate() error = %v", err)
+	}
+	for _, want := range []string{"## Topic", "## Matching Tasks", "## Matching Codemap", "## Glossary", "internal/mcp", "transport"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("output = %q, want %q", out, want)
+		}
+	}
+}

@@ -58,6 +58,7 @@ Implemented today:
 - structured error extraction in task, guard, and MCP JSON output
 - guided repair output via `fkn repair`
 - codemap-backed repo explanations via `fkn explain`
+- topic-targeted context via `fkn context --about`
 - task-level shell configuration
 - global default working directory with task overrides
 - task aliases
@@ -115,6 +116,7 @@ go run ./cmd/fkn check --dry-run
 go run ./cmd/fkn guard
 go run ./cmd/fkn repair
 go run ./cmd/fkn explain internal/runner
+go run ./cmd/fkn context --about transport
 go run ./cmd/fkn scope cli
 go run ./cmd/fkn prompt continue-cli
 go run ./cmd/fkn context
@@ -187,6 +189,7 @@ fkn repair [name] [--json] [--copy]
 fkn context
 fkn context --json
 fkn context --agent --task <name>
+fkn context --about <topic>
 fkn context --out <file>
 fkn context --copy
 fkn init [--from-repo] [--agents]

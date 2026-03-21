@@ -634,3 +634,44 @@ codemap:
 		}
 	}
 }
+
+func TestRunContextAboutJSON(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "fkn.yaml"), []byte(`
+project: demo
+tasks:
+  check:
+    desc: Run MCP transport checks
+    cmd: printf ok
+    scope: mcp
+scopes:
+  mcp:
+    - internal/mcp/
+codemap:
+  packages:
+    internal/mcp:
+      desc: MCP transport and JSON-RPC handling
+      entry_points:
+        - Server.ServeStdio
+  glossary:
+    transport: How MCP messages move between client and server
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	restore := chdirForTest(t, dir)
+	defer restore()
+
+	stdout, readStdout := tempOutputFile(t)
+	stderr, readStderr := tempOutputFile(t)
+
+	code := run([]string{"context", "--about", "transport", "--json"}, stdout, stderr)
+	if code != 0 {
+		t.Fatalf("run(context --about transport --json) code = %d, want 0; stderr=%s", code, readStderr())
+	}
+	output := readStdout()
+	for _, want := range []string{`"about": "transport"`, `"Matching Codemap"`, `internal/mcp`} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("stdout = %q, want %q", output, want)
+		}
+	}
+}

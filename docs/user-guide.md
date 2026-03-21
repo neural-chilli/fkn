@@ -554,6 +554,13 @@ Agent mode:
 
 ```bash
 fkn context --agent --task check
+fkn context --about "MCP transport"
+```
+
+Topic mode:
+
+```bash
+fkn context --about "MCP transport"
 ```
 
 Structured mode:
@@ -571,6 +578,8 @@ fkn context --max-tokens 500
 ```
 
 `--max-tokens` is a rough character-based token estimate, not an exact model tokenizer count.
+
+`--about <topic>` matches against task names and descriptions, scope names and paths, codemap package entries, and glossary terms, then builds a tighter context document around those matches.
 
 The current implementation can include:
 
