@@ -220,6 +220,58 @@ tasks:
 	}
 }
 
+func TestRunUnsafeTaskRequiresAllowUnsafe(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "fkn.yaml"), []byte(`
+tasks:
+  deploy:
+    desc: Deploy
+    cmd: printf deploy
+    safety: external
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	restore := chdirForTest(t, dir)
+	defer restore()
+
+	stdout, _ := tempOutputFile(t)
+	stderr, readStderr := tempOutputFile(t)
+
+	code := run([]string{"deploy"}, stdout, stderr)
+	if code == 0 {
+		t.Fatal("run(deploy) code = 0, want failure")
+	}
+	if !strings.Contains(readStderr(), "--allow-unsafe") {
+		t.Fatalf("stderr = %q, want allow-unsafe guidance", readStderr())
+	}
+}
+
+func TestRunUnsafeTaskAllowsAllowUnsafe(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "fkn.yaml"), []byte(`
+tasks:
+  deploy:
+    desc: Deploy
+    cmd: printf deploy
+    safety: external
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	restore := chdirForTest(t, dir)
+	defer restore()
+
+	stdout, readStdout := tempOutputFile(t)
+	stderr, readStderr := tempOutputFile(t)
+
+	code := run([]string{"deploy", "--allow-unsafe"}, stdout, stderr)
+	if code != 0 {
+		t.Fatalf("run(deploy --allow-unsafe) code = %d, want 0; stderr=%s", code, readStderr())
+	}
+	if !strings.Contains(readStdout(), "deploy") {
+		t.Fatalf("stdout = %q, want deploy output", readStdout())
+	}
+}
+
 func TestRunValidateReportsSuccess(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "fkn.yaml"), []byte(`

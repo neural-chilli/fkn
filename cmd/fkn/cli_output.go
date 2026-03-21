@@ -14,7 +14,7 @@ import (
 
 func printUsage(stdout *os.File) {
 	lines := []string{
-		"fkn [<task>] [--name value] [--param name=value] [--dry-run] [--json]",
+		"fkn [<task>] [--name value] [--param name=value] [--dry-run] [--allow-unsafe] [--json]",
 		"If fkn.yaml sets `default`, running `fkn` with no task runs that task.",
 		"fkn agent-brief [--task <name> | --diff | --file <path>...] [--json] [--max-tokens <approx-n>]",
 		"fkn docs [name] [--list]",
@@ -256,7 +256,7 @@ func taskUsage(name string, task config.Task) string {
 		}
 		parts = append(parts, "["+flag+"]")
 	}
-	parts = append(parts, "[--dry-run]", "[--json]")
+	parts = append(parts, "[--dry-run]", "[--allow-unsafe]", "[--json]")
 	return strings.Join(parts, " ")
 }
 

@@ -374,6 +374,18 @@ Notes:
   - `destructive` for tasks that mutate repo state or delete things
   - `external` for tasks that reach outside the repo, such as deploy or publish flows
 
+Tasks marked `destructive` or `external` are blocked by default at execution time. To run them anyway:
+
+```bash
+fkn deploy --allow-unsafe
+fkn guard --allow-unsafe
+fkn repair --allow-unsafe
+```
+
+In MCP mode, pass `allow_unsafe: true` in the tool arguments.
+
+`--dry-run` still works without that override, so risky tasks can be inspected before they are executed.
+
 ## Task Dependencies
 
 Use `needs` when one task should depend on another task but still remain its own command or pipeline.

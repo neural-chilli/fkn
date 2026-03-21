@@ -192,9 +192,10 @@ func runServe(args []string, stdout, stderr *os.File) int {
 func runWatch(args []string, stdout, stderr *os.File) int {
 	fs := flag.NewFlagSet("watch", flag.ContinueOnError)
 	fs.SetOutput(stderr)
+	allowUnsafe := fs.Bool("allow-unsafe", false, "")
 	var paths multiFlag
 	fs.Var(&paths, "path", "")
-	parsedArgs, err := parseSubcommandArgs(args, map[string]bool{"--path": true})
+	parsedArgs, err := parseSubcommandArgs(args, map[string]bool{"--path": true, "--allow-unsafe": false})
 	if err != nil {
 		printError(stderr, err)
 		return 2
@@ -237,7 +238,7 @@ func runWatch(args []string, stdout, stderr *os.File) int {
 		Debounce: time.Duration(cfg.Watch.DebounceMS) * time.Millisecond,
 		OnTrigger: func(triggeredAt time.Time) error {
 			fmt.Fprintf(stdout, "\n[fkn watch %s]\n\n", triggeredAt.UTC().Format(time.RFC3339))
-			return runWatchTarget(target, stdout, stderr)
+			return runWatchTarget(target, *allowUnsafe, stdout, stderr)
 		},
 	})
 	if err != nil {
@@ -247,7 +248,7 @@ func runWatch(args []string, stdout, stderr *os.File) int {
 	return 0
 }
 
-func runWatchTarget(target string, stdout, stderr *os.File) error {
+func runWatchTarget(target string, allowUnsafe bool, stdout, stderr *os.File) error {
 	cfg, repoRoot, err := loadConfig()
 	if err != nil {
 		return err
@@ -260,8 +261,9 @@ func runWatchTarget(target string, stdout, stderr *os.File) error {
 		}
 		taskRunner := runner.New(cfg, repoRoot)
 		report, err := guard.New(cfg, repoRoot, taskRunner).Run(guardName, runner.Options{
-			Stdout: stdout,
-			Stderr: stderr,
+			AllowUnsafe: allowUnsafe,
+			Stdout:      stdout,
+			Stderr:      stderr,
 		})
 		if err != nil {
 			return err
@@ -271,8 +273,9 @@ func runWatchTarget(target string, stdout, stderr *os.File) error {
 	}
 
 	result, err := runner.New(cfg, repoRoot).Run(target, runner.Options{
-		Stdout: stdout,
-		Stderr: stderr,
+		AllowUnsafe: allowUnsafe,
+		Stdout:      stdout,
+		Stderr:      stderr,
 	})
 	if err != nil {
 		return err
@@ -313,16 +316,18 @@ func runTask(args []string, stdout, stderr *os.File) int {
 	fs.SetOutput(stderr)
 	jsonOut := fs.Bool("json", false, "")
 	dryRun := fs.Bool("dry-run", false, "")
+	allowUnsafe := fs.Bool("allow-unsafe", false, "")
 	if err := fs.Parse(taskArgs); err != nil {
 		return 2
 	}
 
 	result, err := runner.New(cfg, repoRoot).Run(resolvedTaskName, runner.Options{
-		JSON:   *jsonOut,
-		DryRun: *dryRun,
-		Stdout: stdout,
-		Stderr: stderr,
-		Params: params,
+		JSON:        *jsonOut,
+		DryRun:      *dryRun,
+		AllowUnsafe: *allowUnsafe,
+		Stdout:      stdout,
+		Stderr:      stderr,
+		Params:      params,
 	})
 	if err != nil {
 		printError(stderr, err)
@@ -365,7 +370,8 @@ func runRepair(args []string, stdout, stderr *os.File) int {
 	fs.SetOutput(stderr)
 	jsonOut := fs.Bool("json", false, "Emit structured JSON")
 	copyOut := fs.Bool("copy", false, "Copy rendered markdown to the clipboard")
-	parsedArgs, err := parseSubcommandArgs(args, map[string]bool{"--json": false, "--copy": false})
+	allowUnsafe := fs.Bool("allow-unsafe", false, "Allow destructive or external tasks inside the guard")
+	parsedArgs, err := parseSubcommandArgs(args, map[string]bool{"--json": false, "--copy": false, "--allow-unsafe": false})
 	if err != nil {
 		printError(stderr, err)
 		return 2
@@ -386,7 +392,10 @@ func runRepair(args []string, stdout, stderr *os.File) int {
 	}
 
 	taskRunner := runner.New(cfg, repoRoot)
-	out, err := repair.New(cfg, repoRoot, guard.New(cfg, repoRoot, taskRunner)).Generate(repair.Options{GuardName: guardName})
+	out, err := repair.New(cfg, repoRoot, guard.New(cfg, repoRoot, taskRunner)).Generate(repair.Options{
+		GuardName:   guardName,
+		AllowUnsafe: *allowUnsafe,
+	})
 	if err != nil {
 		printError(stderr, err)
 		return 1

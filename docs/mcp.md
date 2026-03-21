@@ -47,6 +47,7 @@ That becomes a tool with:
   - named task params from `fkn.yaml`
   - `env`
   - `dry_run`
+  - `allow_unsafe`
 
 Tasks with `agent: false` are hidden from the MCP manifest.
 Tasks can also declare `safety: safe | idempotent | destructive | external`, which is surfaced in tool annotations for agent callers.
@@ -173,6 +174,9 @@ Supported arguments today:
 - named task params from the task schema
 - `dry_run: boolean`
 - `env: object`
+- `allow_unsafe: boolean`
+
+Tasks marked `destructive` or `external` fail closed by default here too. Clients must pass `allow_unsafe: true` to execute them. `dry_run` remains allowed without that override.
 
 Example request:
 

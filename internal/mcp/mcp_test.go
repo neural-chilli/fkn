@@ -196,9 +196,68 @@ func TestToolsExposeTaskParams(t *testing.T) {
 	if _, ok := properties["feature"]; !ok {
 		t.Fatalf("properties = %#v, want feature param", properties)
 	}
+	if _, ok := properties["allow_unsafe"]; !ok {
+		t.Fatalf("properties = %#v, want allow_unsafe", properties)
+	}
 	required := tools[0].InputSchema["required"].([]string)
 	if len(required) != 1 || required[0] != "feature" {
 		t.Fatalf("required = %#v, want feature", required)
+	}
+}
+
+func TestHandlePayloadToolsCallUnsafeRequiresApproval(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{
+		Tasks: map[string]config.Task{
+			"deploy": {Desc: "Deploy", Cmd: "printf deploy", Safety: "external"},
+		},
+	}
+	repoRoot := t.TempDir()
+	server := New(cfg, repoRoot, runner.New(cfg, repoRoot))
+
+	resp, notify, err := server.HandlePayload([]byte(`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"deploy","arguments":{}}}`), nil)
+	if err != nil {
+		t.Fatalf("HandlePayload() error = %v", err)
+	}
+	if notify {
+		t.Fatal("HandlePayload() notify = true, want false")
+	}
+
+	var payload JSONRPCResponse
+	if err := json.Unmarshal(resp, &payload); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v", err)
+	}
+	if payload.Error == nil || !strings.Contains(payload.Error.Message, "allow_unsafe") {
+		t.Fatalf("payload.Error = %#v, want allow_unsafe guidance", payload.Error)
+	}
+}
+
+func TestHandlePayloadToolsCallUnsafeAllowsApproval(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{
+		Tasks: map[string]config.Task{
+			"deploy": {Desc: "Deploy", Cmd: "printf deploy", Safety: "external"},
+		},
+	}
+	repoRoot := t.TempDir()
+	server := New(cfg, repoRoot, runner.New(cfg, repoRoot))
+
+	resp, notify, err := server.HandlePayload([]byte(`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"deploy","arguments":{"allow_unsafe":true}}}`), nil)
+	if err != nil {
+		t.Fatalf("HandlePayload() error = %v", err)
+	}
+	if notify {
+		t.Fatal("HandlePayload() notify = true, want false")
+	}
+
+	var payload JSONRPCResponse
+	if err := json.Unmarshal(resp, &payload); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v", err)
+	}
+	if payload.Error != nil {
+		t.Fatalf("payload.Error = %#v, want nil", payload.Error)
 	}
 }
 

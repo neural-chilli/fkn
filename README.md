@@ -55,6 +55,7 @@ Implemented today:
 - package.json argument inference for `npm_config_*`-style scripts
 - safer helper-task import with `agent: false` for mutating targets
 - task safety annotations for humans and agents
+- execution gating for `destructive` and `external` tasks
 - task params with CLI, runner, and MCP support
 - direct task param flags like `--feature auth`
 - structured error extraction in task, guard, and MCP JSON output
@@ -216,6 +217,8 @@ Tasks can declare positional params with `position`, and the last positional par
 
 Tasks can also declare `safety` as one of `safe`, `idempotent`, `destructive`, or `external`. This shows up in `fkn help`, `fkn list`, generated agent docs, and MCP tool annotations so agents can make better decisions about what to run autonomously.
 
+Tasks marked `destructive` or `external` now fail closed by default. To execute them anyway, opt in explicitly with `--allow-unsafe` on the CLI, or `allow_unsafe: true` in MCP tool calls. Dry runs still work without that override.
+
 Tasks can also declare `error_format` when they emit machine-parseable diagnostics. Supported values today are `go_test`, `pytest`, `tsc`, `eslint`, and `generic`. When set, task JSON, `guard --json`, `repair --json`, and MCP tool results include a parsed `errors` array alongside raw stderr.
 
 `fkn repair` builds on that by running a guard, collecting the failing steps, surfacing relevant scopes, and generating a repair-oriented markdown brief for the next agent loop.
@@ -233,6 +236,7 @@ Tasks can also declare `error_format` when they emit machine-parseable diagnosti
 ```text
 fkn [<task>] [--name value] [--param name=value]
 fkn <task> --dry-run
+fkn <task> --allow-unsafe
 fkn <task> --json
 fkn docs [name] [--list]
 fkn diff-plan [--json]

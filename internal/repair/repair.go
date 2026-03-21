@@ -19,7 +19,8 @@ type Generator struct {
 }
 
 type Options struct {
-	GuardName string
+	GuardName   string
+	AllowUnsafe bool
 }
 
 type ScopeInfo struct {
@@ -55,7 +56,11 @@ func New(cfg *config.Config, repoRoot string, guardRunner *guard.Runner) *Genera
 }
 
 func (g *Generator) Generate(opts Options) (Output, error) {
-	report, err := g.guard.Run(opts.GuardName, runner.Options{Stdout: io.Discard, Stderr: io.Discard})
+	report, err := g.guard.Run(opts.GuardName, runner.Options{
+		AllowUnsafe: opts.AllowUnsafe,
+		Stdout:      io.Discard,
+		Stderr:      io.Discard,
+	})
 	if err != nil {
 		return Output{}, err
 	}

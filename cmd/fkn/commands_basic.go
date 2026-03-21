@@ -137,7 +137,8 @@ func runGuard(args []string, stdout, stderr *os.File) int {
 	fs := flag.NewFlagSet("guard", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	jsonOut := fs.Bool("json", false, "")
-	parsedArgs, err := parseSubcommandArgs(args, map[string]bool{"--json": false})
+	allowUnsafe := fs.Bool("allow-unsafe", false, "")
+	parsedArgs, err := parseSubcommandArgs(args, map[string]bool{"--json": false, "--allow-unsafe": false})
 	if err != nil {
 		printError(stderr, err)
 		return 2
@@ -159,9 +160,10 @@ func runGuard(args []string, stdout, stderr *os.File) int {
 
 	taskRunner := runner.New(cfg, repoRoot)
 	report, err := guard.New(cfg, repoRoot, taskRunner).Run(name, runner.Options{
-		JSON:   *jsonOut,
-		Stdout: stdout,
-		Stderr: stderr,
+		JSON:        *jsonOut,
+		AllowUnsafe: *allowUnsafe,
+		Stdout:      stdout,
+		Stderr:      stderr,
 	})
 	if err != nil {
 		printError(stderr, err)

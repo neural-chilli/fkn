@@ -19,12 +19,13 @@ const (
 )
 
 type Options struct {
-	JSON   bool
-	DryRun bool
-	Stdout io.Writer
-	Stderr io.Writer
-	Env    map[string]string
-	Params map[string]string
+	JSON        bool
+	DryRun      bool
+	AllowUnsafe bool
+	Stdout      io.Writer
+	Stderr      io.Writer
+	Env         map[string]string
+	Params      map[string]string
 }
 
 type Runner struct {
@@ -97,6 +98,9 @@ func (r *Runner) runTask(ctx context.Context, taskName string, opts Options) (Re
 	task, ok := r.cfg.Tasks[taskName]
 	if !ok {
 		return Result{}, fmt.Errorf("unknown task %q", taskName)
+	}
+	if err := requireSafetyApproval(taskName, task.SafetyLevel(), opts); err != nil {
+		return Result{}, err
 	}
 
 	started := time.Now()
