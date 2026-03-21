@@ -168,8 +168,8 @@ func TestHandlePayloadResourcesList(t *testing.T) {
 		Tasks: map[string]config.Task{
 			"test": {Desc: "Test", Cmd: "echo test"},
 		},
-		Scopes: map[string][]string{
-			"cli": {"cmd/", "internal/"},
+		Scopes: map[string]config.Scope{
+			"cli": {Desc: "CLI and internal implementation paths", Paths: []string{"cmd/", "internal/"}},
 		},
 	}
 	repoRoot := t.TempDir()
@@ -201,6 +201,19 @@ func TestHandlePayloadResourcesList(t *testing.T) {
 	if len(rawResources) < 3 {
 		t.Fatalf("resources = %#v, want context/scope/guard resources", rawResources)
 	}
+	foundScope := false
+	for _, raw := range rawResources {
+		resource := raw.(map[string]any)
+		if resource["uri"] == "fkn://scope/cli" {
+			foundScope = true
+			if resource["description"] != "CLI and internal implementation paths" {
+				t.Fatalf("scope resource = %#v, want scope description", resource)
+			}
+		}
+	}
+	if !foundScope {
+		t.Fatalf("resources = %#v, want cli scope resource", rawResources)
+	}
 }
 
 func TestHandlePayloadResourcesRead(t *testing.T) {
@@ -222,8 +235,8 @@ func TestHandlePayloadResourcesRead(t *testing.T) {
 		Tasks: map[string]config.Task{
 			"test": {Desc: "Test", Cmd: "echo test"},
 		},
-		Scopes: map[string][]string{
-			"cli": {"README.md"},
+		Scopes: map[string]config.Scope{
+			"cli": {Desc: "CLI docs and task-facing files", Paths: []string{"README.md"}},
 		},
 		Context: config.ContextConfig{
 			Files: []string{"README.md"},
@@ -259,7 +272,9 @@ func TestHandlePayloadResourcesRead(t *testing.T) {
 		t.Fatalf("contents = %#v, want 1 item", contents)
 	}
 	item := contents[0].(map[string]any)
-	if !strings.Contains(item["text"].(string), "README.md") {
-		t.Fatalf("resource text = %#v, want scope path", item)
+	for _, want := range []string{"README.md", "CLI docs and task-facing files"} {
+		if !strings.Contains(item["text"].(string), want) {
+			t.Fatalf("resource text = %#v, want %q", item, want)
+		}
 	}
 }

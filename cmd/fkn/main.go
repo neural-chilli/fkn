@@ -294,7 +294,7 @@ func runScope(args []string, stdout, stderr *os.File) int {
 	}
 
 	if *format == "prompt" {
-		fmt.Fprintln(stdout, scope.FormatPrompt(result.Scope, result.Paths))
+		fmt.Fprintln(stdout, scope.FormatPrompt(result.Scope, result.Desc, result.Paths))
 		return 0
 	}
 	if *format != "" {
@@ -784,6 +784,9 @@ func printTaskHelp(stdout *os.File, invokedName, resolvedName string, cfg *confi
 	fmt.Fprintf(stdout, "Type: %s\n", task.Type())
 	if task.Scope != "" {
 		fmt.Fprintf(stdout, "Scope: %s\n", task.Scope)
+		if scopeDef, ok := cfg.Scopes[task.Scope]; ok && scopeDef.Desc != "" {
+			fmt.Fprintf(stdout, "Scope Desc: %s\n", scopeDef.Desc)
+		}
 	}
 	fmt.Fprintf(stdout, "Agent: %t\n", task.AgentEnabled())
 	if task.Dir != "" {

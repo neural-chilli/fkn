@@ -10,20 +10,20 @@ import (
 )
 
 type Config struct {
-	Project     string              `yaml:"project"`
-	Description string              `yaml:"description"`
-	Default     string              `yaml:"default"`
-	Defaults    DefaultsConfig      `yaml:"defaults"`
-	EnvFile     string              `yaml:"env_file"`
-	Tasks       map[string]Task     `yaml:"tasks"`
-	Aliases     map[string]string   `yaml:"aliases"`
-	Guards      map[string]Guard    `yaml:"guards"`
-	Scopes      map[string][]string `yaml:"scopes"`
-	Prompts     map[string]Prompt   `yaml:"prompts"`
-	Context     ContextConfig       `yaml:"context"`
-	Codemap     CodemapConfig       `yaml:"codemap"`
-	Serve       ServeConfig         `yaml:"serve"`
-	Watch       WatchConfig         `yaml:"watch"`
+	Project     string            `yaml:"project"`
+	Description string            `yaml:"description"`
+	Default     string            `yaml:"default"`
+	Defaults    DefaultsConfig    `yaml:"defaults"`
+	EnvFile     string            `yaml:"env_file"`
+	Tasks       map[string]Task   `yaml:"tasks"`
+	Aliases     map[string]string `yaml:"aliases"`
+	Guards      map[string]Guard  `yaml:"guards"`
+	Scopes      map[string]Scope  `yaml:"scopes"`
+	Prompts     map[string]Prompt `yaml:"prompts"`
+	Context     ContextConfig     `yaml:"context"`
+	Codemap     CodemapConfig     `yaml:"codemap"`
+	Serve       ServeConfig       `yaml:"serve"`
+	Watch       WatchConfig       `yaml:"watch"`
 }
 
 type Task struct {
@@ -52,6 +52,11 @@ type Param struct {
 
 type Guard struct {
 	Steps []string `yaml:"steps"`
+}
+
+type Scope struct {
+	Desc  string   `yaml:"desc,omitempty"`
+	Paths []string `yaml:"paths,omitempty"`
 }
 
 type Prompt struct {
@@ -110,6 +115,29 @@ type CodemapPackage struct {
 	EntryPoints []string `yaml:"entry_points"`
 	Conventions []string `yaml:"conventions"`
 	DependsOn   []string `yaml:"depends_on"`
+}
+
+func (s *Scope) UnmarshalYAML(value *yaml.Node) error {
+	switch value.Kind {
+	case yaml.SequenceNode:
+		var paths []string
+		if err := value.Decode(&paths); err != nil {
+			return err
+		}
+		s.Paths = paths
+		return nil
+	case yaml.MappingNode:
+		type rawScope Scope
+		var raw rawScope
+		if err := value.Decode(&raw); err != nil {
+			return err
+		}
+		s.Desc = raw.Desc
+		s.Paths = raw.Paths
+		return nil
+	default:
+		return fmt.Errorf("scope must be a path list or mapping")
+	}
 }
 
 func (t Task) AgentEnabled() bool {

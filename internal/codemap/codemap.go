@@ -125,15 +125,19 @@ func explainTask(cfg *config.Config, invokedName, resolvedName string) Explanati
 		Command:     task.Cmd,
 	}
 	if task.Scope != "" {
-		taskOut.ScopePaths = append([]string(nil), cfg.Scopes[task.Scope]...)
+		taskOut.ScopePaths = append([]string(nil), cfg.Scopes[task.Scope].Paths...)
 	}
 
 	var lines []string
 	lines = append(lines, "# fkn explain", "", fmt.Sprintf("Target: `%s`", invokedName), "", fmt.Sprintf("Task `%s`: %s", resolvedName, task.Desc))
 	lines = append(lines, fmt.Sprintf("- Type: `%s`", task.Type()))
 	if task.Scope != "" {
+		scopeDef := cfg.Scopes[task.Scope]
 		lines = append(lines, fmt.Sprintf("- Scope: `%s`", task.Scope))
-		lines = append(lines, fmt.Sprintf("- Paths: %s", strings.Join(cfg.Scopes[task.Scope], ", ")))
+		if scopeDef.Desc != "" {
+			lines = append(lines, fmt.Sprintf("- Scope intent: %s", scopeDef.Desc))
+		}
+		lines = append(lines, fmt.Sprintf("- Paths: %s", strings.Join(scopeDef.Paths, ", ")))
 	}
 	if len(task.Steps) > 0 {
 		lines = append(lines, fmt.Sprintf("- Steps: `%s`", strings.Join(task.Steps, "`, `")))

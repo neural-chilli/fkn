@@ -28,6 +28,9 @@ func TestRunCreatesStarterFiles(t *testing.T) {
 	if !strings.Contains(string(cfg), "tasks:") {
 		t.Fatalf("fkn.yaml = %q, want starter tasks", string(cfg))
 	}
+	if !strings.Contains(string(cfg), "desc: Main CLI commands and closely-related execution packages.") {
+		t.Fatalf("fkn.yaml = %q, want starter scope description", string(cfg))
+	}
 	if !strings.Contains(string(cfg), "default: check") {
 		t.Fatalf("fkn.yaml = %q, want starter default task", string(cfg))
 	}
@@ -319,6 +322,9 @@ func TestRunWithAgentsWritesCompanionFiles(t *testing.T) {
 	if !strings.Contains(gotAgentFKN, "`test`: Run the test suite") {
 		t.Fatalf("AGENTS_FKN.md = %q, want task summary", gotAgentFKN)
 	}
+	if !strings.Contains(gotAgentFKN, "Scope Description: Main CLI commands and closely-related execution packages.") {
+		t.Fatalf("AGENTS_FKN.md = %q, want scope description", gotAgentFKN)
+	}
 	if !strings.Contains(gotAgentFKN, "## Context") {
 		t.Fatalf("AGENTS_FKN.md = %q, want context section", gotAgentFKN)
 	}
@@ -387,8 +393,8 @@ func TestRenderAgentsFKNIncludesScopesAndPrompts(t *testing.T) {
 		Guards: map[string]config.Guard{
 			"default": {Steps: []string{"test", "build"}},
 		},
-		Scopes: map[string][]string{
-			"backend": {"cmd/", "internal/"},
+		Scopes: map[string]config.Scope{
+			"backend": {Desc: "Backend workflows", Paths: []string{"cmd/", "internal/"}},
 		},
 		Prompts: map[string]config.Prompt{
 			"continue-backend": {Desc: "Continue backend work"},
@@ -414,9 +420,11 @@ func TestRenderAgentsFKNIncludesScopesAndPrompts(t *testing.T) {
 	for _, want := range []string{
 		"## Scopes",
 		"`backend`: `cmd/`, `internal/`",
+		"Description: Backend workflows",
 		"## Prompts",
 		"`continue-backend`: Continue backend work",
 		"Scope: `backend`",
+		"Scope Description: Backend workflows",
 		"Steps: `test`, `build`",
 		"## MCP",
 		"## Watch",

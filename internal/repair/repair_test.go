@@ -26,8 +26,8 @@ func TestGenerateIncludesFailuresScopesAndMarkdown(t *testing.T) {
 		Guards: map[string]config.Guard{
 			"default": {Steps: []string{"test"}},
 		},
-		Scopes: map[string][]string{
-			"cli": {"cmd/fkn/", "internal/repair/"},
+		Scopes: map[string]config.Scope{
+			"cli": {Desc: "CLI and repair workflow code", Paths: []string{"cmd/fkn/", "internal/repair/"}},
 		},
 		Context: config.ContextConfig{
 			Caps: config.ContextCaps{GitDiffLines: 10},
@@ -51,10 +51,13 @@ func TestGenerateIncludesFailuresScopesAndMarkdown(t *testing.T) {
 	if failure.Scope == nil || failure.Scope.Name != "cli" {
 		t.Fatalf("Failure.Scope = %+v, want cli scope", failure.Scope)
 	}
+	if failure.Scope.Desc != "CLI and repair workflow code" {
+		t.Fatalf("Failure.Scope.Desc = %q, want scope description", failure.Scope.Desc)
+	}
 	if len(failure.Errors) != 1 || failure.Errors[0].File != "internal/repair/repair_test.go" {
 		t.Fatalf("Failure.Errors = %+v, want parsed error", failure.Errors)
 	}
-	for _, want := range []string{"# fkn repair", "## Guard Status", "## Failures", "## Suggested Next Action"} {
+	for _, want := range []string{"# fkn repair", "## Guard Status", "## Failures", "## Suggested Next Action", "Scope intent: CLI and repair workflow code"} {
 		if !strings.Contains(out.Markdown, want) {
 			t.Fatalf("Markdown = %q, want %q", out.Markdown, want)
 		}

@@ -147,10 +147,14 @@ func (s *Server) Resources() []Resource {
 	}
 
 	for _, name := range sortedScopeNames(s.cfg.Scopes) {
+		description := "Path list for the " + name + " scope"
+		if s.cfg.Scopes[name].Desc != "" {
+			description = s.cfg.Scopes[name].Desc
+		}
 		resources = append(resources, Resource{
 			URI:         "fkn://scope/" + name,
 			Name:        "Scope " + name,
-			Description: "Path list for the " + name + " scope",
+			Description: description,
 			MimeType:    "text/plain",
 		})
 	}
@@ -345,11 +349,15 @@ func (s *Server) resourceContent(uri string) (string, string, error) {
 	default:
 		if strings.HasPrefix(uri, "fkn://scope/") {
 			name := strings.TrimPrefix(uri, "fkn://scope/")
-			paths, ok := s.cfg.Scopes[name]
+			scopeDef, ok := s.cfg.Scopes[name]
 			if !ok {
 				return "", "", fmt.Errorf("unknown scope resource %q", uri)
 			}
-			return "text/plain", strings.Join(paths, "\n"), nil
+			text := strings.Join(scopeDef.Paths, "\n")
+			if scopeDef.Desc != "" {
+				text = scopeDef.Desc + "\n\n" + text
+			}
+			return "text/plain", text, nil
 		}
 		return "", "", fmt.Errorf("unknown resource %q", uri)
 	}
@@ -364,7 +372,7 @@ func sortedParamNames(params map[string]config.Param) []string {
 	return names
 }
 
-func sortedScopeNames(scopes map[string][]string) []string {
+func sortedScopeNames(scopes map[string]config.Scope) []string {
 	names := make([]string, 0, len(scopes))
 	for name := range scopes {
 		names = append(names, name)

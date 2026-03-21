@@ -48,6 +48,9 @@ func TestRunHelpForTask(t *testing.T) {
 	if !strings.Contains(output, "Default: true") {
 		t.Fatalf("stdout = %q, want default marker", output)
 	}
+	if !strings.Contains(output, "Scope Desc: Main CLI commands and closely-related execution packages.") {
+		t.Fatalf("stdout = %q, want scope description", output)
+	}
 	if !strings.Contains(output, "Usage: fkn check [--dry-run] [--json]") {
 		t.Fatalf("stdout = %q, want usage", output)
 	}
@@ -395,7 +398,9 @@ aliases:
   verify: build
 scopes:
   cli:
-    - cmd/
+    desc: CLI command surface
+    paths:
+      - cmd/
 `), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -519,7 +524,9 @@ tasks:
     cmd: printf ok
 scopes:
   cli:
-    - cmd/
+    desc: CLI command surface
+    paths:
+      - cmd/
 `), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -535,6 +542,42 @@ scopes:
 	}
 	if !strings.Contains(readStdout(), `"scope": "cli"`) {
 		t.Fatalf("stdout = %q, want JSON scope output", readStdout())
+	}
+	if !strings.Contains(readStdout(), `"desc": "CLI command surface"`) {
+		t.Fatalf("stdout = %q, want scope description", readStdout())
+	}
+}
+
+func TestRunScopePromptIncludesScopeIntent(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "fkn.yaml"), []byte(`
+tasks:
+  test:
+    desc: Run tests
+    cmd: printf ok
+scopes:
+  cli:
+    desc: CLI command surface
+    paths:
+      - cmd/
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	restore := chdirForTest(t, dir)
+	defer restore()
+
+	stdout, readStdout := tempOutputFile(t)
+	stderr, readStderr := tempOutputFile(t)
+
+	code := run([]string{"scope", "cli", "--format", "prompt"}, stdout, stderr)
+	if code != 0 {
+		t.Fatalf("run(scope cli --format prompt) code = %d, want 0; stderr=%s", code, readStderr())
+	}
+	output := readStdout()
+	for _, want := range []string{"Only modify files in the declared scope `cli`: cmd/", "Scope intent: CLI command surface"} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("stdout = %q, want %q", output, want)
+		}
 	}
 }
 
@@ -570,7 +613,9 @@ guards:
       - test
 scopes:
   cli:
-    - cmd/fkn/
+    desc: CLI command surface
+    paths:
+      - cmd/fkn/
 `), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -605,7 +650,9 @@ tasks:
     scope: cli
 scopes:
   cli:
-    - internal/runner/
+    desc: Runner-facing CLI scope
+    paths:
+      - internal/runner/
 codemap:
   packages:
     internal/runner:
@@ -646,7 +693,9 @@ tasks:
     scope: mcp
 scopes:
   mcp:
-    - internal/mcp/
+    desc: MCP transport and protocol work
+    paths:
+      - internal/mcp/
 codemap:
   packages:
     internal/mcp:

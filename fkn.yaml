@@ -34,13 +34,15 @@ guards:
 
 scopes:
   cli:
-    - cmd/fkn/
-    - internal/config/
-    - internal/context/
-    - internal/prompt/
-    - internal/runner/
-    - internal/guard/
-    - internal/scope/
+    desc: Main CLI commands and closely-related execution packages.
+    paths:
+      - cmd/fkn/
+      - internal/config/
+      - internal/context/
+      - internal/prompt/
+      - internal/runner/
+      - internal/guard/
+      - internal/scope/
 
 prompts:
   continue-cli:

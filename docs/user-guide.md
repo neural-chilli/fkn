@@ -420,16 +420,18 @@ Guard steps can now reference either cmd tasks or pipeline tasks, so you can reu
 
 ## Scopes
 
-Scopes are named path lists. Nothing more.
+Scopes are named path groups, and they can also carry a short description of why that part of the repo exists.
 
 Example:
 
 ```yaml
 scopes:
   cli:
-    - cmd/fkn/
-    - internal/runner/
-    - internal/mcp/
+    desc: Main CLI commands and the execution packages they depend on.
+    paths:
+      - cmd/fkn/
+      - internal/runner/
+      - internal/mcp/
 ```
 
 Use them with:
@@ -449,6 +451,17 @@ tasks:
     cmd: go test ./cmd/fkn ./internal/runner
     scope: cli
 ```
+
+The older flat-list form still works:
+
+```yaml
+scopes:
+  cli:
+    - cmd/fkn/
+    - internal/runner/
+```
+
+If a scope has a description, `fkn scope cli --format prompt`, `fkn help <task>`, generated repair briefs, and generated agent docs include that intent alongside the path list.
 
 ## Codemap
 
@@ -730,8 +743,10 @@ guards:
 
 scopes:
   backend:
-    - cmd/payments/
-    - internal/
+    desc: Payments API handlers, application wiring, and supporting internals.
+    paths:
+      - cmd/payments/
+      - internal/
 
 prompts:
   fix-backend-bug:

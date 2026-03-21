@@ -24,6 +24,7 @@ type Options struct {
 
 type ScopeInfo struct {
 	Name  string   `json:"name"`
+	Desc  string   `json:"desc,omitempty"`
 	Paths []string `json:"paths"`
 }
 
@@ -93,8 +94,9 @@ func (g *Generator) failures(report guard.Report) []Failure {
 		if task, ok := g.cfg.Tasks[step.Name]; ok {
 			failure.Description = task.Desc
 			if task.Scope != "" {
-				paths := append([]string(nil), g.cfg.Scopes[task.Scope]...)
-				failure.Scope = &ScopeInfo{Name: task.Scope, Paths: paths}
+				scopeDef := g.cfg.Scopes[task.Scope]
+				paths := append([]string(nil), scopeDef.Paths...)
+				failure.Scope = &ScopeInfo{Name: task.Scope, Desc: scopeDef.Desc, Paths: paths}
 			}
 		}
 		failures = append(failures, failure)
@@ -160,6 +162,9 @@ func renderFailures(failures []Failure) string {
 		lines = append(lines, fmt.Sprintf("- Exit code: %d", failure.ExitCode))
 		if failure.Scope != nil {
 			lines = append(lines, fmt.Sprintf("- Scope: `%s`", failure.Scope.Name))
+			if failure.Scope.Desc != "" {
+				lines = append(lines, fmt.Sprintf("- Scope intent: %s", failure.Scope.Desc))
+			}
 			lines = append(lines, fmt.Sprintf("- Paths: %s", strings.Join(failure.Scope.Paths, ", ")))
 		}
 		if len(failure.Errors) > 0 {

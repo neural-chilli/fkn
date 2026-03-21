@@ -23,17 +23,27 @@ default: check
 tasks:
   test:
     desc: Run the test suite
+    scope: cli
     cmd: go test ./...
 
   build:
     desc: Build the application
+    scope: cli
     cmd: go build ./...
 
   check:
     desc: Run the default local verification pipeline
+    scope: cli
     steps:
       - test
       - build
+
+scopes:
+  cli:
+    desc: Main CLI commands and closely-related execution packages.
+    paths:
+      - cmd/
+      - internal/
 `
 
 const (
@@ -154,6 +164,9 @@ func renderAgentsFKN(cfg *config.Config) (string, error) {
 		builder.WriteString(fmt.Sprintf("- `%s`: %s\n", name, task.Desc))
 		if task.Scope != "" {
 			builder.WriteString(fmt.Sprintf("  Scope: `%s`\n", task.Scope))
+			if scopeDef, ok := cfg.Scopes[task.Scope]; ok && scopeDef.Desc != "" {
+				builder.WriteString(fmt.Sprintf("  Scope Description: %s\n", scopeDef.Desc))
+			}
 		}
 		if len(task.Steps) > 0 {
 			builder.WriteString(fmt.Sprintf("  Steps: `%s`\n", strings.Join(task.Steps, "`, `")))
@@ -175,8 +188,11 @@ func renderAgentsFKN(cfg *config.Config) (string, error) {
 	if len(cfg.Scopes) > 0 {
 		builder.WriteString("\n## Scopes\n\n")
 		for _, name := range sortedScopeNames(cfg.Scopes) {
-			paths := cfg.Scopes[name]
-			builder.WriteString(fmt.Sprintf("- `%s`: `%s`\n", name, strings.Join(paths, "`, `")))
+			scopeDef := cfg.Scopes[name]
+			builder.WriteString(fmt.Sprintf("- `%s`: `%s`\n", name, strings.Join(scopeDef.Paths, "`, `")))
+			if scopeDef.Desc != "" {
+				builder.WriteString(fmt.Sprintf("  Description: %s\n", scopeDef.Desc))
+			}
 		}
 	}
 
@@ -600,7 +616,7 @@ func sortedPromptNames(prompts map[string]config.Prompt) []string {
 	return names
 }
 
-func sortedScopeNames(scopes map[string][]string) []string {
+func sortedScopeNames(scopes map[string]config.Scope) []string {
 	names := make([]string, 0, len(scopes))
 	for name := range scopes {
 		names = append(names, name)

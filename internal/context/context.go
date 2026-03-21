@@ -228,7 +228,11 @@ func (g *Generator) agentSection(taskName string) (string, error) {
 		fmt.Sprintf("- Description: %s", task.Desc),
 	}
 	if task.Scope != "" {
-		lines = append(lines, fmt.Sprintf("- Scope `%s`: %s", task.Scope, strings.Join(g.cfg.Scopes[task.Scope], ", ")))
+		scopeDef := g.cfg.Scopes[task.Scope]
+		lines = append(lines, fmt.Sprintf("- Scope `%s`: %s", task.Scope, strings.Join(scopeDef.Paths, ", ")))
+		if scopeDef.Desc != "" {
+			lines = append(lines, fmt.Sprintf("- Scope intent: %s", scopeDef.Desc))
+		}
 	}
 	return strings.Join(lines, "\n"), nil
 }
@@ -522,7 +526,7 @@ func (g *Generator) codemapSection(taskName string) string {
 	if !ok || task.Scope == "" {
 		return ""
 	}
-	return codemap.RenderRelevantPackages(codemap.RelevantPackages(g.cfg, g.cfg.Scopes[task.Scope]))
+	return codemap.RenderRelevantPackages(codemap.RelevantPackages(g.cfg, g.cfg.Scopes[task.Scope].Paths))
 }
 
 func (g *Generator) aboutTasksSection(topic string) string {
@@ -546,11 +550,15 @@ func (g *Generator) aboutScopesSection(topic string) string {
 	query := strings.ToLower(topic)
 	var lines []string
 	for _, name := range sortedKeys(g.cfg.Scopes) {
-		paths := g.cfg.Scopes[name]
-		if !matchesTopic(query, name, strings.Join(paths, " ")) {
+		scopeDef := g.cfg.Scopes[name]
+		if !matchesTopic(query, name, scopeDef.Desc, strings.Join(scopeDef.Paths, " ")) {
 			continue
 		}
-		lines = append(lines, fmt.Sprintf("- `%s`: %s", name, strings.Join(paths, ", ")))
+		line := fmt.Sprintf("- `%s`: %s", name, strings.Join(scopeDef.Paths, ", "))
+		if scopeDef.Desc != "" {
+			line += fmt.Sprintf(" (%s)", scopeDef.Desc)
+		}
+		lines = append(lines, line)
 	}
 	return strings.Join(lines, "\n")
 }
@@ -598,7 +606,7 @@ func (g *Generator) aboutRelevantPathsSection(topic string) string {
 		if task.Scope == "" || !matchesTopic(query, name, task.Desc, task.Scope) {
 			continue
 		}
-		for _, path := range g.cfg.Scopes[task.Scope] {
+		for _, path := range g.cfg.Scopes[task.Scope].Paths {
 			if !seen[path] {
 				seen[path] = true
 				paths = append(paths, path)
@@ -606,10 +614,11 @@ func (g *Generator) aboutRelevantPathsSection(topic string) string {
 		}
 	}
 	for _, name := range sortedKeys(g.cfg.Scopes) {
-		if !matchesTopic(query, name, strings.Join(g.cfg.Scopes[name], " ")) {
+		scopeDef := g.cfg.Scopes[name]
+		if !matchesTopic(query, name, scopeDef.Desc, strings.Join(scopeDef.Paths, " ")) {
 			continue
 		}
-		for _, path := range g.cfg.Scopes[name] {
+		for _, path := range scopeDef.Paths {
 			if !seen[path] {
 				seen[path] = true
 				paths = append(paths, path)

@@ -34,7 +34,7 @@ Implemented today:
 - task execution
 - sequential and parallel pipelines
 - guards
-- scopes
+- scopes with optional descriptions and reusable path intent
 - prompts
 - context generation
 - init scaffolding
@@ -162,9 +162,18 @@ tasks:
 aliases:
   t: test
   b: build
+
+scopes:
+  backend:
+    desc: Backend application code and closely-related internals.
+    paths:
+      - cmd/my-service/
+      - internal/
 ```
 
 Running `fkn` with no task name executes the configured default task when `default:` is set.
+
+Scopes can still be simple path lists, but the richer object form lets you attach intent that shows up in `fkn scope`, `fkn help <task>`, repair briefs, generated agent docs, and MCP scope resources.
 
 `fkn list` now also shows summary metadata like task type, default marker, aliases, scope, and params in the human-readable view, and `fkn help <task>` includes a concrete usage line.
 

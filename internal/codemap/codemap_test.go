@@ -14,8 +14,8 @@ func TestExplainPackageAndEntryPoint(t *testing.T) {
 		Tasks: map[string]config.Task{
 			"check": {Desc: "Run checks", Cmd: "echo ok", Scope: "cli"},
 		},
-		Scopes: map[string][]string{
-			"cli": {"cmd/fkn/", "internal/runner/"},
+		Scopes: map[string]config.Scope{
+			"cli": {Desc: "CLI work", Paths: []string{"cmd/fkn/", "internal/runner/"}},
 		},
 		Codemap: config.CodemapConfig{
 			Packages: map[string]config.CodemapPackage{
@@ -53,7 +53,7 @@ func TestExplainPackageAndEntryPoint(t *testing.T) {
 		t.Fatalf("Explain(glossary) = %+v, want glossary explanation", glossary)
 	}
 
-	rendered := RenderRelevantPackages(RelevantPackages(cfg, cfg.Scopes["cli"]))
+	rendered := RenderRelevantPackages(RelevantPackages(cfg, cfg.Scopes["cli"].Paths))
 	if !strings.Contains(rendered, "internal/runner") {
 		t.Fatalf("RenderRelevantPackages() = %q, want matching package", rendered)
 	}

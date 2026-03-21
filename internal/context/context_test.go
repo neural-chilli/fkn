@@ -43,8 +43,8 @@ func TestGenerateIncludesTaskScopeAndLastGuard(t *testing.T) {
 			"check": {Desc: "Run checks", Steps: []string{"test"}, Scope: "cli"},
 			"test":  {Desc: "Run tests", Cmd: "echo test"},
 		},
-		Scopes: map[string][]string{
-			"cli": {"README.md"},
+		Scopes: map[string]config.Scope{
+			"cli": {Desc: "CLI files for the check workflow", Paths: []string{"README.md"}},
 		},
 		Context: config.ContextConfig{
 			AgentFiles: []string{"README.md"},
@@ -68,6 +68,9 @@ func TestGenerateIncludesTaskScopeAndLastGuard(t *testing.T) {
 	}
 	if !strings.Contains(out, "Scope `cli`: README.md") {
 		t.Fatalf("output missing scope detail:\n%s", out)
+	}
+	if !strings.Contains(out, "Scope intent: CLI files for the check workflow") {
+		t.Fatalf("output missing scope intent:\n%s", out)
 	}
 	if !strings.Contains(out, "## Last Guard") {
 		t.Fatalf("output missing last guard:\n%s", out)
@@ -149,8 +152,8 @@ func TestGenerateAgentIncludesCodemapForTaskScope(t *testing.T) {
 		Tasks: map[string]config.Task{
 			"check": {Desc: "Run checks", Cmd: "echo ok", Scope: "cli"},
 		},
-		Scopes: map[string][]string{
-			"cli": {"internal/runner/"},
+		Scopes: map[string]config.Scope{
+			"cli": {Paths: []string{"internal/runner/"}},
 		},
 		Codemap: config.CodemapConfig{
 			Packages: map[string]config.CodemapPackage{
@@ -181,8 +184,8 @@ func TestGenerateAboutIncludesMatchingCodemapAndTasks(t *testing.T) {
 			"check": {Desc: "Run MCP transport checks", Cmd: "echo ok", Scope: "mcp"},
 			"test":  {Desc: "Run tests", Cmd: "echo test"},
 		},
-		Scopes: map[string][]string{
-			"mcp": {"internal/mcp/"},
+		Scopes: map[string]config.Scope{
+			"mcp": {Desc: "MCP transport and protocol work", Paths: []string{"internal/mcp/"}},
 		},
 		Codemap: config.CodemapConfig{
 			Packages: map[string]config.CodemapPackage{
@@ -204,7 +207,7 @@ func TestGenerateAboutIncludesMatchingCodemapAndTasks(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Generate() error = %v", err)
 	}
-	for _, want := range []string{"## Topic", "## Matching Tasks", "## Matching Codemap", "## Glossary", "internal/mcp", "transport"} {
+	for _, want := range []string{"## Topic", "## Matching Tasks", "## Matching Scopes", "## Matching Codemap", "## Glossary", "internal/mcp", "transport", "MCP transport and protocol work"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("output = %q, want %q", out, want)
 		}

@@ -59,11 +59,11 @@ func (r *Renderer) resolve(key string) (string, bool) {
 
 	if strings.HasPrefix(key, "scope.") {
 		name := strings.TrimPrefix(key, "scope.")
-		paths, ok := r.cfg.Scopes[name]
+		scopeDef, ok := r.cfg.Scopes[name]
 		if !ok {
 			return "", false
 		}
-		return strings.Join(paths, ", "), true
+		return strings.Join(scopeDef.Paths, ", "), true
 	}
 
 	if strings.HasPrefix(key, "task.") && strings.HasSuffix(key, ".desc") {
