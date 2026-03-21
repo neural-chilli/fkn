@@ -47,6 +47,7 @@ Implemented today:
 - JSON output for key commands
 - broader Makefile/justfile task import during `init --from-repo`
 - richer `justfile` import with aliases, params, and private-recipe filtering
+- package.json argument inference for `npm_config_*`-style scripts
 - task params with CLI, runner, and MCP support
 - direct task param flags like `--feature auth`
 - task aliases

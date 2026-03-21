@@ -221,6 +221,76 @@ func TestRunFromRepoReadsCapitalizedJustfile(t *testing.T) {
 	}
 }
 
+func TestRunFromRepoInfersPackageScriptArgs(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	packageJSON := `{
+  "scripts": {
+    "build": "vite build --mode=$npm_config_mode",
+    "test:e2e": "playwright test --project=$npm_config_project",
+    "lint:fix": "eslint . --fix",
+    "dev": "node ./scripts/dev.js"
+  }
+}`
+	if err := os.WriteFile(filepath.Join(dir, "package.json"), []byte(packageJSON), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := Run(dir, Options{FromRepo: true}); err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+
+	cfg, err := os.ReadFile(filepath.Join(dir, "fkn.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(cfg)
+	for _, want := range []string{
+		"cmd: npm run build -- --mode={{params.mode}}",
+		"mode:\n        desc: Value for the mode package script argument\n        env: npm_config_mode\n        required: true\n",
+		"test-e2e:\n    desc: Run the package.json test:e2e script\n    cmd: npm run test:e2e -- --project={{params.project}}\n",
+		"project:\n        desc: Value for the project package script argument\n        env: npm_config_project\n        required: true\n",
+		"dev:\n    desc: Run the package.json dev script\n    cmd: npm run dev\n",
+		"lint-fix:\n    desc: Run the package.json lint:fix script\n    cmd: npm run lint:fix\n",
+		"package.json",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("fkn.yaml = %q, want %q", got, want)
+		}
+	}
+}
+
+func TestRunFromRepoInfersNodeProcessEnvScriptArgs(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	packageJSON := `{
+  "scripts": {
+    "build": "node ./scripts/build.js --target=${process.env.npm_config_target}"
+  }
+}`
+	if err := os.WriteFile(filepath.Join(dir, "package.json"), []byte(packageJSON), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := Run(dir, Options{FromRepo: true}); err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+
+	cfg, err := os.ReadFile(filepath.Join(dir, "fkn.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(cfg)
+	if !strings.Contains(got, "cmd: npm run build -- --target={{params.target}}") {
+		t.Fatalf("fkn.yaml = %q, want npm_config target forwarding", got)
+	}
+	if !strings.Contains(got, "env: npm_config_target") {
+		t.Fatalf("fkn.yaml = %q, want inferred npm_config env", got)
+	}
+}
+
 func TestRunWithAgentsWritesCompanionFiles(t *testing.T) {
 	t.Parallel()
 

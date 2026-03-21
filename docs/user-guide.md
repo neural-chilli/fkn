@@ -48,6 +48,8 @@ For Makefiles and justfiles, `fkn` now imports most regular targets instead of o
 
 For `justfile`s specifically, `fkn` now also carries over common recipe aliases, positional/defaulted recipe parameters, and skips `_hidden` or `[private]` recipes so the generated config matches what humans usually invoke.
 
+For `package.json`, `fkn` now detects common `npm_config_*` patterns and turns them into declared task params. That means scripts like `vite build --mode=$npm_config_mode` can scaffold to a task that exposes `mode` explicitly instead of hiding it inside the raw npm script string.
+
 The goal is not to guess everything perfectly. The goal is to give you a believable first `fkn.yaml` that humans and agents can edit confidently.
 
 If you also want agent-facing guidance files:

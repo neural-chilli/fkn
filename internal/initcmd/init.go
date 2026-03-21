@@ -66,6 +66,12 @@ type justParam struct {
 	Required bool
 }
 
+type packageScript struct {
+	Name   string
+	Cmd    string
+	Params map[string]config.Param
+}
+
 func Run(repoRoot string, opts Options) (string, error) {
 	var messages []string
 
@@ -384,25 +390,26 @@ func inferTasks(repoRoot string) []inferredTask {
 	}
 	sort.Strings(scriptNames)
 	for _, name := range scriptNames {
+		script := scripts[name]
 		switch name {
 		case "check":
-			addTask("check", "Run the package.json check script", fmt.Sprintf("npm run %s", name), nil, nil)
+			addTask("check", "Run the package.json check script", script.Cmd, nil, script.Params)
 		case "test":
-			addTask("test", "Run the package.json test script", fmt.Sprintf("npm run %s", name), nil, nil)
+			addTask("test", "Run the package.json test script", script.Cmd, nil, script.Params)
 		case "build":
-			addTask("build", "Run the package.json build script", fmt.Sprintf("npm run %s", name), nil, nil)
+			addTask("build", "Run the package.json build script", script.Cmd, nil, script.Params)
 		case "lint":
-			addTask("lint", "Run the package.json lint script", fmt.Sprintf("npm run %s", name), nil, nil)
+			addTask("lint", "Run the package.json lint script", script.Cmd, nil, script.Params)
 		case "dev":
-			addTask("dev", "Run the package.json dev script", fmt.Sprintf("npm run %s", name), nil, nil)
+			addTask("dev", "Run the package.json dev script", script.Cmd, nil, script.Params)
 		case "start":
-			addTask("start", "Run the package.json start script", fmt.Sprintf("npm run %s", name), nil, nil)
+			addTask("start", "Run the package.json start script", script.Cmd, nil, script.Params)
 		default:
 			if strings.HasPrefix(name, "test:") {
-				addTask(scriptTaskName(name), fmt.Sprintf("Run the package.json %s script", name), fmt.Sprintf("npm run %s", name), nil, nil)
+				addTask(scriptTaskName(name), fmt.Sprintf("Run the package.json %s script", name), script.Cmd, nil, script.Params)
 			}
 			if strings.HasPrefix(name, "lint:") {
-				addTask(scriptTaskName(name), fmt.Sprintf("Run the package.json %s script", name), fmt.Sprintf("npm run %s", name), nil, nil)
+				addTask(scriptTaskName(name), fmt.Sprintf("Run the package.json %s script", name), script.Cmd, nil, script.Params)
 			}
 		}
 	}
@@ -917,7 +924,7 @@ func isUpperSnake(value string) bool {
 	return true
 }
 
-func findPackageScripts(repoRoot string) map[string]string {
+func findPackageScripts(repoRoot string) map[string]packageScript {
 	raw, err := os.ReadFile(filepath.Join(repoRoot, "package.json"))
 	if err != nil {
 		return nil
@@ -929,7 +936,83 @@ func findPackageScripts(repoRoot string) map[string]string {
 	if err := json.Unmarshal(raw, &pkg); err != nil {
 		return nil
 	}
-	return pkg.Scripts
+	scripts := make(map[string]packageScript, len(pkg.Scripts))
+	for name, command := range pkg.Scripts {
+		scripts[name] = packageScript{
+			Name:   name,
+			Cmd:    buildPackageScriptCommand(name, command),
+			Params: inferredPackageScriptParams(command),
+		}
+	}
+	return scripts
+}
+
+func buildPackageScriptCommand(name, command string) string {
+	params := inferredPackageScriptParams(command)
+	if len(params) == 0 {
+		return fmt.Sprintf("npm run %s", name)
+	}
+	paramNames := sortedParamNames(params)
+	parts := []string{fmt.Sprintf("npm run %s --", name)}
+	for _, paramName := range paramNames {
+		parts = append(parts, fmt.Sprintf("--%s={{params.%s}}", paramName, paramName))
+	}
+	return strings.Join(parts, " ")
+}
+
+func inferredPackageScriptParams(command string) map[string]config.Param {
+	names := findPackageScriptParamNames(command)
+	if len(names) == 0 {
+		return nil
+	}
+	params := make(map[string]config.Param, len(names))
+	for _, name := range names {
+		params[name] = config.Param{
+			Desc:     fmt.Sprintf("Value for the %s package script argument", name),
+			Env:      "npm_config_" + strings.ReplaceAll(name, "-", "_"),
+			Required: true,
+		}
+	}
+	return params
+}
+
+func findPackageScriptParamNames(command string) []string {
+	patterns := []string{
+		"npm_config_",
+		"process.env.npm_config_",
+	}
+	seen := map[string]bool{}
+	var names []string
+	for _, pattern := range patterns {
+		remaining := command
+		for {
+			index := strings.Index(remaining, pattern)
+			if index < 0 {
+				break
+			}
+			remaining = remaining[index+len(pattern):]
+			var token strings.Builder
+			for _, r := range remaining {
+				if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_' || r == '-' {
+					token.WriteRune(r)
+					continue
+				}
+				break
+			}
+			rawName := token.String()
+			if rawName == "" {
+				continue
+			}
+			name := strings.ToLower(strings.ReplaceAll(rawName, "_", "-"))
+			if seen[name] {
+				continue
+			}
+			seen[name] = true
+			names = append(names, name)
+		}
+	}
+	sort.Strings(names)
+	return names
 }
 
 func scriptTaskName(name string) string {
