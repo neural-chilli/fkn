@@ -47,7 +47,7 @@ Implemented today:
 - MCP serve mode
 - MCP resources for context, scopes, and cached guard state
 - MCP prompt discovery and retrieval
-- watch mode
+- fsnotify-backed watch mode with polling fallback
 - help output and task suggestions
 - JSON output for key commands
 - broader Makefile/justfile task import during `init --from-repo`

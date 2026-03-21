@@ -869,6 +869,8 @@ It currently:
 
 `fkn watch` reruns a task or guard when watched files change.
 
+It now uses filesystem events by default for faster reruns and lower idle overhead, with the older polling path kept as a fallback if event watching is unavailable.
+
 Examples:
 
 ```bash
