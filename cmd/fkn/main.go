@@ -135,7 +135,8 @@ func runInit(args []string, stdout, stderr *os.File) int {
 	fs := flag.NewFlagSet("init", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	fromRepo := fs.Bool("from-repo", false, "")
-	if err := fs.Parse(reorderSubcommandArgs(args, map[string]bool{"--from-repo": true})); err != nil {
+	agents := fs.Bool("agents", false, "")
+	if err := fs.Parse(reorderSubcommandArgs(args, map[string]bool{"--from-repo": true, "--agents": true})); err != nil {
 		return 2
 	}
 
@@ -147,6 +148,7 @@ func runInit(args []string, stdout, stderr *os.File) int {
 
 	message, err := initcmd.Run(repoRoot, initcmd.Options{
 		FromRepo: *fromRepo,
+		Agents:   *agents,
 	})
 	if err != nil {
 		printError(stderr, err)
@@ -579,7 +581,7 @@ func printUsage(stdout *os.File) {
 		"fkn help [task]",
 		"fkn context [--agent] [--task <name>] [--out <file>] [--copy] [--max-tokens <n>]",
 		"fkn guard [name] [--json]",
-		"fkn init [--from-repo]",
+		"fkn init [--from-repo] [--agents]",
 		"fkn list [--json] [--mcp]",
 		"fkn serve [--http] [--port <n>]",
 		"fkn watch <target> [--path <glob>]",

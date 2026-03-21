@@ -36,6 +36,7 @@ Implemented today:
 - context generation
 - init scaffolding
 - repo-aware init scaffolding from existing task surfaces
+- generated agent guidance via `AGENTS_FKN.md`
 - embedded offline docs in the CLI
 - MCP serve mode
 - watch mode
@@ -94,6 +95,7 @@ go run ./cmd/fkn context
 go run ./cmd/fkn context --agent --task check
 go run ./cmd/fkn init
 go run ./cmd/fkn init --from-repo
+go run ./cmd/fkn init --agents
 go run ./cmd/fkn serve
 go run ./cmd/fkn serve --http --port 8080
 go run ./cmd/fkn watch test --path README.md
@@ -143,7 +145,7 @@ fkn context
 fkn context --agent --task <name>
 fkn context --out <file>
 fkn context --copy
-fkn init [--from-repo]
+fkn init [--from-repo] [--agents]
 fkn serve
 fkn serve --http --port <n>
 fkn watch <target>

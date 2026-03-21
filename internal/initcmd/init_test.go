@@ -131,3 +131,73 @@ func TestRunFromRepoPrefersMakeTargets(t *testing.T) {
 		t.Fatalf("fkn.yaml = %q, want make-backed check task", got)
 	}
 }
+
+func TestRunWithAgentsWritesCompanionFiles(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	agents := "## Local Rules\n\nKeep this section.\n"
+	if err := os.WriteFile(filepath.Join(dir, "AGENTS.md"), []byte(agents), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	msg, err := Run(dir, Options{Agents: true})
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if !strings.Contains(msg, "wrote AGENTS_FKN.md") {
+		t.Fatalf("Run() message = %q, want AGENTS_FKN note", msg)
+	}
+
+	agentFKN, err := os.ReadFile(filepath.Join(dir, "AGENTS_FKN.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	gotAgentFKN := string(agentFKN)
+	if !strings.Contains(gotAgentFKN, "# AGENTS_FKN") {
+		t.Fatalf("AGENTS_FKN.md = %q, want header", gotAgentFKN)
+	}
+	if !strings.Contains(gotAgentFKN, "`test`: Run the test suite") {
+		t.Fatalf("AGENTS_FKN.md = %q, want task summary", gotAgentFKN)
+	}
+
+	agentRoot, err := os.ReadFile(filepath.Join(dir, "AGENTS.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	gotAgentRoot := string(agentRoot)
+	if !strings.Contains(gotAgentRoot, "Keep this section.") {
+		t.Fatalf("AGENTS.md = %q, want original content preserved", gotAgentRoot)
+	}
+	if !strings.Contains(gotAgentRoot, "## fkn Workflow") {
+		t.Fatalf("AGENTS.md = %q, want fkn workflow block", gotAgentRoot)
+	}
+}
+
+func TestRunWithAgentsIsIdempotent(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	if _, err := Run(dir, Options{Agents: true}); err != nil {
+		t.Fatalf("first Run() error = %v", err)
+	}
+	before, err := os.ReadFile(filepath.Join(dir, "AGENTS.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	msg, err := Run(dir, Options{Agents: true})
+	if err != nil {
+		t.Fatalf("second Run() error = %v", err)
+	}
+	if !strings.Contains(msg, "AGENTS.md already includes fkn guidance") {
+		t.Fatalf("Run() message = %q, want existing guidance note", msg)
+	}
+	after, err := os.ReadFile(filepath.Join(dir, "AGENTS.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(before) != string(after) {
+		t.Fatalf("AGENTS.md changed unexpectedly on second run:\nBEFORE:\n%s\nAFTER:\n%s", string(before), string(after))
+	}
+}

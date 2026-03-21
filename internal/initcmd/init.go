@@ -8,10 +8,13 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/neural-chilli/fkn/internal/config"
 )
 
 type Options struct {
 	FromRepo bool
+	Agents   bool
 }
 
 const starterConfig = `project: my-project
@@ -32,6 +35,11 @@ tasks:
       - test
       - build
 `
+
+const (
+	agentsBlockStart = "<!-- fkn:agents:start -->"
+	agentsBlockEnd   = "<!-- fkn:agents:end -->"
+)
 
 type inferredTask struct {
 	Name  string
@@ -72,7 +80,114 @@ func Run(repoRoot string, opts Options) (string, error) {
 		messages = append(messages, ".gitignore already includes .fkn/")
 	}
 
+	if opts.Agents {
+		cfg, err := config.Load(cfgPath)
+		if err != nil {
+			return "", err
+		}
+		agentDoc, err := renderAgentsFKN(cfg)
+		if err != nil {
+			return "", err
+		}
+		if err := os.WriteFile(filepath.Join(repoRoot, "AGENTS_FKN.md"), []byte(agentDoc), 0o644); err != nil {
+			return "", err
+		}
+		messages = append(messages, "wrote AGENTS_FKN.md")
+
+		updatedAgents, err := ensureAgentsReference(filepath.Join(repoRoot, "AGENTS.md"))
+		if err != nil {
+			return "", err
+		}
+		if updatedAgents {
+			messages = append(messages, "updated AGENTS.md with fkn guidance")
+		} else {
+			messages = append(messages, "AGENTS.md already includes fkn guidance")
+		}
+	}
+
 	return strings.Join(messages, "\n"), nil
+}
+
+func renderAgentsFKN(cfg *config.Config) (string, error) {
+	var builder strings.Builder
+	builder.WriteString("# AGENTS_FKN\n\n")
+	builder.WriteString("This repository uses `fkn` as its structured task interface.\n\n")
+	builder.WriteString("## How To Work Here\n\n")
+	builder.WriteString("- Start with `fkn list` to discover the available tasks.\n")
+	builder.WriteString("- Use `fkn help <task>` before inventing an equivalent command.\n")
+	builder.WriteString("- Use `fkn context` for a bounded repo summary.\n")
+	builder.WriteString("- Use `fkn guard` when you want a validation report across multiple checks.\n")
+	builder.WriteString("- Prefer `fkn` tasks over ad hoc shell commands when the task already exists.\n\n")
+
+	builder.WriteString("## Project\n\n")
+	builder.WriteString(fmt.Sprintf("- Project: `%s`\n", cfg.Project))
+	if cfg.Description != "" {
+		builder.WriteString(fmt.Sprintf("- Description: %s\n", cfg.Description))
+	}
+	builder.WriteString("\n## Tasks\n\n")
+	for _, name := range sortedTaskNames(cfg.Tasks) {
+		task := cfg.Tasks[name]
+		builder.WriteString(fmt.Sprintf("- `%s`: %s\n", name, task.Desc))
+	}
+
+	if len(cfg.Guards) > 0 {
+		builder.WriteString("\n## Guards\n\n")
+		for _, name := range sortedGuardNames(cfg.Guards) {
+			builder.WriteString(fmt.Sprintf("- `%s`\n", name))
+		}
+	}
+
+	builder.WriteString("\n## Suggested Command Order\n\n")
+	builder.WriteString("1. `fkn list`\n")
+	builder.WriteString("2. `fkn help <task>`\n")
+	builder.WriteString("3. `fkn context` or `fkn context --agent --task <task>`\n")
+	builder.WriteString("4. `fkn <task>` or `fkn guard`\n")
+	return builder.String(), nil
+}
+
+func ensureAgentsReference(path string) (bool, error) {
+	block := strings.Join([]string{
+		agentsBlockStart,
+		"## fkn Workflow",
+		"",
+		"If `fkn.yaml` exists in this repo:",
+		"- read `AGENTS_FKN.md`",
+		"- start with `fkn list`",
+		"- use `fkn help <task>` before guessing commands",
+		"- use `fkn context` or `fkn guard` when you need bounded repo context or validation",
+		agentsBlockEnd,
+		"",
+	}, "\n")
+
+	raw, err := os.ReadFile(path)
+	if err != nil && !os.IsNotExist(err) {
+		return false, err
+	}
+
+	content := string(raw)
+	if strings.Contains(content, agentsBlockStart) && strings.Contains(content, agentsBlockEnd) {
+		start := strings.Index(content, agentsBlockStart)
+		end := strings.Index(content, agentsBlockEnd)
+		if start >= 0 && end >= start {
+			end += len(agentsBlockEnd)
+			updated := content[:start] + block + strings.TrimLeft(content[end:], "\n")
+			if err := os.WriteFile(path, []byte(updated), 0o644); err != nil {
+				return false, err
+			}
+			return false, nil
+		}
+	}
+
+	trimmed := strings.TrimRight(content, "\n")
+	if trimmed == "" {
+		content = block
+	} else {
+		content = trimmed + "\n\n" + block
+	}
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 func inferConfig(repoRoot string) string {
@@ -267,6 +382,24 @@ func inferredWatchPaths(repoRoot string) []string {
 		out = append(out, path)
 	}
 	return out
+}
+
+func sortedTaskNames(tasks map[string]config.Task) []string {
+	names := make([]string, 0, len(tasks))
+	for name := range tasks {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}
+
+func sortedGuardNames(guards map[string]config.Guard) []string {
+	names := make([]string, 0, len(guards))
+	for name := range guards {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
 }
 
 func findMakeTargets(repoRoot string) []string {
