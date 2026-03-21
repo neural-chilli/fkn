@@ -72,6 +72,7 @@ Treat `fkn.yaml` as the operational API of your repository.
 That means one file defines:
 
 - what tasks exist
+- what aliases map onto those tasks
 - how validation runs
 - what scopes an agent should touch
 - what prompts should render
@@ -153,6 +154,32 @@ tasks:
       - test
       - build
 ```
+
+## Aliases
+
+Aliases let you expose short or migration-friendly names for existing tasks.
+
+Example:
+
+```yaml
+tasks:
+  build:
+    desc: Build the project
+    cmd: go build ./...
+
+aliases:
+  b: build
+  verify: build
+```
+
+Then either of these works:
+
+```bash
+fkn b
+fkn help b
+```
+
+Aliases do not create separate tasks. They point at an existing task and reuse its behavior.
 
 ## Task Options
 

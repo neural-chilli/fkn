@@ -67,6 +67,65 @@ func TestRunUnknownTaskShowsSuggestion(t *testing.T) {
 	}
 }
 
+func TestRunHelpForAlias(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "fkn.yaml"), []byte(`
+tasks:
+  build:
+    desc: Build the project
+    cmd: echo build
+aliases:
+  b: build
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	restore := chdirForTest(t, dir)
+	defer restore()
+
+	stdout, readStdout := tempOutputFile(t)
+	stderr, readStderr := tempOutputFile(t)
+
+	code := run([]string{"help", "b"}, stdout, stderr)
+	if code != 0 {
+		t.Fatalf("run(help b) code = %d, want 0; stderr=%s", code, readStderr())
+	}
+	output := readStdout()
+	if !strings.Contains(output, "Alias For: build") {
+		t.Fatalf("stdout = %q, want alias target", output)
+	}
+}
+
+func TestRunTaskViaAlias(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "fkn.yaml"), []byte(`
+tasks:
+  build:
+    desc: Build the project
+    cmd: printf build
+aliases:
+  b: build
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	restore := chdirForTest(t, dir)
+	defer restore()
+
+	stdout, readStdout := tempOutputFile(t)
+	stderr, readStderr := tempOutputFile(t)
+
+	code := run([]string{"b"}, stdout, stderr)
+	if code != 0 {
+		t.Fatalf("run(b) code = %d, want 0; stderr=%s", code, readStderr())
+	}
+	if !strings.Contains(readStdout(), "build") {
+		t.Fatalf("stdout = %q, want task output", readStdout())
+	}
+}
+
 func TestRunDocsPrintsEmbeddedGuide(t *testing.T) {
 	t.Parallel()
 

@@ -47,6 +47,7 @@ Implemented today:
 - JSON output for key commands
 - broader Makefile/justfile task import during `init --from-repo`
 - task params with CLI, runner, and MCP support
+- task aliases
 
 ## Why Open Source
 
@@ -137,6 +138,10 @@ tasks:
     steps:
       - test
       - build
+
+aliases:
+  t: test
+  b: build
 ```
 
 ## Commands Available Today

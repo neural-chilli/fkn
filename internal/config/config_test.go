@@ -115,3 +115,51 @@ tasks:
 		t.Fatalf("Load() error = %v, want param env validation", err)
 	}
 }
+
+func TestLoadRejectsAliasToUnknownTask(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "fkn.yaml"), []byte(`
+tasks:
+  test:
+    desc: Run tests
+    cmd: echo test
+aliases:
+  t: missing
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := Load(filepath.Join(dir, "fkn.yaml"))
+	if err == nil {
+		t.Fatal("Load() error = nil, want alias validation error")
+	}
+	if !strings.Contains(err.Error(), `alias "t" references unknown task "missing"`) {
+		t.Fatalf("Load() error = %v, want alias validation", err)
+	}
+}
+
+func TestLoadRejectsAliasConflictWithTaskName(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "fkn.yaml"), []byte(`
+tasks:
+  test:
+    desc: Run tests
+    cmd: echo test
+aliases:
+  test: test
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := Load(filepath.Join(dir, "fkn.yaml"))
+	if err == nil {
+		t.Fatal("Load() error = nil, want alias conflict error")
+	}
+	if !strings.Contains(err.Error(), `alias "test" conflicts with task of the same name`) {
+		t.Fatalf("Load() error = %v, want alias conflict validation", err)
+	}
+}

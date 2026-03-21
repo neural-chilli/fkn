@@ -14,6 +14,7 @@ type Config struct {
 	Description string              `yaml:"description"`
 	EnvFile     string              `yaml:"env_file"`
 	Tasks       map[string]Task     `yaml:"tasks"`
+	Aliases     map[string]string   `yaml:"aliases"`
 	Guards      map[string]Guard    `yaml:"guards"`
 	Scopes      map[string][]string `yaml:"scopes"`
 	Prompts     map[string]Prompt   `yaml:"prompts"`
@@ -96,6 +97,18 @@ func (t Task) Type() string {
 		return "cmd"
 	}
 	return "pipeline"
+}
+
+func (c *Config) ResolveTaskName(name string) (string, bool) {
+	if _, ok := c.Tasks[name]; ok {
+		return name, true
+	}
+	target, ok := c.Aliases[name]
+	if !ok {
+		return "", false
+	}
+	_, ok = c.Tasks[target]
+	return target, ok
 }
 
 func Load(path string) (*Config, error) {
@@ -191,6 +204,15 @@ func (c *Config) Validate(repoRoot string) error {
 			if param.Env == "" {
 				return fmt.Errorf("task %q param %q: env is required", name, paramName)
 			}
+		}
+	}
+
+	for alias, target := range c.Aliases {
+		if _, ok := c.Tasks[alias]; ok {
+			return fmt.Errorf("alias %q conflicts with task of the same name", alias)
+		}
+		if _, ok := c.Tasks[target]; !ok {
+			return fmt.Errorf("alias %q references unknown task %q", alias, target)
 		}
 	}
 

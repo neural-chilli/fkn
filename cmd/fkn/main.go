@@ -123,8 +123,8 @@ func runHelp(args []string, stdout, stderr *os.File) int {
 	}
 
 	name := args[0]
-	if task, ok := cfg.Tasks[name]; ok {
-		printTaskHelp(stdout, name, task)
+	if resolved, ok := cfg.ResolveTaskName(name); ok {
+		printTaskHelp(stdout, name, resolved, cfg.Tasks[resolved])
 		return 0
 	}
 	if guardCfg, ok := cfg.Guards[name]; ok {
@@ -391,6 +391,7 @@ func runList(args []string, stdout, stderr *os.File) int {
 			Type:  task.Type(),
 			Agent: task.AgentEnabled(),
 		}
+		item.Aliases = aliasesForTask(cfg.Aliases, name)
 		if task.Scope != "" {
 			item.Scope = &task.Scope
 		}
@@ -577,7 +578,8 @@ func runTask(args []string, stdout, stderr *os.File) int {
 		return 1
 	}
 
-	if _, ok := cfg.Tasks[taskName]; !ok {
+	resolvedTaskName, ok := cfg.ResolveTaskName(taskName)
+	if !ok {
 		printError(stderr, unknownTaskError(taskName, cfg))
 		return 1
 	}
@@ -590,7 +592,7 @@ func runTask(args []string, stdout, stderr *os.File) int {
 		return 2
 	}
 
-	result, err := runner.New(cfg, repoRoot).Run(taskName, runner.Options{
+	result, err := runner.New(cfg, repoRoot).Run(resolvedTaskName, runner.Options{
 		JSON:   *jsonOut,
 		DryRun: *dryRun,
 		Stdout: stdout,
@@ -651,9 +653,12 @@ func printUsage(stdout *os.File) {
 	fmt.Fprintln(stdout, strings.Join(lines, "\n"))
 }
 
-func printTaskHelp(stdout *os.File, name string, task config.Task) {
-	fmt.Fprintf(stdout, "%s\n\n", name)
+func printTaskHelp(stdout *os.File, invokedName, resolvedName string, task config.Task) {
+	fmt.Fprintf(stdout, "%s\n\n", invokedName)
 	fmt.Fprintf(stdout, "Description: %s\n", task.Desc)
+	if invokedName != resolvedName {
+		fmt.Fprintf(stdout, "Alias For: %s\n", resolvedName)
+	}
 	fmt.Fprintf(stdout, "Type: %s\n", task.Type())
 	if task.Scope != "" {
 		fmt.Fprintf(stdout, "Scope: %s\n", task.Scope)
@@ -841,6 +846,7 @@ type listTask struct {
 	Steps    []string             `json:"steps,omitempty"`
 	Scope    *string              `json:"scope"`
 	Agent    bool                 `json:"agent"`
+	Aliases  []string             `json:"aliases,omitempty"`
 	Params   map[string]listParam `json:"params,omitempty"`
 }
 
@@ -849,6 +855,17 @@ type listParam struct {
 	Env      string `json:"env"`
 	Required bool   `json:"required,omitempty"`
 	Default  string `json:"default,omitempty"`
+}
+
+func aliasesForTask(aliases map[string]string, taskName string) []string {
+	names := []string{}
+	for alias, target := range aliases {
+		if target == taskName {
+			names = append(names, alias)
+		}
+	}
+	sort.Strings(names)
+	return names
 }
 
 type multiFlag []string
