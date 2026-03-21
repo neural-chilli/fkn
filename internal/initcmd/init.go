@@ -652,35 +652,6 @@ func findMakeTargets(repoRoot string) []makeTarget {
 	return targets
 }
 
-func findTargets(path string) []string {
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		return nil
-	}
-
-	seen := map[string]bool{}
-	var targets []string
-	for _, line := range strings.Split(strings.ReplaceAll(string(raw), "\r\n", "\n"), "\n") {
-		if line == "" {
-			continue
-		}
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "" || strings.HasPrefix(trimmed, "#") || strings.HasPrefix(line, "\t") {
-			continue
-		}
-		name, ok := parseTargetName(line)
-		if !ok {
-			continue
-		}
-		if seen[name] {
-			continue
-		}
-		seen[name] = true
-		targets = append(targets, name)
-	}
-	return targets
-}
-
 func findJustRecipes(repoRoot string) []justRecipe {
 	path := findJustfilePath(repoRoot)
 	if path == "" {

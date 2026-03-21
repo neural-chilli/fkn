@@ -39,6 +39,7 @@ Implemented today:
 - context generation
 - init scaffolding
 - repo-aware init scaffolding from existing task surfaces
+- guards can reuse pipeline tasks
 - generated agent guidance via `AGENTS_FKN.md`
 - embedded offline docs in the CLI
 - MCP serve mode

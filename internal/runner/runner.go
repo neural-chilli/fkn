@@ -122,19 +122,37 @@ func (r *Runner) Run(taskName string, opts Options) (Result, error) {
 }
 
 func (r *Runner) RunGuardStep(stepName string, opts Options) (StepResult, error) {
-	task, ok := r.cfg.Tasks[stepName]
-	if !ok {
-		return StepResult{}, fmt.Errorf("unknown task %q", stepName)
-	}
-	if task.Cmd == "" {
-		return StepResult{}, fmt.Errorf("guard step %q must reference a cmd task", stepName)
-	}
-
-	outcome, err := r.runCommand(context.Background(), stepName, task, task.Cmd, opts, "")
+	result, err := r.Run(stepName, opts)
 	if err != nil {
 		return StepResult{}, err
 	}
-	return toStepResult(0, stepName, task.Cmd, outcome), nil
+	stderr := result.Stderr
+	if stderr == "" && len(result.Steps) > 0 {
+		var parts []string
+		for _, step := range result.Steps {
+			if step.Stderr != nil && *step.Stderr != "" {
+				parts = append(parts, fmt.Sprintf("[%s]\n%s", step.Name, strings.TrimRight(*step.Stderr, "\n")))
+			}
+		}
+		if len(parts) > 0 {
+			stderr = strings.Join(parts, "\n")
+		}
+	}
+
+	duration := result.DurationMS
+	started := result.StartedAt
+	finished := result.FinishedAt
+	return StepResult{
+		Index:       0,
+		Name:        stepName,
+		ResolvedCmd: result.ResolvedCmd,
+		Status:      result.Status,
+		ExitCode:    result.ExitCode,
+		Stderr:      strPtr(stderr),
+		DurationMS:  &duration,
+		StartedAt:   &started,
+		FinishedAt:  &finished,
+	}, nil
 }
 
 func (r *Runner) runSequential(taskName string, task config.Task, opts Options) (Result, error) {
@@ -487,7 +505,7 @@ func defaultShellArgs() []string {
 	if runtime.GOOS == "windows" {
 		return []string{"/C"}
 	}
-	return []string{"-lc"}
+	return []string{"-c"}
 }
 
 func resolveShell(task config.Task) (string, []string) {
@@ -516,7 +534,7 @@ func prefixedWriter(prefix string, target io.Writer) io.Writer {
 	if target == nil || prefix == "" {
 		return target
 	}
-	return &linePrefixWriter{prefix: "[" + prefix + "] ", target: target}
+	return &linePrefixWriter{prefix: "[" + prefix + "] ", target: target, atLineStart: true}
 }
 
 type linePrefixWriter struct {
@@ -528,9 +546,6 @@ type linePrefixWriter struct {
 func (w *linePrefixWriter) Write(p []byte) (int, error) {
 	if w.target == nil {
 		return len(p), nil
-	}
-	if !w.atLineStart {
-		w.atLineStart = true
 	}
 	written := 0
 	for len(p) > 0 {

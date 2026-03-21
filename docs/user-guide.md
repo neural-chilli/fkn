@@ -374,6 +374,8 @@ Why guards exist:
 
 If one guard step fails, later steps still run so you get a fuller report.
 
+Guard steps can now reference either cmd tasks or pipeline tasks, so you can reuse something like `check` directly instead of duplicating its underlying steps.
+
 ## Scopes
 
 Scopes are named path lists. Nothing more.

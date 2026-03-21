@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"bytes"
 	"io"
 	"os"
 	"path/filepath"
@@ -292,6 +293,20 @@ func TestRunCmdTaskDirOverridesDefaultWorkingDir(t *testing.T) {
 	}
 	if got != overrideDir {
 		t.Fatalf("Stdout = %q, want override workdir %q", got, overrideDir)
+	}
+}
+
+func TestPrefixedWriterPrefixesFirstLine(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	writer := prefixedWriter("step-1", &buf)
+	if _, err := writer.Write([]byte("hello\nworld\n")); err != nil {
+		t.Fatalf("Write() error = %v", err)
+	}
+
+	if got := buf.String(); got != "[step-1] hello\n[step-1] world\n" {
+		t.Fatalf("output = %q, want prefixed lines", got)
 	}
 }
 
