@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/neural-chilli/fkn/internal/codemap"
 	"github.com/neural-chilli/fkn/internal/config"
 )
 
@@ -136,6 +137,9 @@ func (g *Generator) sections(opts Options) ([]section, error) {
 		}
 	}
 	if opts.Agent {
+		if body := g.codemapSection(opts.Task); body != "" {
+			sections = append(sections, section{title: "Codemap", body: body})
+		}
 		if body := g.lastGuardSection(); body != "" {
 			sections = append(sections, section{title: "Last Guard", body: body})
 		}
@@ -472,4 +476,15 @@ func min(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func (g *Generator) codemapSection(taskName string) string {
+	if taskName == "" {
+		return ""
+	}
+	task, ok := g.cfg.Tasks[taskName]
+	if !ok || task.Scope == "" {
+		return ""
+	}
+	return codemap.RenderRelevantPackages(codemap.RelevantPackages(g.cfg, g.cfg.Scopes[task.Scope]))
 }

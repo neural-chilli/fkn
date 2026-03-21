@@ -283,3 +283,28 @@ tasks:
 		t.Fatalf("Load() error = %v, want defaults.dir validation", err)
 	}
 }
+
+func TestLoadRejectsCodemapPackageWithoutDesc(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "fkn.yaml"), []byte(`
+tasks:
+  test:
+    desc: Run tests
+    cmd: echo test
+codemap:
+  packages:
+    internal/runner: {}
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := Load(filepath.Join(dir, "fkn.yaml"))
+	if err == nil {
+		t.Fatal("Load() error = nil, want codemap validation error")
+	}
+	if !strings.Contains(err.Error(), `codemap package "internal/runner": desc is required`) {
+		t.Fatalf("Load() error = %v, want codemap validation", err)
+	}
+}

@@ -450,6 +450,38 @@ tasks:
     scope: cli
 ```
 
+## Codemap
+
+`codemap` lets you add a lightweight semantic layer to `fkn.yaml` so agents can ask what a package or concept means without reading half the repo first.
+
+Example:
+
+```yaml
+codemap:
+  packages:
+    internal/runner:
+      desc: Core task execution engine
+      key_types:
+        - Runner
+      entry_points:
+        - Runner.Run
+      conventions:
+        - All execution flows through runCommand
+
+  glossary:
+    guard: A validation-oriented step list that always runs all steps
+```
+
+Use it with:
+
+```bash
+fkn explain internal/runner
+fkn explain Runner.Run
+fkn explain guard --json
+```
+
+In agent mode, `fkn context --agent --task <name>` now also includes matching codemap entries for the task scope when they exist.
+
 ## Prompts
 
 Prompts let you keep reusable agent handoff templates in the repo.

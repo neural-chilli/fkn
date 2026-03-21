@@ -18,6 +18,7 @@ import (
 	"time"
 
 	fkndocs "github.com/neural-chilli/fkn"
+	"github.com/neural-chilli/fkn/internal/codemap"
 	"github.com/neural-chilli/fkn/internal/config"
 	contextpkg "github.com/neural-chilli/fkn/internal/context"
 	"github.com/neural-chilli/fkn/internal/guard"
@@ -60,6 +61,8 @@ func run(args []string, stdout, stderr *os.File) int {
 		return runHelp(args[1:], stdout, stderr)
 	case "docs":
 		return runDocs(args[1:], stdout, stderr)
+	case "explain":
+		return runExplain(args[1:], stdout, stderr)
 	case "guard":
 		return runGuard(args[1:], stdout, stderr)
 	case "init":
@@ -746,6 +749,7 @@ func printUsage(stdout *os.File) {
 		"fkn [<task>] [--name value] [--param name=value] [--dry-run] [--json]",
 		"If fkn.yaml sets `default`, running `fkn` with no task runs that task.",
 		"fkn docs [name] [--list]",
+		"fkn explain <target> [--json]",
 		"fkn help [task]",
 		"fkn context [--agent] [--json] [--task <name>] [--out <file>] [--copy] [--max-tokens <approx-n>]",
 		"fkn guard [name] [--json]",
@@ -1250,4 +1254,39 @@ func runRepair(args []string, stdout, stderr *os.File) int {
 		}
 	}
 	return out.ExitCode
+}
+
+func runExplain(args []string, stdout, stderr *os.File) int {
+	fs := flag.NewFlagSet("explain", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	jsonOut := fs.Bool("json", false, "Emit structured JSON")
+	parsedArgs, err := parseSubcommandArgs(args, map[string]bool{"--json": false})
+	if err != nil {
+		printError(stderr, err)
+		return 2
+	}
+	if err := fs.Parse(parsedArgs); err != nil {
+		return 2
+	}
+	if fs.NArg() == 0 {
+		printError(stderr, fmt.Errorf("explain target is required"))
+		return 1
+	}
+
+	cfg, _, err := loadConfig()
+	if err != nil {
+		printError(stderr, err)
+		return 1
+	}
+
+	result, err := codemap.Explain(cfg, fs.Arg(0))
+	if err != nil {
+		printError(stderr, err)
+		return 1
+	}
+	if *jsonOut {
+		return printJSON(stdout, result)
+	}
+	fmt.Fprintln(stdout, result.Markdown)
+	return 0
 }

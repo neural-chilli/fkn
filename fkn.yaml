@@ -77,6 +77,56 @@ context:
     git_diff_lines: 120
     agent_file_lines: 120
 
+codemap:
+  packages:
+    cmd/fkn:
+      desc: CLI entrypoint and subcommand dispatch. Wires flags and stdout/stderr handling into the internal packages.
+      entry_points:
+        - run
+        - runTask
+      conventions:
+        - Keep business logic out of cmd/fkn where possible
+    internal/config:
+      desc: fkn.yaml loading, defaults, and strict validation. This is the schema source of truth.
+      key_types:
+        - Config
+        - Task
+        - Param
+      entry_points:
+        - Load
+      conventions:
+        - applyDefaults runs before Validate
+    internal/runner:
+      desc: Core task execution engine for command tasks and pipelines.
+      key_types:
+        - Runner
+        - Result
+        - StepResult
+      entry_points:
+        - Runner.Run
+        - Runner.RunGuardStep
+      conventions:
+        - All command execution flows through runCommand
+      depends_on:
+        - internal/config
+    internal/mcp:
+      desc: MCP server implementation for stdio and HTTP transports.
+      key_types:
+        - Server
+        - Tool
+      entry_points:
+        - Server.ServeStdio
+        - Server.ServeHTTP
+      depends_on:
+        - internal/runner
+  conventions:
+    - Prefer explicit config over silent inference
+    - JSON output contracts are part of the public interface
+  glossary:
+    task: A named unit of work with either cmd or steps
+    guard: A validation-oriented step list that always runs all steps
+    scope: A named list of file paths used to constrain work
+
 serve:
   transport: stdio
   port: 8080

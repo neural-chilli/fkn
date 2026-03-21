@@ -21,6 +21,7 @@ type Config struct {
 	Scopes      map[string][]string `yaml:"scopes"`
 	Prompts     map[string]Prompt   `yaml:"prompts"`
 	Context     ContextConfig       `yaml:"context"`
+	Codemap     CodemapConfig       `yaml:"codemap"`
 	Serve       ServeConfig         `yaml:"serve"`
 	Watch       WatchConfig         `yaml:"watch"`
 }
@@ -95,6 +96,20 @@ type ServeConfig struct {
 type WatchConfig struct {
 	DebounceMS int      `yaml:"debounce_ms"`
 	Paths      []string `yaml:"paths"`
+}
+
+type CodemapConfig struct {
+	Packages    map[string]CodemapPackage `yaml:"packages"`
+	Conventions []string                  `yaml:"conventions"`
+	Glossary    map[string]string         `yaml:"glossary"`
+}
+
+type CodemapPackage struct {
+	Desc        string   `yaml:"desc"`
+	KeyTypes    []string `yaml:"key_types"`
+	EntryPoints []string `yaml:"entry_points"`
+	Conventions []string `yaml:"conventions"`
+	DependsOn   []string `yaml:"depends_on"`
 }
 
 func (t Task) AgentEnabled() bool {
@@ -234,6 +249,12 @@ func (c *Config) Validate(repoRoot string) error {
 			if param.Env == "" {
 				return fmt.Errorf("task %q param %q: env is required", name, paramName)
 			}
+		}
+	}
+
+	for name, entry := range c.Codemap.Packages {
+		if entry.Desc == "" {
+			return fmt.Errorf("codemap package %q: desc is required", name)
 		}
 	}
 

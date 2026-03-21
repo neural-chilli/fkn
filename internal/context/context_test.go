@@ -140,3 +140,33 @@ func TestGenerateJSONIncludesSectionsAndMarkdown(t *testing.T) {
 		t.Fatalf("Markdown = %q, want rendered markdown", out.Markdown)
 	}
 }
+
+func TestGenerateAgentIncludesCodemapForTaskScope(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	cfg := &config.Config{
+		Tasks: map[string]config.Task{
+			"check": {Desc: "Run checks", Cmd: "echo ok", Scope: "cli"},
+		},
+		Scopes: map[string][]string{
+			"cli": {"internal/runner/"},
+		},
+		Codemap: config.CodemapConfig{
+			Packages: map[string]config.CodemapPackage{
+				"internal/runner": {
+					Desc:        "Execution engine",
+					EntryPoints: []string{"Runner.Run"},
+				},
+			},
+		},
+	}
+
+	out, err := New(cfg, dir).Generate(Options{Agent: true, Task: "check"})
+	if err != nil {
+		t.Fatalf("Generate() error = %v", err)
+	}
+	if !strings.Contains(out, "## Codemap") || !strings.Contains(out, "internal/runner") {
+		t.Fatalf("output = %q, want codemap section", out)
+	}
+}
