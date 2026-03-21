@@ -59,6 +59,7 @@ Implemented today:
 - structured error extraction in task, guard, and MCP JSON output
 - guided repair output via `fkn repair`
 - file-targeted impact planning via `fkn plan`
+- JSON Schema for `fkn.yaml`
 - codemap-backed repo explanations via `fkn explain`
 - topic-targeted context via `fkn context --about`
 - task-level shell configuration
@@ -146,6 +147,8 @@ For realistic examples and a full config walkthrough:
 
 - [docs/user-guide.md](/Users/josephfrost/code/fkn/docs/user-guide.md)
 
+For editor support, the repo also ships [fkn.schema.json](/Users/josephfrost/code/fkn/fkn.schema.json).
+
 ## Example `fkn.yaml`
 
 ```yaml
@@ -192,6 +195,8 @@ scopes:
 ```
 
 Running `fkn` with no task name executes the configured default task when `default:` is set.
+
+The repo now also ships [fkn.schema.json](/Users/josephfrost/code/fkn/fkn.schema.json), so editors and language servers can validate `fkn.yaml` without needing to run the CLI first.
 
 Scopes can still be simple path lists, but the richer object form lets you attach intent that shows up in `fkn scope`, `fkn help <task>`, repair briefs, generated agent docs, and MCP scope resources.
 

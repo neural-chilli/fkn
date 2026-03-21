@@ -28,8 +28,8 @@ This roadmap focuses on the major features that would make `fkn` feel more compl
 - comments, metadata, and docs fields with stronger conventions
   - more room for human and agent guidance without cluttering task execution
 - schema and editor support
-  - JSON schema
-  - autocomplete and inline validation in editors
+  - shipped: base JSON schema in `fkn.schema.json`
+  - next: smoother editor integration guidance and broader validation coverage
 
 ## Agent Features
 

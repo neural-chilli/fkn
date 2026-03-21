@@ -83,6 +83,24 @@ fkn validate --json
 
 That is the simplest way to confirm a config edit before you try `list`, `guard`, `context`, or a task run.
 
+## Editor Schema
+
+The repo ships [fkn.schema.json](/Users/josephfrost/code/fkn/fkn.schema.json) so editors can validate `fkn.yaml` directly.
+
+For YAML language server clients such as VS Code, add this at the top of `fkn.yaml`:
+
+```yaml
+# yaml-language-server: $schema=./fkn.schema.json
+```
+
+That gives you:
+
+- field autocomplete
+- enum suggestions such as `safety` and `error_format`
+- inline validation for the common config shape
+
+The schema is intentionally practical rather than exhaustive. It covers the public fields and common structural rules, while the CLI remains the final source of truth for runtime validation.
+
 ## Mental Model
 
 Treat `fkn.yaml` as the operational API of your repository.

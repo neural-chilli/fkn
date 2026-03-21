@@ -1,0 +1,279 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/neural-chilli/fkn/blob/main/fkn.schema.json",
+  "title": "fkn configuration",
+  "description": "Schema for fkn.yaml, the repo-local task and agent configuration file.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["tasks"],
+  "properties": {
+    "project": { "type": "string" },
+    "description": { "type": "string" },
+    "default": { "type": "string" },
+    "env_file": { "type": "string" },
+    "defaults": { "$ref": "#/$defs/defaults" },
+    "tasks": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "$ref": "#/$defs/task" }
+    },
+    "aliases": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "groups": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/group" }
+    },
+    "guards": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/guard" }
+    },
+    "scopes": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/scope" }
+    },
+    "prompts": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/prompt" }
+    },
+    "context": { "$ref": "#/$defs/context" },
+    "codemap": { "$ref": "#/$defs/codemap" },
+    "serve": { "$ref": "#/$defs/serve" },
+    "watch": { "$ref": "#/$defs/watch" }
+  },
+  "$defs": {
+    "defaults": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "dir": { "type": "string" }
+      }
+    },
+    "task": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "desc": { "type": "string" },
+        "cmd": { "type": "string" },
+        "steps": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        },
+        "needs": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "parallel": { "type": "boolean" },
+        "params": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/param" }
+        },
+        "env": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        },
+        "dir": { "type": "string" },
+        "shell": { "type": "string" },
+        "shell_args": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "safety": {
+          "type": "string",
+          "enum": ["safe", "idempotent", "destructive", "external"]
+        },
+        "error_format": {
+          "type": "string",
+          "enum": ["go_test", "pytest", "tsc", "eslint", "generic"]
+        },
+        "timeout": { "type": "string" },
+        "continue_on_error": { "type": "boolean" },
+        "agent": { "type": "boolean" },
+        "scope": { "type": "string" }
+      },
+      "required": ["desc"],
+      "oneOf": [
+        { "required": ["cmd"] },
+        { "required": ["steps"] }
+      ]
+    },
+    "param": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "desc": { "type": "string" },
+        "env": { "type": "string" },
+        "required": { "type": "boolean" },
+        "default": { "type": "string" },
+        "position": { "type": "integer", "minimum": 1 },
+        "variadic": { "type": "boolean" }
+      },
+      "required": ["env"]
+    },
+    "guard": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["steps"],
+      "properties": {
+        "steps": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        }
+      }
+    },
+    "group": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tasks"],
+      "properties": {
+        "desc": { "type": "string" },
+        "tasks": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        }
+      }
+    },
+    "scope": {
+      "oneOf": [
+        {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["paths"],
+          "properties": {
+            "desc": { "type": "string" },
+            "paths": {
+              "type": "array",
+              "items": { "type": "string" },
+              "minItems": 1
+            }
+          }
+        }
+      ]
+    },
+    "prompt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["desc", "template"],
+      "properties": {
+        "desc": { "type": "string" },
+        "template": { "type": "string" }
+      }
+    },
+    "context": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "file_tree": { "type": "boolean" },
+        "git_log_lines": { "type": "integer", "minimum": 0 },
+        "git_diff": { "type": "boolean" },
+        "todos": { "type": "boolean" },
+        "dependencies": { "type": "boolean" },
+        "agent_files": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "files": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "include": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "exclude": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "caps": { "$ref": "#/$defs/contextCaps" }
+      }
+    },
+    "contextCaps": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "file_tree_entries": { "type": "integer", "minimum": 0 },
+        "files_max": { "type": "integer", "minimum": 0 },
+        "file_lines": { "type": "integer", "minimum": 0 },
+        "git_log_lines": { "type": "integer", "minimum": 0 },
+        "git_diff_lines": { "type": "integer", "minimum": 0 },
+        "todos_max": { "type": "integer", "minimum": 0 },
+        "agent_file_lines": { "type": "integer", "minimum": 0 },
+        "dependency_lines": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "codemap": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "packages": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/codemapPackage" }
+        },
+        "conventions": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "glossary": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        }
+      }
+    },
+    "codemapPackage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["desc"],
+      "properties": {
+        "desc": { "type": "string" },
+        "key_types": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "entry_points": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "conventions": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "depends_on": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "serve": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "transport": {
+          "type": "string",
+          "enum": ["stdio", "http"]
+        },
+        "port": { "type": "integer", "minimum": 1 },
+        "token_env": { "type": "string" }
+      }
+    },
+    "watch": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "debounce_ms": { "type": "integer", "minimum": 0 },
+        "paths": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    }
+  }
+}
