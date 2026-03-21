@@ -95,6 +95,10 @@ func TestHandlePayloadInitializeIncludesInstructions(t *testing.T) {
 	if !strings.Contains(instructions, "Project: demo") || !strings.Contains(instructions, "fkn guard") {
 		t.Fatalf("instructions = %q, want project and guard guidance", instructions)
 	}
+	capabilities := result["capabilities"].(map[string]any)
+	if _, ok := capabilities["prompts"]; !ok {
+		t.Fatalf("capabilities = %#v, want prompts capability", capabilities)
+	}
 }
 
 func TestHandlePayloadToolsCallDryRun(t *testing.T) {
@@ -277,6 +281,94 @@ func TestHandlePayloadResourcesList(t *testing.T) {
 	}
 	if !foundScope {
 		t.Fatalf("resources = %#v, want cli scope resource", rawResources)
+	}
+}
+
+func TestHandlePayloadPromptsList(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{
+		Prompts: map[string]config.Prompt{
+			"continue-cli": {Desc: "Continue CLI work", Template: "Continue"},
+		},
+		Tasks: map[string]config.Task{
+			"test": {Desc: "Test", Cmd: "echo test"},
+		},
+	}
+	server := New(cfg, t.TempDir(), runner.New(cfg, t.TempDir()))
+
+	resp, notify, err := server.HandlePayload([]byte(`{"jsonrpc":"2.0","id":1,"method":"prompts/list","params":{}}`), nil)
+	if err != nil {
+		t.Fatalf("HandlePayload() error = %v", err)
+	}
+	if notify {
+		t.Fatal("HandlePayload() notify = true, want false")
+	}
+
+	var payload JSONRPCResponse
+	if err := json.Unmarshal(resp, &payload); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v", err)
+	}
+	result := payload.Result.(map[string]any)
+	prompts := result["prompts"].([]any)
+	if len(prompts) != 1 {
+		t.Fatalf("prompts = %#v, want 1 item", prompts)
+	}
+	item := prompts[0].(map[string]any)
+	if item["name"] != "continue-cli" || item["description"] != "Continue CLI work" {
+		t.Fatalf("prompt = %#v, want name and description", item)
+	}
+}
+
+func TestHandlePayloadPromptsGet(t *testing.T) {
+	t.Parallel()
+
+	repoRoot := t.TempDir()
+	cfg := &config.Config{
+		Prompts: map[string]config.Prompt{
+			"continue-cli": {
+				Desc:     "Continue CLI work",
+				Template: "Continue work on {{os}}.\nTask: {{task.check.desc}}\nUnknown: {{missing}}",
+			},
+		},
+		Tasks: map[string]config.Task{
+			"check": {Desc: "Run checks", Cmd: "echo check"},
+		},
+	}
+	server := New(cfg, repoRoot, runner.New(cfg, repoRoot))
+
+	resp, notify, err := server.HandlePayload([]byte(`{"jsonrpc":"2.0","id":1,"method":"prompts/get","params":{"name":"continue-cli"}}`), nil)
+	if err != nil {
+		t.Fatalf("HandlePayload() error = %v", err)
+	}
+	if notify {
+		t.Fatal("HandlePayload() notify = true, want false")
+	}
+
+	var payload JSONRPCResponse
+	if err := json.Unmarshal(resp, &payload); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v", err)
+	}
+	if payload.Error != nil {
+		t.Fatalf("payload.Error = %+v, want nil", payload.Error)
+	}
+	result := payload.Result.(map[string]any)
+	if result["description"] != "Continue CLI work" {
+		t.Fatalf("description = %#v, want prompt description", result["description"])
+	}
+	messages := result["messages"].([]any)
+	if len(messages) != 1 {
+		t.Fatalf("messages = %#v, want 1 item", messages)
+	}
+	message := messages[0].(map[string]any)
+	content := message["content"].(map[string]any)
+	text := content["text"].(string)
+	if !strings.Contains(text, "Task: Run checks") {
+		t.Fatalf("text = %q, want rendered task description", text)
+	}
+	warnings := result["warnings"].([]any)
+	if len(warnings) != 1 {
+		t.Fatalf("warnings = %#v, want 1 warning", warnings)
 	}
 }
 

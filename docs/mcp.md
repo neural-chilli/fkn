@@ -12,6 +12,8 @@ Current status:
 - raw HTTP+SSE MCP requests: tested
 - `tools/list`: tested
 - `tools/call`: tested
+- `prompts/list`: tested
+- `prompts/get`: tested
 - `resources/list`: tested
 - `resources/read`: tested
 - GitHub Copilot custom MCP integration: unverified
@@ -24,6 +26,8 @@ That means the current implementation is suitable for experimentation and local 
 Every task with `agent: true` is exposed as an MCP tool.
 
 `fkn serve` also exposes read-only MCP resources for repo state that agents may want to inspect without calling a task.
+
+Configured `prompts:` are also exposed over MCP so clients can discover and fetch repo-specific prompt templates without copying them manually.
 
 Example task:
 
@@ -143,12 +147,22 @@ Current MCP methods:
 - `ping`
 - `tools/list`
 - `tools/call`
+- `prompts/list`
+- `prompts/get`
 - `resources/list`
 - `resources/read`
 
 That is enough for a useful first integration surface, but it is still intentionally small.
 
 `initialize` now also includes a short `instructions` string summarizing the repo and pointing clients toward `tools/list`, `resources/list`, and `fkn guard` when guards are configured.
+
+## Prompt Behavior
+
+`prompts/list` returns configured prompt names and descriptions from `fkn.yaml`.
+
+`prompts/get` renders a specific prompt using the same variable resolution as `fkn prompt`, then returns it as an MCP prompt message payload.
+
+If rendering leaves unknown variables in place, the MCP response also includes `warnings` so clients can surface that to the user or agent loop.
 
 ## Tool Call Behavior
 

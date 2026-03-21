@@ -11,6 +11,7 @@ import (
 
 	"github.com/neural-chilli/fkn/internal/config"
 	contextpkg "github.com/neural-chilli/fkn/internal/context"
+	"github.com/neural-chilli/fkn/internal/prompt"
 	"github.com/neural-chilli/fkn/internal/runner"
 )
 
@@ -34,6 +35,11 @@ type Resource struct {
 	Name        string `json:"name"`
 	Description string `json:"description,omitempty"`
 	MimeType    string `json:"mimeType,omitempty"`
+}
+
+type Prompt struct {
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
 }
 
 type JSONRPCRequest struct {
@@ -62,6 +68,10 @@ type toolCallParams struct {
 
 type resourceReadParams struct {
 	URI string `json:"uri"`
+}
+
+type promptGetParams struct {
+	Name string `json:"name"`
 }
 
 func New(cfg *config.Config, repoRoot string, taskRunner *runner.Runner) *Server {
@@ -157,6 +167,24 @@ func (s *Server) instructions() string {
 	return strings.Join(parts, " ")
 }
 
+func (s *Server) Prompts() []Prompt {
+	names := make([]string, 0, len(s.cfg.Prompts))
+	for name := range s.cfg.Prompts {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	prompts := make([]Prompt, 0, len(names))
+	for _, name := range names {
+		promptCfg := s.cfg.Prompts[name]
+		prompts = append(prompts, Prompt{
+			Name:        name,
+			Description: promptCfg.Desc,
+		})
+	}
+	return prompts
+}
+
 func (s *Server) Resources() []Resource {
 	resources := []Resource{
 		{
@@ -231,6 +259,7 @@ func (s *Server) handleRequest(req JSONRPCRequest, errOut io.Writer) JSONRPCResp
 			"instructions":    s.instructions(),
 			"capabilities": map[string]any{
 				"tools":     map[string]any{"listChanged": false},
+				"prompts":   map[string]any{"listChanged": false},
 				"resources": map[string]any{"listChanged": false},
 			},
 			"serverInfo": map[string]any{
@@ -255,6 +284,15 @@ func (s *Server) handleRequest(req JSONRPCRequest, errOut io.Writer) JSONRPCResp
 		resp.Result = map[string]any{"resources": s.Resources()}
 	case "resources/read":
 		result, err := s.readResource(req.Params)
+		if err != nil {
+			resp.Error = &JSONRPCError{Code: -32000, Message: err.Error()}
+			return resp
+		}
+		resp.Result = result
+	case "prompts/list":
+		resp.Result = map[string]any{"prompts": s.Prompts()}
+	case "prompts/get":
+		result, err := s.getPrompt(req.Params)
 		if err != nil {
 			resp.Error = &JSONRPCError{Code: -32000, Message: err.Error()}
 			return resp
@@ -360,6 +398,36 @@ func (s *Server) readResource(raw json.RawMessage) (map[string]any, error) {
 			"text":     text,
 		}},
 	}, nil
+}
+
+func (s *Server) getPrompt(raw json.RawMessage) (map[string]any, error) {
+	var params promptGetParams
+	if err := json.Unmarshal(raw, &params); err != nil {
+		return nil, fmt.Errorf("invalid prompt get params: %w", err)
+	}
+	if params.Name == "" {
+		return nil, fmt.Errorf("prompt name is required")
+	}
+
+	rendered, warnings, err := prompt.New(s.cfg, s.repoRoot).Render(params.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	result := map[string]any{
+		"description": s.cfg.Prompts[params.Name].Desc,
+		"messages": []map[string]any{{
+			"role": "user",
+			"content": map[string]any{
+				"type": "text",
+				"text": rendered,
+			},
+		}},
+	}
+	if len(warnings) > 0 {
+		result["warnings"] = warnings
+	}
+	return result, nil
 }
 
 func (s *Server) resourceContent(uri string) (string, string, error) {
