@@ -24,6 +24,7 @@ This repository currently includes the first working slice:
 - `fkn guard [name]` to run validation-oriented guard pipelines
 - `fkn scope <name>` to print a named path scope
 - `fkn prompt <name>` to render a repo-versioned prompt template
+- `fkn context` to generate a bounded markdown repo briefing
 - `fkn <task> --dry-run` to print resolved commands
 - `fkn <task> --json` for machine-readable execution results
 - `fkn guard --json` for structured guard reports
@@ -34,9 +35,6 @@ This repository currently includes the first working slice:
 
 Planned but not built yet:
 
-- `fkn context`
-- `fkn scope`
-- `fkn prompt`
 - `fkn watch`
 - `fkn serve`
 - `fkn init`
@@ -73,6 +71,8 @@ go run ./cmd/fkn check --dry-run
 go run ./cmd/fkn guard
 go run ./cmd/fkn scope cli
 go run ./cmd/fkn prompt continue-cli
+go run ./cmd/fkn context
+go run ./cmd/fkn context --agent --task check
 go run ./cmd/fkn list --mcp
 ```
 
@@ -106,6 +106,10 @@ fkn <task> --dry-run
 fkn <task> --json
 fkn guard
 fkn guard --json
+fkn context
+fkn context --agent --task <name>
+fkn context --out <file>
+fkn context --copy
 fkn prompt <name>
 fkn prompt <name> --copy
 fkn scope <name>
@@ -123,6 +127,7 @@ fkn --version
 ```text
 cmd/fkn/              # CLI entrypoint
 internal/config/      # fkn.yaml loading and validation
+internal/context/     # bounded repo context generation
 internal/prompt/      # prompt template rendering
 internal/scope/       # named scope lookup and formatting
 internal/runner/      # task and pipeline execution

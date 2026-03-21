@@ -17,6 +17,7 @@ type Config struct {
 	Guards      map[string]Guard    `yaml:"guards"`
 	Scopes      map[string][]string `yaml:"scopes"`
 	Prompts     map[string]Prompt   `yaml:"prompts"`
+	Context     ContextConfig       `yaml:"context"`
 }
 
 type Task struct {
@@ -41,6 +42,30 @@ type Prompt struct {
 	Template string `yaml:"template"`
 }
 
+type ContextConfig struct {
+	FileTree     *bool       `yaml:"file_tree"`
+	GitLogLines  int         `yaml:"git_log_lines"`
+	GitDiff      bool        `yaml:"git_diff"`
+	Todos        bool        `yaml:"todos"`
+	Dependencies *bool       `yaml:"dependencies"`
+	AgentFiles   []string    `yaml:"agent_files"`
+	Files        []string    `yaml:"files"`
+	Include      []string    `yaml:"include"`
+	Exclude      []string    `yaml:"exclude"`
+	Caps         ContextCaps `yaml:"caps"`
+}
+
+type ContextCaps struct {
+	FileTreeEntries int `yaml:"file_tree_entries"`
+	FilesMax        int `yaml:"files_max"`
+	FileLines       int `yaml:"file_lines"`
+	GitLogLines     int `yaml:"git_log_lines"`
+	GitDiffLines    int `yaml:"git_diff_lines"`
+	TodosMax        int `yaml:"todos_max"`
+	AgentFileLines  int `yaml:"agent_file_lines"`
+	DependencyLines int `yaml:"dependency_lines"`
+}
+
 func (t Task) AgentEnabled() bool {
 	return t.Agent == nil || *t.Agent
 }
@@ -63,11 +88,43 @@ func Load(path string) (*Config, error) {
 		return nil, err
 	}
 
+	cfg.applyDefaults()
+
 	if err := cfg.Validate(filepath.Dir(path)); err != nil {
 		return nil, err
 	}
 
 	return &cfg, nil
+}
+
+func (c *Config) applyDefaults() {
+	if c.Context.GitLogLines == 0 {
+		c.Context.GitLogLines = 10
+	}
+	if c.Context.Caps.FileTreeEntries == 0 {
+		c.Context.Caps.FileTreeEntries = 200
+	}
+	if c.Context.Caps.FilesMax == 0 {
+		c.Context.Caps.FilesMax = 5
+	}
+	if c.Context.Caps.FileLines == 0 {
+		c.Context.Caps.FileLines = 100
+	}
+	if c.Context.Caps.GitLogLines == 0 {
+		c.Context.Caps.GitLogLines = 30
+	}
+	if c.Context.Caps.GitDiffLines == 0 {
+		c.Context.Caps.GitDiffLines = 200
+	}
+	if c.Context.Caps.TodosMax == 0 {
+		c.Context.Caps.TodosMax = 20
+	}
+	if c.Context.Caps.AgentFileLines == 0 {
+		c.Context.Caps.AgentFileLines = 500
+	}
+	if c.Context.Caps.DependencyLines == 0 {
+		c.Context.Caps.DependencyLines = 100
+	}
 }
 
 func (c *Config) Validate(repoRoot string) error {

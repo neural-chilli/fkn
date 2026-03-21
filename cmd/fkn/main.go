@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"fkn/internal/config"
+	contextpkg "fkn/internal/context"
 	"fkn/internal/guard"
 	"fkn/internal/prompt"
 	"fkn/internal/runner"
@@ -48,6 +49,8 @@ func run(args []string, stdout, stderr *os.File) int {
 		return runGuard(args[1:], stdout, stderr)
 	case "list":
 		return runList(args[1:], stdout, stderr)
+	case "context":
+		return runContext(args[1:], stdout, stderr)
 	case "prompt":
 		return runPrompt(args[1:], stdout, stderr)
 	case "scope":
@@ -164,6 +167,53 @@ func runPrompt(args []string, stdout, stderr *os.File) int {
 	}
 	for _, warning := range warnings {
 		fmt.Fprintf(stderr, "warning: %s\n", warning)
+	}
+
+	fmt.Fprintln(stdout, rendered)
+
+	if *copyOut {
+		if err := copyToClipboard(rendered); err != nil {
+			printError(stderr, err)
+			return 1
+		}
+	}
+
+	return 0
+}
+
+func runContext(args []string, stdout, stderr *os.File) int {
+	fs := flag.NewFlagSet("context", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	agent := fs.Bool("agent", false, "")
+	taskName := fs.String("task", "", "")
+	outPath := fs.String("out", "", "")
+	copyOut := fs.Bool("copy", false, "")
+	maxTokens := fs.Int("max-tokens", 0, "")
+	if err := fs.Parse(reorderSubcommandArgs(args, map[string]bool{"--agent": true, "--task": false, "--out": false, "--copy": true, "--max-tokens": false})); err != nil {
+		return 2
+	}
+
+	cfg, repoRoot, err := loadConfig()
+	if err != nil {
+		printError(stderr, err)
+		return 1
+	}
+
+	rendered, err := contextpkg.New(cfg, repoRoot).Generate(contextpkg.Options{
+		Agent:     *agent,
+		Task:      *taskName,
+		MaxTokens: *maxTokens,
+	})
+	if err != nil {
+		printError(stderr, err)
+		return 1
+	}
+
+	if *outPath != "" {
+		if err := os.WriteFile(*outPath, []byte(rendered+"\n"), 0o644); err != nil {
+			printError(stderr, err)
+			return 1
+		}
 	}
 
 	fmt.Fprintln(stdout, rendered)
@@ -317,6 +367,7 @@ func sortedTaskNames(tasks map[string]config.Task) []string {
 func printUsage(stdout *os.File) {
 	lines := []string{
 		"fkn <task> [--dry-run] [--json]",
+		"fkn context [--agent] [--task <name>] [--out <file>] [--copy] [--max-tokens <n>]",
 		"fkn guard [name] [--json]",
 		"fkn list [--json] [--mcp]",
 		"fkn prompt <name> [--copy]",
