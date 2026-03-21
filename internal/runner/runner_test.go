@@ -1,0 +1,163 @@
+package runner
+
+import (
+	"io"
+	"os"
+	"path/filepath"
+	"testing"
+
+	"fkn/internal/config"
+)
+
+func TestRunCmdTaskUsesInvocationEnvOverride(t *testing.T) {
+	t.Parallel()
+
+	r := newTestRunner(t, map[string]config.Task{
+		"env": {
+			Desc: "env",
+			Cmd:  "printf %s \"$FOO\"",
+			Env:  map[string]string{"FOO": "task"},
+		},
+	})
+
+	result, err := r.Run("env", Options{Stdout: io.Discard, Stderr: io.Discard, Env: map[string]string{"FOO": "override"}})
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if result.Stdout != "override" {
+		t.Fatalf("Stdout = %q, want override", result.Stdout)
+	}
+}
+
+func TestRunDryRunPrintsCommand(t *testing.T) {
+	t.Parallel()
+
+	repoRoot := t.TempDir()
+	r := New(&config.Config{Tasks: map[string]config.Task{
+		"build": {Desc: "build", Cmd: "echo hi"},
+	}}, repoRoot)
+
+	outFile := mustTempFile(t)
+	defer outFile.Close()
+
+	result, err := r.Run("build", Options{DryRun: true, Stdout: outFile, Stderr: io.Discard})
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if result.ExitCode != 0 || result.Status != StatusPass {
+		t.Fatalf("result = %+v, want pass", result)
+	}
+	if got := readFile(t, outFile.Name()); got != "echo hi\n" {
+		t.Fatalf("dry run output = %q, want command", got)
+	}
+}
+
+func TestSequentialPipelineStopsAfterFailure(t *testing.T) {
+	repoRoot := t.TempDir()
+	marker := filepath.Join(repoRoot, "ran-second.txt")
+	r := New(&config.Config{Tasks: map[string]config.Task{
+		"fail":   {Desc: "fail", Cmd: "exit 1"},
+		"second": {Desc: "second", Cmd: "echo ran > ran-second.txt"},
+		"pipe":   {Desc: "pipe", Steps: []string{"fail", "second"}},
+	}}, repoRoot)
+
+	result, err := r.Run("pipe", Options{Stdout: io.Discard, Stderr: io.Discard})
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if result.Status != StatusFail {
+		t.Fatalf("Status = %q, want fail", result.Status)
+	}
+	if result.Steps[1].Status != StatusCancelled {
+		t.Fatalf("second step status = %q, want cancelled", result.Steps[1].Status)
+	}
+	if _, err := os.Stat(marker); !os.IsNotExist(err) {
+		t.Fatalf("second step should not have run; stat err = %v", err)
+	}
+}
+
+func TestSequentialPipelineContinueOnErrorRunsAllSteps(t *testing.T) {
+	repoRoot := t.TempDir()
+	marker := filepath.Join(repoRoot, "ran-second.txt")
+	r := New(&config.Config{Tasks: map[string]config.Task{
+		"fail":   {Desc: "fail", Cmd: "exit 1"},
+		"second": {Desc: "second", Cmd: "echo ran > ran-second.txt"},
+		"pipe":   {Desc: "pipe", Steps: []string{"fail", "second"}, ContinueOnError: true},
+	}}, repoRoot)
+
+	result, err := r.Run("pipe", Options{Stdout: io.Discard, Stderr: io.Discard})
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if result.Status != StatusFail {
+		t.Fatalf("Status = %q, want fail", result.Status)
+	}
+	if result.Steps[1].Status != StatusPass {
+		t.Fatalf("second step status = %q, want pass", result.Steps[1].Status)
+	}
+	if _, err := os.Stat(marker); err != nil {
+		t.Fatalf("second step should have run; stat err = %v", err)
+	}
+}
+
+func TestRunMapsTimeoutToTimeoutStatus(t *testing.T) {
+	t.Parallel()
+
+	r := newTestRunner(t, map[string]config.Task{
+		"slow": {Desc: "slow", Cmd: "sleep 1", Timeout: "10ms"},
+	})
+
+	result, err := r.Run("slow", Options{Stdout: io.Discard, Stderr: io.Discard})
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if result.Status != StatusTimeout {
+		t.Fatalf("Status = %q, want timeout", result.Status)
+	}
+	if result.ExitCode != 124 {
+		t.Fatalf("ExitCode = %d, want 124", result.ExitCode)
+	}
+}
+
+func TestParallelPipelineCancelsOtherStepOnFailure(t *testing.T) {
+	repoRoot := t.TempDir()
+	r := New(&config.Config{Tasks: map[string]config.Task{
+		"fail": {Desc: "fail", Cmd: "exit 1"},
+		"slow": {Desc: "slow", Cmd: "sleep 1; echo done > slow.txt"},
+		"par":  {Desc: "par", Steps: []string{"fail", "slow"}, Parallel: true},
+	}}, repoRoot)
+
+	result, err := r.Run("par", Options{Stdout: io.Discard, Stderr: io.Discard})
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if result.Status != StatusFail {
+		t.Fatalf("Status = %q, want fail", result.Status)
+	}
+	if result.Steps[1].Status != StatusCancelled && result.Steps[1].Status != StatusFail {
+		t.Fatalf("slow step status = %q, want cancelled or fail", result.Steps[1].Status)
+	}
+}
+
+func newTestRunner(t *testing.T, tasks map[string]config.Task) *Runner {
+	t.Helper()
+	return New(&config.Config{Tasks: tasks}, t.TempDir())
+}
+
+func mustTempFile(t *testing.T) *os.File {
+	t.Helper()
+	f, err := os.CreateTemp(t.TempDir(), "runner-out-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return f
+}
+
+func readFile(t *testing.T, path string) string {
+	t.Helper()
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(raw)
+}
