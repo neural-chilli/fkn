@@ -1,0 +1,161 @@
+package runner
+
+import (
+	"regexp"
+	"strconv"
+	"strings"
+)
+
+var (
+	genericErrorPattern = regexp.MustCompile(`^(.+?):(\d+)(?::(\d+))?:\s*(.+)$`)
+	goTestPattern       = regexp.MustCompile(`^\s*(.+?\.go):(\d+):\s*(.+)$`)
+	pytestPattern       = regexp.MustCompile(`^(.+?):(\d+):\s+(.+)$`)
+	tscPattern          = regexp.MustCompile(`^(.+?)\((\d+),(\d+)\):\s+error\s+[^:]+:\s+(.+)$`)
+	eslintPattern       = regexp.MustCompile(`^(.+)$`)
+)
+
+func extractErrors(format, stderr string) []ErrorEntry {
+	if stderr == "" || format == "" {
+		return nil
+	}
+	switch format {
+	case "go_test":
+		return parseGoTestErrors(stderr)
+	case "pytest":
+		return parsePytestErrors(stderr)
+	case "tsc":
+		return parseTscErrors(stderr)
+	case "eslint":
+		return parseEslintErrors(stderr)
+	case "generic":
+		return parseGenericErrors(stderr)
+	default:
+		return nil
+	}
+}
+
+func parseGoTestErrors(stderr string) []ErrorEntry {
+	var errors []ErrorEntry
+	for _, line := range strings.Split(stderr, "\n") {
+		match := goTestPattern.FindStringSubmatch(line)
+		if len(match) != 4 {
+			continue
+		}
+		lineNo, _ := strconv.Atoi(match[2])
+		errors = append(errors, ErrorEntry{
+			File:     match[1],
+			Line:     lineNo,
+			Message:  strings.TrimSpace(match[3]),
+			Severity: "error",
+		})
+	}
+	return errors
+}
+
+func parsePytestErrors(stderr string) []ErrorEntry {
+	var errors []ErrorEntry
+	for _, line := range strings.Split(stderr, "\n") {
+		match := pytestPattern.FindStringSubmatch(line)
+		if len(match) != 4 {
+			continue
+		}
+		lineNo, _ := strconv.Atoi(match[2])
+		errors = append(errors, ErrorEntry{
+			File:     match[1],
+			Line:     lineNo,
+			Message:  strings.TrimSpace(match[3]),
+			Severity: "error",
+		})
+	}
+	return errors
+}
+
+func parseTscErrors(stderr string) []ErrorEntry {
+	var errors []ErrorEntry
+	for _, line := range strings.Split(stderr, "\n") {
+		match := tscPattern.FindStringSubmatch(line)
+		if len(match) != 5 {
+			continue
+		}
+		lineNo, _ := strconv.Atoi(match[2])
+		columnNo, _ := strconv.Atoi(match[3])
+		errors = append(errors, ErrorEntry{
+			File:     match[1],
+			Line:     lineNo,
+			Column:   columnNo,
+			Message:  strings.TrimSpace(match[4]),
+			Severity: "error",
+		})
+	}
+	return errors
+}
+
+func parseEslintErrors(stderr string) []ErrorEntry {
+	var errors []ErrorEntry
+	for _, rawLine := range strings.Split(stderr, "\n") {
+		line := strings.TrimSpace(rawLine)
+		if line == "" || strings.HasPrefix(line, "/") || strings.HasPrefix(line, "✖") {
+			continue
+		}
+		match := genericErrorPattern.FindStringSubmatch(line)
+		if len(match) == 5 {
+			lineNo, _ := strconv.Atoi(match[2])
+			columnNo := 0
+			if match[3] != "" {
+				columnNo, _ = strconv.Atoi(match[3])
+			}
+			errors = append(errors, ErrorEntry{
+				File:     match[1],
+				Line:     lineNo,
+				Column:   columnNo,
+				Message:  strings.TrimSpace(match[4]),
+				Severity: "error",
+			})
+			continue
+		}
+		if eslintPattern.MatchString(line) && strings.Contains(line, "error") {
+			errors = append(errors, ErrorEntry{
+				Message:  line,
+				Severity: "error",
+			})
+		}
+	}
+	return errors
+}
+
+func parseGenericErrors(stderr string) []ErrorEntry {
+	var errors []ErrorEntry
+	for _, line := range strings.Split(stderr, "\n") {
+		match := genericErrorPattern.FindStringSubmatch(strings.TrimSpace(line))
+		if len(match) != 5 {
+			continue
+		}
+		lineNo, _ := strconv.Atoi(match[2])
+		columnNo := 0
+		if match[3] != "" {
+			columnNo, _ = strconv.Atoi(match[3])
+		}
+		errors = append(errors, ErrorEntry{
+			File:     match[1],
+			Line:     lineNo,
+			Column:   columnNo,
+			Message:  strings.TrimSpace(match[4]),
+			Severity: "error",
+		})
+	}
+	return errors
+}
+
+func collectResultErrors(result Result) []ErrorEntry {
+	if len(result.Errors) > 0 {
+		return append([]ErrorEntry(nil), result.Errors...)
+	}
+	var errors []ErrorEntry
+	for _, step := range result.Steps {
+		errors = append(errors, step.Errors...)
+	}
+	if len(errors) == 0 {
+		return nil
+	}
+	return errors
+}
