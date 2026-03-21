@@ -321,10 +321,3 @@ func sortedKeys[T any](items map[string]T) []string {
 	sort.Strings(names)
 	return names
 }
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
