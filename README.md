@@ -55,6 +55,7 @@ Implemented today:
 - safer helper-task import with `agent: false` for mutating targets
 - task params with CLI, runner, and MCP support
 - direct task param flags like `--feature auth`
+- structured error extraction in task, guard, and MCP JSON output
 - task-level shell configuration
 - global default working directory with task overrides
 - task aliases
@@ -160,6 +161,8 @@ aliases:
 Running `fkn` with no task name executes the configured default task when `default:` is set.
 
 `fkn list` now also shows summary metadata like task type, default marker, aliases, scope, and params in the human-readable view, and `fkn help <task>` includes a concrete usage line.
+
+Tasks can also declare `error_format` when they emit machine-parseable diagnostics. Supported values today are `go_test`, `pytest`, `tsc`, `eslint`, and `generic`. When set, task JSON, `guard --json`, and MCP tool results include a parsed `errors` array alongside raw stderr.
 
 ## Commands Available Today
 

@@ -9,7 +9,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -48,6 +50,7 @@ type Result struct {
 	ExitCode    int          `json:"exit_code"`
 	Stdout      string       `json:"stdout,omitempty"`
 	Stderr      string       `json:"stderr,omitempty"`
+	Errors      []ErrorEntry `json:"errors,omitempty"`
 	DurationMS  int64        `json:"duration_ms"`
 	StartedAt   string       `json:"started_at"`
 	FinishedAt  string       `json:"finished_at"`
@@ -55,16 +58,25 @@ type Result struct {
 }
 
 type StepResult struct {
-	Index       int     `json:"index"`
-	Name        string  `json:"name"`
-	ResolvedCmd *string `json:"resolved_cmd"`
-	Status      string  `json:"status"`
-	ExitCode    int     `json:"exit_code"`
-	Stdout      *string `json:"stdout"`
-	Stderr      *string `json:"stderr"`
-	DurationMS  *int64  `json:"duration_ms"`
-	StartedAt   *string `json:"started_at"`
-	FinishedAt  *string `json:"finished_at"`
+	Index       int          `json:"index"`
+	Name        string       `json:"name"`
+	ResolvedCmd *string      `json:"resolved_cmd"`
+	Status      string       `json:"status"`
+	ExitCode    int          `json:"exit_code"`
+	Stdout      *string      `json:"stdout"`
+	Stderr      *string      `json:"stderr"`
+	Errors      []ErrorEntry `json:"errors,omitempty"`
+	DurationMS  *int64       `json:"duration_ms"`
+	StartedAt   *string      `json:"started_at"`
+	FinishedAt  *string      `json:"finished_at"`
+}
+
+type ErrorEntry struct {
+	File     string `json:"file,omitempty"`
+	Line     int    `json:"line,omitempty"`
+	Column   int    `json:"column,omitempty"`
+	Message  string `json:"message"`
+	Severity string `json:"severity,omitempty"`
 }
 
 type runOutcome struct {
@@ -109,6 +121,7 @@ func (r *Runner) Run(taskName string, opts Options) (Result, error) {
 			ExitCode:    outcome.exitCode,
 			Stdout:      outcome.stdout,
 			Stderr:      outcome.stderr,
+			Errors:      extractErrors(task.ErrorFormat, outcome.stderr),
 			DurationMS:  outcome.finished.Sub(outcome.started).Milliseconds(),
 			StartedAt:   outcome.started.UTC().Format(time.RFC3339),
 			FinishedAt:  outcome.finished.UTC().Format(time.RFC3339),
@@ -149,6 +162,7 @@ func (r *Runner) RunGuardStep(stepName string, opts Options) (StepResult, error)
 		Status:      result.Status,
 		ExitCode:    result.ExitCode,
 		Stderr:      strPtr(stderr),
+		Errors:      result.Errors,
 		DurationMS:  &duration,
 		StartedAt:   &started,
 		FinishedAt:  &finished,
@@ -279,7 +293,9 @@ func (r *Runner) runStep(ctx context.Context, index int, parentTaskName, step st
 		if err != nil {
 			return StepResult{}, err
 		}
-		return toStepResult(index, step, interpolateParams(task.Cmd, paramValues), outcome), nil
+		stepResult := toStepResult(index, step, interpolateParams(task.Cmd, paramValues), outcome)
+		stepResult.Errors = extractErrors(task.ErrorFormat, outcome.stderr)
+		return stepResult, nil
 	}
 
 	outcome, err := r.runCommand(ctx, inlineStepName(index), config.Task{}, step, opts, inlineStepName(index))
@@ -431,6 +447,7 @@ func toStepResult(index int, name, resolved string, outcome runOutcome) StepResu
 		ExitCode:    outcome.exitCode,
 		Stdout:      strPtr(outcome.stdout),
 		Stderr:      strPtr(outcome.stderr),
+		Errors:      nil,
 		DurationMS:  &duration,
 		StartedAt:   &started,
 		FinishedAt:  &finished,
@@ -575,4 +592,144 @@ func (w *linePrefixWriter) Write(p []byte) (int, error) {
 
 func strPtr(s string) *string {
 	return &s
+}
+
+var (
+	genericErrorPattern = regexp.MustCompile(`^(.+?):(\d+)(?::(\d+))?:\s*(.+)$`)
+	goTestPattern       = regexp.MustCompile(`^\s*(.+?\.go):(\d+):\s*(.+)$`)
+	pytestPattern       = regexp.MustCompile(`^(.+?):(\d+):\s+(.+)$`)
+	tscPattern          = regexp.MustCompile(`^(.+?)\((\d+),(\d+)\):\s+error\s+[^:]+:\s+(.+)$`)
+	eslintPattern       = regexp.MustCompile(`^(.+)$`)
+)
+
+func extractErrors(format, stderr string) []ErrorEntry {
+	if stderr == "" || format == "" {
+		return nil
+	}
+	switch format {
+	case "go_test":
+		return parseGoTestErrors(stderr)
+	case "pytest":
+		return parsePytestErrors(stderr)
+	case "tsc":
+		return parseTscErrors(stderr)
+	case "eslint":
+		return parseEslintErrors(stderr)
+	case "generic":
+		return parseGenericErrors(stderr)
+	default:
+		return nil
+	}
+}
+
+func parseGoTestErrors(stderr string) []ErrorEntry {
+	var errors []ErrorEntry
+	for _, line := range strings.Split(stderr, "\n") {
+		match := goTestPattern.FindStringSubmatch(line)
+		if len(match) != 4 {
+			continue
+		}
+		lineNo, _ := strconv.Atoi(match[2])
+		errors = append(errors, ErrorEntry{
+			File:     match[1],
+			Line:     lineNo,
+			Message:  strings.TrimSpace(match[3]),
+			Severity: "error",
+		})
+	}
+	return errors
+}
+
+func parsePytestErrors(stderr string) []ErrorEntry {
+	var errors []ErrorEntry
+	for _, line := range strings.Split(stderr, "\n") {
+		match := pytestPattern.FindStringSubmatch(line)
+		if len(match) != 4 {
+			continue
+		}
+		lineNo, _ := strconv.Atoi(match[2])
+		errors = append(errors, ErrorEntry{
+			File:     match[1],
+			Line:     lineNo,
+			Message:  strings.TrimSpace(match[3]),
+			Severity: "error",
+		})
+	}
+	return errors
+}
+
+func parseTscErrors(stderr string) []ErrorEntry {
+	var errors []ErrorEntry
+	for _, line := range strings.Split(stderr, "\n") {
+		match := tscPattern.FindStringSubmatch(line)
+		if len(match) != 5 {
+			continue
+		}
+		lineNo, _ := strconv.Atoi(match[2])
+		columnNo, _ := strconv.Atoi(match[3])
+		errors = append(errors, ErrorEntry{
+			File:     match[1],
+			Line:     lineNo,
+			Column:   columnNo,
+			Message:  strings.TrimSpace(match[4]),
+			Severity: "error",
+		})
+	}
+	return errors
+}
+
+func parseEslintErrors(stderr string) []ErrorEntry {
+	var errors []ErrorEntry
+	for _, rawLine := range strings.Split(stderr, "\n") {
+		line := strings.TrimSpace(rawLine)
+		if line == "" || strings.HasPrefix(line, "/") || strings.HasPrefix(line, "✖") {
+			continue
+		}
+		match := genericErrorPattern.FindStringSubmatch(line)
+		if len(match) == 5 {
+			lineNo, _ := strconv.Atoi(match[2])
+			columnNo := 0
+			if match[3] != "" {
+				columnNo, _ = strconv.Atoi(match[3])
+			}
+			errors = append(errors, ErrorEntry{
+				File:     match[1],
+				Line:     lineNo,
+				Column:   columnNo,
+				Message:  strings.TrimSpace(match[4]),
+				Severity: "error",
+			})
+			continue
+		}
+		if eslintPattern.MatchString(line) && strings.Contains(line, "error") {
+			errors = append(errors, ErrorEntry{
+				Message:  line,
+				Severity: "error",
+			})
+		}
+	}
+	return errors
+}
+
+func parseGenericErrors(stderr string) []ErrorEntry {
+	var errors []ErrorEntry
+	for _, line := range strings.Split(stderr, "\n") {
+		match := genericErrorPattern.FindStringSubmatch(strings.TrimSpace(line))
+		if len(match) != 5 {
+			continue
+		}
+		lineNo, _ := strconv.Atoi(match[2])
+		columnNo := 0
+		if match[3] != "" {
+			columnNo, _ = strconv.Atoi(match[3])
+		}
+		errors = append(errors, ErrorEntry{
+			File:     match[1],
+			Line:     lineNo,
+			Column:   columnNo,
+			Message:  strings.TrimSpace(match[4]),
+			Severity: "error",
+		})
+	}
+	return errors
 }

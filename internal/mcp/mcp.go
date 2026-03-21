@@ -288,6 +288,7 @@ func (s *Server) callTool(raw json.RawMessage) (map[string]any, error) {
 			"status":      result.Status,
 			"stdout":      result.Stdout,
 			"stderr":      result.Stderr,
+			"errors":      result.Errors,
 			"exit_code":   result.ExitCode,
 			"duration_ms": result.DurationMS,
 			"started_at":  result.StartedAt,

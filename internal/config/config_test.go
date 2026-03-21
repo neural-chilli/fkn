@@ -237,6 +237,29 @@ tasks:
 	}
 }
 
+func TestLoadRejectsUnknownErrorFormat(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "fkn.yaml"), []byte(`
+tasks:
+  test:
+    desc: Run tests
+    cmd: go test ./...
+    error_format: nope
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := Load(filepath.Join(dir, "fkn.yaml"))
+	if err == nil {
+		t.Fatal("Load() error = nil, want error_format validation error")
+	}
+	if !strings.Contains(err.Error(), `task "test": unknown error_format "nope"`) {
+		t.Fatalf("Load() error = %v, want error_format validation", err)
+	}
+}
+
 func TestLoadRejectsUnknownDefaultDir(t *testing.T) {
 	t.Parallel()
 

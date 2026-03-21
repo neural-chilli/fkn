@@ -193,6 +193,7 @@ Example response shape:
       "status": "pass",
       "stdout": "",
       "stderr": "",
+      "errors": [],
       "exit_code": 0,
       "duration_ms": 0,
       "started_at": "2026-03-21T12:15:29Z",
@@ -202,6 +203,8 @@ Example response shape:
   }
 }
 ```
+
+If a task declares `error_format` in `fkn.yaml`, `structuredContent.errors` includes parsed diagnostics alongside raw stderr so MCP clients do not need to scrape compiler or test output themselves.
 
 ## Realistic Uses
 

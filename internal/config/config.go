@@ -35,6 +35,7 @@ type Task struct {
 	Dir             string            `yaml:"dir"`
 	Shell           string            `yaml:"shell"`
 	ShellArgs       []string          `yaml:"shell_args"`
+	ErrorFormat     string            `yaml:"error_format"`
 	Timeout         string            `yaml:"timeout"`
 	ContinueOnError bool              `yaml:"continue_on_error"`
 	Agent           *bool             `yaml:"agent"`
@@ -217,6 +218,13 @@ func (c *Config) Validate(repoRoot string) error {
 		if task.Scope != "" {
 			if _, ok := c.Scopes[task.Scope]; !ok {
 				return fmt.Errorf("task %q references unknown scope %q", name, task.Scope)
+			}
+		}
+		if task.ErrorFormat != "" {
+			switch task.ErrorFormat {
+			case "go_test", "pytest", "tsc", "eslint", "generic":
+			default:
+				return fmt.Errorf("task %q: unknown error_format %q", name, task.ErrorFormat)
 			}
 		}
 		for paramName, param := range task.Params {

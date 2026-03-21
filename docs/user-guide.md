@@ -176,6 +176,35 @@ tasks:
       - build
 ```
 
+## Structured Errors
+
+If a task emits stable compiler or test diagnostics, you can tell `fkn` how to parse them:
+
+```yaml
+tasks:
+  test:
+    desc: Run Go tests
+    cmd: go test ./...
+    error_format: go_test
+```
+
+Supported formats today:
+
+- `go_test`
+- `pytest`
+- `tsc`
+- `eslint`
+- `generic`
+
+This does not replace raw stderr. It adds a parsed `errors` array to task JSON output, `guard --json`, and MCP `tools/call` responses so agents do not have to scrape diagnostics back out of plain text.
+
+Example:
+
+```bash
+fkn test --json
+fkn guard --json
+```
+
 ## Aliases
 
 Aliases let you expose short or migration-friendly names for existing tasks.

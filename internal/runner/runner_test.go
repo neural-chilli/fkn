@@ -328,6 +328,82 @@ func TestRunPipelineReportsNestedPipelineErrorWithParentName(t *testing.T) {
 	}
 }
 
+func TestRunCmdTaskExtractsGoTestErrors(t *testing.T) {
+	t.Parallel()
+
+	r := newTestRunner(t, map[string]config.Task{
+		"test": {
+			Desc:        "test",
+			Cmd:         `printf '%s\n' 'internal/runner/runner_test.go:47: got pass, want fail' >&2; exit 1`,
+			ErrorFormat: "go_test",
+		},
+	})
+
+	result, err := r.Run("test", Options{Stdout: io.Discard, Stderr: io.Discard})
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if len(result.Errors) != 1 {
+		t.Fatalf("len(Errors) = %d, want 1", len(result.Errors))
+	}
+	if got := result.Errors[0]; got.File != "internal/runner/runner_test.go" || got.Line != 47 || got.Message != "got pass, want fail" || got.Severity != "error" {
+		t.Fatalf("Errors[0] = %+v, want parsed go test error", got)
+	}
+}
+
+func TestRunCmdTaskExtractsGenericErrors(t *testing.T) {
+	t.Parallel()
+
+	r := newTestRunner(t, map[string]config.Task{
+		"lint": {
+			Desc:        "lint",
+			Cmd:         `printf '%s\n' 'src/app.ts:12:7: missing semicolon' >&2; exit 1`,
+			ErrorFormat: "generic",
+		},
+	})
+
+	result, err := r.Run("lint", Options{Stdout: io.Discard, Stderr: io.Discard})
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if len(result.Errors) != 1 {
+		t.Fatalf("len(Errors) = %d, want 1", len(result.Errors))
+	}
+	if got := result.Errors[0]; got.File != "src/app.ts" || got.Line != 12 || got.Column != 7 || got.Message != "missing semicolon" || got.Severity != "error" {
+		t.Fatalf("Errors[0] = %+v, want parsed generic error", got)
+	}
+}
+
+func TestRunPipelineStepIncludesStructuredErrors(t *testing.T) {
+	t.Parallel()
+
+	r := newTestRunner(t, map[string]config.Task{
+		"test": {
+			Desc:        "test",
+			Cmd:         `printf '%s\n' 'pkg/mod.py:9: assertion failed' >&2; exit 1`,
+			ErrorFormat: "pytest",
+		},
+		"check": {
+			Desc:  "check",
+			Steps: []string{"test"},
+		},
+	})
+
+	result, err := r.Run("check", Options{Stdout: io.Discard, Stderr: io.Discard})
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if len(result.Steps) != 1 {
+		t.Fatalf("len(Steps) = %d, want 1", len(result.Steps))
+	}
+	if len(result.Steps[0].Errors) != 1 {
+		t.Fatalf("len(Steps[0].Errors) = %d, want 1", len(result.Steps[0].Errors))
+	}
+	if got := result.Steps[0].Errors[0]; got.File != "pkg/mod.py" || got.Line != 9 || got.Message != "assertion failed" {
+		t.Fatalf("Steps[0].Errors[0] = %+v, want parsed pytest error", got)
+	}
+}
+
 func newTestRunner(t *testing.T, tasks map[string]config.Task) *Runner {
 	t.Helper()
 	return New(&config.Config{Tasks: tasks}, t.TempDir())

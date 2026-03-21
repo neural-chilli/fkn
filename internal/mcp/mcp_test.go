@@ -88,6 +88,48 @@ func TestHandlePayloadToolsCallDryRun(t *testing.T) {
 	}
 }
 
+func TestHandlePayloadToolsCallIncludesStructuredErrors(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{
+		Tasks: map[string]config.Task{
+			"test": {
+				Desc:        "Test",
+				Cmd:         `printf '%s\n' 'internal/mcp/mcp_test.go:88: broken' >&2; exit 1`,
+				ErrorFormat: "go_test",
+			},
+		},
+	}
+	repoRoot := t.TempDir()
+	server := New(cfg, repoRoot, runner.New(cfg, repoRoot))
+
+	resp, notify, err := server.HandlePayload([]byte(`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"test","arguments":{}}}`), nil)
+	if err != nil {
+		t.Fatalf("HandlePayload() error = %v", err)
+	}
+	if notify {
+		t.Fatal("HandlePayload() notify = true, want false")
+	}
+
+	var payload JSONRPCResponse
+	if err := json.Unmarshal(resp, &payload); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v", err)
+	}
+	if payload.Error != nil {
+		t.Fatalf("payload.Error = %+v, want nil", payload.Error)
+	}
+	result := payload.Result.(map[string]any)
+	structured := result["structuredContent"].(map[string]any)
+	rawErrors := structured["errors"].([]any)
+	if len(rawErrors) != 1 {
+		t.Fatalf("len(errors) = %d, want 1", len(rawErrors))
+	}
+	entry := rawErrors[0].(map[string]any)
+	if entry["file"] != "internal/mcp/mcp_test.go" || entry["message"] != "broken" {
+		t.Fatalf("errors[0] = %#v, want parsed error", entry)
+	}
+}
+
 func TestToolsExposeTaskParams(t *testing.T) {
 	t.Parallel()
 

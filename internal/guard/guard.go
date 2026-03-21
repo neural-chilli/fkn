@@ -27,13 +27,14 @@ type Report struct {
 }
 
 type GuardStep struct {
-	Index       int     `json:"index"`
-	Name        string  `json:"name"`
-	ResolvedCmd *string `json:"resolved_cmd"`
-	Status      string  `json:"status"`
-	ExitCode    int     `json:"exit_code"`
-	Stderr      string  `json:"stderr"`
-	DurationMS  int64   `json:"duration_ms"`
+	Index       int                 `json:"index"`
+	Name        string              `json:"name"`
+	ResolvedCmd *string             `json:"resolved_cmd"`
+	Status      string              `json:"status"`
+	ExitCode    int                 `json:"exit_code"`
+	Stderr      string              `json:"stderr"`
+	Errors      []runner.ErrorEntry `json:"errors,omitempty"`
+	DurationMS  int64               `json:"duration_ms"`
 }
 
 type CacheReport struct {
@@ -43,13 +44,14 @@ type CacheReport struct {
 }
 
 type CacheStep struct {
-	Index       int     `json:"index"`
-	Name        string  `json:"name"`
-	ResolvedCmd *string `json:"resolved_cmd"`
-	Status      string  `json:"status"`
-	ExitCode    int     `json:"exit_code"`
-	Stderr      string  `json:"stderr"`
-	DurationMS  int64   `json:"duration_ms"`
+	Index       int                 `json:"index"`
+	Name        string              `json:"name"`
+	ResolvedCmd *string             `json:"resolved_cmd"`
+	Status      string              `json:"status"`
+	ExitCode    int                 `json:"exit_code"`
+	Stderr      string              `json:"stderr"`
+	Errors      []runner.ErrorEntry `json:"errors,omitempty"`
+	DurationMS  int64               `json:"duration_ms"`
 }
 
 func New(cfg *config.Config, repoRoot string, tasks *runner.Runner) *Runner {
@@ -100,6 +102,7 @@ func (r *Runner) Run(name string, opts runner.Options) (Report, error) {
 			Status:      stepResult.Status,
 			ExitCode:    stepResult.ExitCode,
 			Stderr:      stderr,
+			Errors:      stepResult.Errors,
 			DurationMS:  duration,
 		}
 		report.Steps = append(report.Steps, reportStep)
@@ -134,6 +137,7 @@ func (r *Runner) writeCache(report Report) error {
 			Status:      step.Status,
 			ExitCode:    step.ExitCode,
 			Stderr:      step.Stderr,
+			Errors:      step.Errors,
 			DurationMS:  step.DurationMS,
 		})
 	}
