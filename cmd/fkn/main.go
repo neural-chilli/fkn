@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"fkn/internal/config"
+	"fkn/internal/guard"
 	"fkn/internal/runner"
 )
 
@@ -39,11 +40,51 @@ func run(args []string, stdout, stderr *os.File) int {
 	case "help":
 		printUsage(stdout)
 		return 0
+	case "guard":
+		return runGuard(args[1:], stdout, stderr)
 	case "list":
 		return runList(args[1:], stdout, stderr)
 	default:
 		return runTask(args, stdout, stderr)
 	}
+}
+
+func runGuard(args []string, stdout, stderr *os.File) int {
+	fs := flag.NewFlagSet("guard", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	jsonOut := fs.Bool("json", false, "")
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+
+	var name string
+	if fs.NArg() > 0 {
+		name = fs.Arg(0)
+	}
+
+	cfg, repoRoot, err := loadConfig()
+	if err != nil {
+		printError(stderr, err)
+		return 1
+	}
+
+	taskRunner := runner.New(cfg, repoRoot)
+	report, err := guard.New(cfg, repoRoot, taskRunner).Run(name, runner.Options{
+		JSON:   *jsonOut,
+		Stdout: stdout,
+		Stderr: stderr,
+	})
+	if err != nil {
+		printError(stderr, err)
+		return 1
+	}
+
+	if *jsonOut {
+		return printJSON(stdout, report)
+	}
+
+	printGuardReport(stdout, report)
+	return report.ExitCode
 }
 
 func runList(args []string, stdout, stderr *os.File) int {
@@ -185,6 +226,7 @@ func sortedTaskNames(tasks map[string]config.Task) []string {
 func printUsage(stdout *os.File) {
 	lines := []string{
 		"fkn <task> [--dry-run] [--json]",
+		"fkn guard [name] [--json]",
 		"fkn list [--json] [--mcp]",
 		"fkn version",
 	}
@@ -202,6 +244,36 @@ func printJSON(stdout *os.File, v any) int {
 		return 1
 	}
 	return 0
+}
+
+func printGuardReport(stdout *os.File, report guard.Report) {
+	fmt.Fprintf(stdout, "[fkn guard: %s]\n\n", report.Guard)
+	width := 0
+	for _, step := range report.Steps {
+		if len(step.Name) > width {
+			width = len(step.Name)
+		}
+	}
+	for _, step := range report.Steps {
+		fmt.Fprintf(stdout, "  %-*s  %s  %.1fs\n", width, step.Name, strings.ToUpper(step.Status), float64(step.DurationMS)/1000)
+	}
+
+	fmt.Fprintln(stdout)
+	if report.Overall == runner.StatusPass {
+		fmt.Fprintf(stdout, "PASSED in %.1fs\n", float64(report.DurationMS)/1000)
+	} else {
+		fmt.Fprintf(stdout, "FAILED in %.1fs\n", float64(report.DurationMS)/1000)
+	}
+
+	for _, step := range report.Steps {
+		if step.Stderr == "" {
+			continue
+		}
+		fmt.Fprintf(stdout, "\n--- %s stderr ---\n%s", step.Name, step.Stderr)
+		if !strings.HasSuffix(step.Stderr, "\n") {
+			fmt.Fprintln(stdout)
+		}
+	}
 }
 
 type listTask struct {

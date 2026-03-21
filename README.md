@@ -21,15 +21,16 @@ This repository currently includes the first working slice:
 - YAML-backed task configuration via `fkn.yaml`
 - `fkn <task>` to run named command tasks
 - sequential and parallel task pipelines
+- `fkn guard [name]` to run validation-oriented guard pipelines
 - `fkn <task> --dry-run` to print resolved commands
 - `fkn <task> --json` for machine-readable execution results
+- `fkn guard --json` for structured guard reports
 - `fkn list` and `fkn list --json`
 - `fkn list --mcp` to preview the MCP manifest for agent-enabled tasks
 - config validation for required task shape and circular task references
 
 Planned but not built yet:
 
-- `fkn guard`
 - `fkn context`
 - `fkn scope`
 - `fkn prompt`
@@ -66,6 +67,7 @@ This produces `bin/fkn`.
 go run ./cmd/fkn list
 go run ./cmd/fkn test
 go run ./cmd/fkn check --dry-run
+go run ./cmd/fkn guard
 go run ./cmd/fkn list --mcp
 ```
 
@@ -97,6 +99,8 @@ tasks:
 fkn <task>
 fkn <task> --dry-run
 fkn <task> --json
+fkn guard
+fkn guard --json
 fkn list
 fkn list --json
 fkn list --mcp

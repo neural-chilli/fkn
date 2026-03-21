@@ -115,6 +115,22 @@ func (r *Runner) Run(taskName string, opts Options) (Result, error) {
 	return r.runSequential(taskName, task, opts)
 }
 
+func (r *Runner) RunGuardStep(stepName string, opts Options) (StepResult, error) {
+	task, ok := r.cfg.Tasks[stepName]
+	if !ok {
+		return StepResult{}, fmt.Errorf("unknown task %q", stepName)
+	}
+	if task.Cmd == "" {
+		return StepResult{}, fmt.Errorf("guard step %q must reference a cmd task", stepName)
+	}
+
+	outcome, err := r.runCommand(context.Background(), stepName, task, task.Cmd, opts, "")
+	if err != nil {
+		return StepResult{}, err
+	}
+	return toStepResult(0, stepName, task.Cmd, outcome), nil
+}
+
 func (r *Runner) runSequential(taskName string, task config.Task, opts Options) (Result, error) {
 	started := time.Now()
 	steps := make([]StepResult, 0, len(task.Steps))

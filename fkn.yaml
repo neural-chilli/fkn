@@ -1,0 +1,29 @@
+project: fkn
+description: Function Kit Nextgen
+
+tasks:
+  fmt:
+    desc: Format Go files
+    cmd: gofmt -w .
+    agent: false
+
+  test:
+    desc: Run the Go test suite
+    cmd: go test ./...
+
+  build:
+    desc: Build the fkn binary
+    cmd: go build -o bin/fkn ./cmd/fkn
+
+  check:
+    desc: Run the default local verification pipeline
+    steps:
+      - fmt
+      - test
+      - build
+
+guards:
+  default:
+    steps:
+      - test
+      - build

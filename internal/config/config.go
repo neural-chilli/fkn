@@ -10,10 +10,11 @@ import (
 )
 
 type Config struct {
-	Project     string          `yaml:"project"`
-	Description string          `yaml:"description"`
-	EnvFile     string          `yaml:"env_file"`
-	Tasks       map[string]Task `yaml:"tasks"`
+	Project     string           `yaml:"project"`
+	Description string           `yaml:"description"`
+	EnvFile     string           `yaml:"env_file"`
+	Tasks       map[string]Task  `yaml:"tasks"`
+	Guards      map[string]Guard `yaml:"guards"`
 }
 
 type Task struct {
@@ -27,6 +28,10 @@ type Task struct {
 	ContinueOnError bool              `yaml:"continue_on_error"`
 	Agent           *bool             `yaml:"agent"`
 	Scope           string            `yaml:"scope"`
+}
+
+type Guard struct {
+	Steps []string `yaml:"steps"`
 }
 
 func (t Task) AgentEnabled() bool {
@@ -78,6 +83,17 @@ func (c *Config) Validate(repoRoot string) error {
 			}
 			if !info.IsDir() {
 				return fmt.Errorf("task %q: dir %q is not a directory", name, task.Dir)
+			}
+		}
+	}
+
+	for name, guard := range c.Guards {
+		if len(guard.Steps) == 0 {
+			return fmt.Errorf("guard %q: steps are required", name)
+		}
+		for _, step := range guard.Steps {
+			if _, ok := c.Tasks[step]; !ok {
+				return fmt.Errorf("guard %q references unknown task %q", name, step)
 			}
 		}
 	}
