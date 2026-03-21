@@ -52,6 +52,8 @@ func run(args []string, stdout, stderr *os.File) int {
 		return runContext(args[1:], stdout, stderr)
 	case "prompt":
 		return runPrompt(args[1:], stdout, stderr)
+	case "plan":
+		return runPlan(args[1:], stdout, stderr)
 	case "scope":
 		return runScope(args[1:], stdout, stderr)
 	case "validate":

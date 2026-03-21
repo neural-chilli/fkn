@@ -655,6 +655,28 @@ Current repair output includes:
 - current git diff, bounded by the context diff cap
 - a suggested next action
 
+## Plan
+
+`fkn plan` is the pre-edit companion to `fkn repair`.
+
+It takes the files you expect to modify and returns the matching scopes, tasks, guards, groups, and codemap entries so you can decide what to read and rerun before touching code.
+
+Examples:
+
+```bash
+fkn plan --file cmd/fkn/main.go --file internal/runner/runner.go
+fkn plan --json cmd/fkn/main.go internal/runner/runner.go
+```
+
+The output is especially useful when you want to know:
+
+- which tasks probably own the change
+- which guard is the best verification target
+- which codemap entries are likely relevant
+- whether the impacted tasks are marked `safe`, `idempotent`, `destructive`, or `external`
+
+`fkn plan` is intentionally scope-first, so the quality of the output improves as task scopes and codemap entries become more accurate.
+
 ## Context
 
 `fkn context` generates a bounded markdown briefing for humans or agents.

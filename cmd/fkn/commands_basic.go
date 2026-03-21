@@ -10,6 +10,7 @@ import (
 	contextpkg "github.com/neural-chilli/fkn/internal/context"
 	"github.com/neural-chilli/fkn/internal/guard"
 	"github.com/neural-chilli/fkn/internal/initcmd"
+	planpkg "github.com/neural-chilli/fkn/internal/plan"
 	"github.com/neural-chilli/fkn/internal/prompt"
 	"github.com/neural-chilli/fkn/internal/runner"
 	"github.com/neural-chilli/fkn/internal/scope"
@@ -284,6 +285,46 @@ func runPrompt(args []string, stdout, stderr *os.File) int {
 		}
 	}
 
+	return 0
+}
+
+func runPlan(args []string, stdout, stderr *os.File) int {
+	fs := flag.NewFlagSet("plan", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	jsonOut := fs.Bool("json", false, "")
+	var files multiFlag
+	fs.Var(&files, "file", "")
+	fs.Var(&files, "files", "")
+	parsedArgs, err := parseSubcommandArgs(args, map[string]bool{"--json": false, "--file": true, "--files": true})
+	if err != nil {
+		printError(stderr, err)
+		return 2
+	}
+	if err := fs.Parse(parsedArgs); err != nil {
+		return 2
+	}
+
+	files = append(files, fs.Args()...)
+	if len(files) == 0 {
+		printError(stderr, fmt.Errorf("at least one file path is required"))
+		return 1
+	}
+
+	cfg, repoRoot, err := loadConfig()
+	if err != nil {
+		printError(stderr, err)
+		return 1
+	}
+
+	result, err := planpkg.Generate(cfg, repoRoot, files)
+	if err != nil {
+		printError(stderr, err)
+		return 1
+	}
+	if *jsonOut {
+		return printJSON(stdout, result)
+	}
+	fmt.Fprintln(stdout, result.Markdown)
 	return 0
 }
 

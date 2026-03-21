@@ -19,6 +19,7 @@ func printUsage(stdout *os.File) {
 		"fkn docs [name] [--list]",
 		"fkn explain <target> [--json]",
 		"fkn help [task|group]",
+		"fkn plan [--json] [--file <path>] [files...]",
 		"fkn context [--agent] [--json] [--task <name>] [--about <topic>] [--out <file>] [--copy] [--max-tokens <approx-n>]",
 		"fkn guard [name] [--json]",
 		"fkn repair [name] [--json] [--copy]",

@@ -58,6 +58,7 @@ Implemented today:
 - direct task param flags like `--feature auth`
 - structured error extraction in task, guard, and MCP JSON output
 - guided repair output via `fkn repair`
+- file-targeted impact planning via `fkn plan`
 - codemap-backed repo explanations via `fkn explain`
 - topic-targeted context via `fkn context --about`
 - task-level shell configuration
@@ -121,6 +122,7 @@ go run ./cmd/fkn pack release dist/a.tgz dist/b.tgz
 go run ./cmd/fkn check --dry-run
 go run ./cmd/fkn guard
 go run ./cmd/fkn repair
+go run ./cmd/fkn plan --file cmd/fkn/main.go
 go run ./cmd/fkn explain internal/runner
 go run ./cmd/fkn context --about transport
 go run ./cmd/fkn scope cli
@@ -206,6 +208,8 @@ Tasks can also declare `error_format` when they emit machine-parseable diagnosti
 
 `fkn repair` builds on that by running a guard, collecting the failing steps, surfacing relevant scopes, and generating a repair-oriented markdown brief for the next agent loop.
 
+`fkn plan` works the other direction: give it the files you expect to touch, and it will tell you which scopes, tasks, guards, groups, and codemap entries are likely relevant before you start editing.
+
 `codemap` adds a semantic layer to `fkn.yaml`, and `fkn explain` turns those entries into targeted repo briefings for packages, entry points, glossary terms, and tasks.
 
 ## Commands Available Today
@@ -217,6 +221,7 @@ fkn <task> --json
 fkn docs [name] [--list]
 fkn explain <target> [--json]
 fkn help [task|group]
+fkn plan [--json] [--file <path>] [files...]
 fkn guard
 fkn guard --json
 fkn repair [name] [--json] [--copy]
