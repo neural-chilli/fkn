@@ -28,6 +28,7 @@ This repository currently includes the first working slice:
 - `fkn init` to scaffold a starter config and ignore runtime state
 - `fkn serve` to expose agent-enabled tasks as MCP tools
 - `fkn watch` to rerun tasks or guards on file changes
+- `fkn help [task]` to show task or guard details from `fkn.yaml`
 - `fkn <task> --dry-run` to print resolved commands
 - `fkn <task> --json` for machine-readable execution results
 - `fkn guard --json` for structured guard reports
@@ -35,6 +36,7 @@ This repository currently includes the first working slice:
 - `fkn list` and `fkn list --json`
 - `fkn list --mcp` to preview the MCP manifest for agent-enabled tasks
 - config validation for required task shape and circular task references
+- unknown task suggestions for close matches
 
 ## Why Open Source
 
@@ -74,6 +76,7 @@ go run ./cmd/fkn init
 go run ./cmd/fkn serve
 go run ./cmd/fkn serve --http --port 8080
 go run ./cmd/fkn watch test --path README.md
+go run ./cmd/fkn help check
 go run ./cmd/fkn list --mcp
 ```
 
@@ -107,6 +110,7 @@ tasks:
 fkn <task>
 fkn <task> --dry-run
 fkn <task> --json
+fkn help [task]
 fkn guard
 fkn guard --json
 fkn context

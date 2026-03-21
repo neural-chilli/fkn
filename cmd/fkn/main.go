@@ -50,8 +50,7 @@ func run(args []string, stdout, stderr *os.File) int {
 		fmt.Fprintf(stdout, "fkn %s\n", version)
 		return 0
 	case "help":
-		printUsage(stdout)
-		return 0
+		return runHelp(args[1:], stdout, stderr)
 	case "guard":
 		return runGuard(args[1:], stdout, stderr)
 	case "init":
@@ -71,6 +70,32 @@ func run(args []string, stdout, stderr *os.File) int {
 	default:
 		return runTask(args, stdout, stderr)
 	}
+}
+
+func runHelp(args []string, stdout, stderr *os.File) int {
+	if len(args) == 0 {
+		printUsage(stdout)
+		return 0
+	}
+
+	cfg, _, err := loadConfig()
+	if err != nil {
+		printError(stderr, err)
+		return 1
+	}
+
+	name := args[0]
+	if task, ok := cfg.Tasks[name]; ok {
+		printTaskHelp(stdout, name, task)
+		return 0
+	}
+	if guardCfg, ok := cfg.Guards[name]; ok {
+		printGuardHelp(stdout, name, guardCfg)
+		return 0
+	}
+
+	printError(stderr, unknownTaskError(name, cfg))
+	return 1
 }
 
 func runInit(stdout, stderr *os.File) int {
@@ -458,6 +483,11 @@ func runTask(args []string, stdout, stderr *os.File) int {
 		return 1
 	}
 
+	if _, ok := cfg.Tasks[args[0]]; !ok {
+		printError(stderr, unknownTaskError(args[0], cfg))
+		return 1
+	}
+
 	result, err := runner.New(cfg, repoRoot).Run(args[0], runner.Options{
 		JSON:   *jsonOut,
 		DryRun: *dryRun,
@@ -503,6 +533,7 @@ func sortedTaskNames(tasks map[string]config.Task) []string {
 func printUsage(stdout *os.File) {
 	lines := []string{
 		"fkn <task> [--dry-run] [--json]",
+		"fkn help [task]",
 		"fkn context [--agent] [--task <name>] [--out <file>] [--copy] [--max-tokens <n>]",
 		"fkn guard [name] [--json]",
 		"fkn init",
@@ -514,6 +545,39 @@ func printUsage(stdout *os.File) {
 		"fkn version",
 	}
 	fmt.Fprintln(stdout, strings.Join(lines, "\n"))
+}
+
+func printTaskHelp(stdout *os.File, name string, task config.Task) {
+	fmt.Fprintf(stdout, "%s\n\n", name)
+	fmt.Fprintf(stdout, "Description: %s\n", task.Desc)
+	fmt.Fprintf(stdout, "Type: %s\n", task.Type())
+	if task.Scope != "" {
+		fmt.Fprintf(stdout, "Scope: %s\n", task.Scope)
+	}
+	fmt.Fprintf(stdout, "Agent: %t\n", task.AgentEnabled())
+	if task.Dir != "" {
+		fmt.Fprintf(stdout, "Dir: %s\n", task.Dir)
+	}
+	if task.Timeout != "" {
+		fmt.Fprintf(stdout, "Timeout: %s\n", task.Timeout)
+	}
+	if task.Cmd != "" {
+		fmt.Fprintf(stdout, "Command: %s\n", task.Cmd)
+		return
+	}
+	fmt.Fprintf(stdout, "Parallel: %t\n", task.Parallel)
+	fmt.Fprintln(stdout, "Steps:")
+	for _, step := range task.Steps {
+		fmt.Fprintf(stdout, "- %s\n", step)
+	}
+}
+
+func printGuardHelp(stdout *os.File, name string, guardCfg config.Guard) {
+	fmt.Fprintf(stdout, "guard %s\n\n", name)
+	fmt.Fprintln(stdout, "Steps:")
+	for _, step := range guardCfg.Steps {
+		fmt.Fprintf(stdout, "- %s\n", step)
+	}
 }
 
 func printError(stderr *os.File, err error) {
@@ -631,4 +695,100 @@ func (m *multiFlag) String() string {
 func (m *multiFlag) Set(value string) error {
 	*m = append(*m, value)
 	return nil
+}
+
+func unknownTaskError(name string, cfg *config.Config) error {
+	suggestions := nearestTaskNames(name, cfg)
+	if len(suggestions) == 0 {
+		return fmt.Errorf("unknown task %q", name)
+	}
+	return fmt.Errorf("unknown task %q. Did you mean: %s?", name, strings.Join(suggestions, ", "))
+}
+
+func nearestTaskNames(name string, cfg *config.Config) []string {
+	type candidate struct {
+		name  string
+		score int
+	}
+
+	candidates := []candidate{}
+	for taskName := range cfg.Tasks {
+		score := levenshtein(name, taskName)
+		if strings.Contains(taskName, name) || strings.Contains(name, taskName) {
+			score--
+		}
+		candidates = append(candidates, candidate{name: taskName, score: score})
+	}
+
+	sort.Slice(candidates, func(i, j int) bool {
+		if candidates[i].score == candidates[j].score {
+			return candidates[i].name < candidates[j].name
+		}
+		return candidates[i].score < candidates[j].score
+	})
+
+	limit := 3
+	if len(candidates) < limit {
+		limit = len(candidates)
+	}
+	out := []string{}
+	for i := 0; i < limit; i++ {
+		if candidates[i].score > max(3, len(name)/2+1) {
+			continue
+		}
+		out = append(out, candidates[i].name)
+	}
+	return out
+}
+
+func levenshtein(a, b string) int {
+	if a == b {
+		return 0
+	}
+	if len(a) == 0 {
+		return len(b)
+	}
+	if len(b) == 0 {
+		return len(a)
+	}
+
+	prev := make([]int, len(b)+1)
+	for j := range prev {
+		prev[j] = j
+	}
+
+	for i := 1; i <= len(a); i++ {
+		current := make([]int, len(b)+1)
+		current[0] = i
+		for j := 1; j <= len(b); j++ {
+			cost := 0
+			if a[i-1] != b[j-1] {
+				cost = 1
+			}
+			current[j] = min3(
+				current[j-1]+1,
+				prev[j]+1,
+				prev[j-1]+cost,
+			)
+		}
+		prev = current
+	}
+	return prev[len(b)]
+}
+
+func min3(a, b, c int) int {
+	if a < b && a < c {
+		return a
+	}
+	if b < c {
+		return b
+	}
+	return c
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
