@@ -13,10 +13,10 @@ func TestShouldIgnore(t *testing.T) {
 	t.Parallel()
 
 	cases := map[string]bool{
-		".git/config":            true,
-		".fkn/last-guard.json":   true,
-		"bin/fkn":                true,
-		"README.md":              false,
+		".git/config":          true,
+		".fkn/last-guard.json": true,
+		"bin/fkn":              true,
+		"README.md":            false,
 	}
 
 	for path, want := range cases {
