@@ -14,6 +14,8 @@ Most repositories accumulate commands, scripts, checks, conventions, and "run th
 - task metadata that can later be exposed as MCP tools
 - a path toward agent handoff and repo-aware prompts without scattered docs
 
+YAML is a deliberate part of that story. `fkn.yaml` uses a format that is already common across developer tooling, easy for humans to scan, and straightforward for agents and automation to parse.
+
 ## Docs
 
 Start here:
@@ -21,6 +23,7 @@ Start here:
 - [User Guide](/Users/josephfrost/code/fkn/docs/user-guide.md)
 - [MCP Guide](/Users/josephfrost/code/fkn/docs/mcp.md)
 - [Release Guide](/Users/josephfrost/code/fkn/docs/releasing.md)
+- [Roadmap](/Users/josephfrost/code/fkn/docs/roadmap.md)
 
 The README is the short version. The user guide is the practical walkthrough with realistic examples. The MCP guide is the current compatibility and transport reference.
 
@@ -205,6 +208,8 @@ go run ./cmd/fkn check --dry-run
 GitHub Actions now verifies formatting, runs `go test ./...`, and builds `./cmd/fkn` on pushes to `main` and on pull requests.
 
 The current product direction is described in [fkn-prd-v4.1.md](/Users/josephfrost/code/fkn/fkn-prd-v4.1.md).
+
+The forward-looking feature roadmap is in [docs/roadmap.md](/Users/josephfrost/code/fkn/docs/roadmap.md).
 
 `fkn docs` now serves embedded copies of the README, user guide, MCP guide, and release guide so installed binaries can explain themselves offline.
 
