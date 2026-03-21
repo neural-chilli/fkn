@@ -43,6 +43,7 @@ Implemented today:
 - help output and task suggestions
 - JSON output for key commands
 - broader Makefile/justfile task import during `init --from-repo`
+- task params with CLI, runner, and MCP support
 
 ## Why Open Source
 
@@ -90,6 +91,7 @@ go run ./cmd/fkn list
 go run ./cmd/fkn docs
 go run ./cmd/fkn docs user-guide
 go run ./cmd/fkn test
+go run ./cmd/fkn add-feature --param feature=auth
 go run ./cmd/fkn check --dry-run
 go run ./cmd/fkn guard
 go run ./cmd/fkn scope cli
@@ -137,7 +139,7 @@ tasks:
 ## Commands Available Today
 
 ```text
-fkn <task>
+fkn <task> [--param name=value]
 fkn <task> --dry-run
 fkn <task> --json
 fkn docs [name] [--list]

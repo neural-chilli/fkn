@@ -290,7 +290,7 @@ func TestRunFromRepoIncludesMostMakeTargets(t *testing.T) {
 		"build:\n\tgo build ./...\n\n" +
 		"run:\n\t./bin/demo\n\n" +
 		"test:\n\tgo test ./...\n\n" +
-		"add-feature:\n\techo add\n"
+		"add-feature:\n\t@if [ -z \"$(FEATURE)\" ]; then echo missing; exit 1; fi\n"
 	if err := os.WriteFile(filepath.Join(dir, "Makefile"), []byte(makefile), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -328,11 +328,16 @@ func TestRunFromRepoIncludesMostMakeTargets(t *testing.T) {
 		"  KETUU:\n",
 		"  BIN:\n",
 		"  clean:\n",
-		"  add-feature:\n",
 		"  add-feature-git:\n",
 	} {
 		if strings.Contains(got, unwanted) {
 			t.Fatalf("fkn.yaml = %q, did not want inferred target %q", got, unwanted)
 		}
+	}
+	if !strings.Contains(got, "  add-feature:\n") {
+		t.Fatalf("fkn.yaml = %q, want parameterized add-feature target", got)
+	}
+	if !strings.Contains(got, "      feature:\n") || !strings.Contains(got, "        env: FEATURE\n") {
+		t.Fatalf("fkn.yaml = %q, want inferred FEATURE param", got)
 	}
 }

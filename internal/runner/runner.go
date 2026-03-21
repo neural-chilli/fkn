@@ -30,6 +30,7 @@ type Options struct {
 	Stdout io.Writer
 	Stderr io.Writer
 	Env    map[string]string
+	Params map[string]string
 }
 
 type Runner struct {
@@ -91,7 +92,11 @@ func (r *Runner) Run(taskName string, opts Options) (Result, error) {
 
 	if task.Cmd != "" {
 		stepName := taskName
-		resolved := task.Cmd
+		paramValues, err := resolveParamValues(task, opts.Params)
+		if err != nil {
+			return Result{}, fmt.Errorf("task %q: %w", taskName, err)
+		}
+		resolved := interpolateParams(task.Cmd, paramValues)
 		outcome, err := r.runCommand(context.Background(), stepName, task, resolved, opts, "")
 		if err != nil {
 			return Result{}, err
@@ -248,11 +253,15 @@ func (r *Runner) runStep(ctx context.Context, index int, step string, opts Optio
 		if task.Cmd == "" {
 			return StepResult{}, fmt.Errorf("task %q references task %q, but nested pipeline steps are not implemented yet", step, step)
 		}
-		outcome, err := r.runCommand(ctx, step, task, task.Cmd, opts, step)
+		paramValues, err := resolveParamValues(task, opts.Params)
+		if err != nil {
+			return StepResult{}, fmt.Errorf("task %q: %w", step, err)
+		}
+		outcome, err := r.runCommand(ctx, step, task, interpolateParams(task.Cmd, paramValues), opts, step)
 		if err != nil {
 			return StepResult{}, err
 		}
-		return toStepResult(index, step, task.Cmd, outcome), nil
+		return toStepResult(index, step, interpolateParams(task.Cmd, paramValues), outcome), nil
 	}
 
 	outcome, err := r.runCommand(ctx, inlineStepName(index), config.Task{}, step, opts, inlineStepName(index))
@@ -286,13 +295,17 @@ func (r *Runner) runCommand(parent context.Context, label string, task config.Ta
 	if task.Dir != "" {
 		cmd.Dir = filepath.Join(r.repoRoot, task.Dir)
 	}
-	cmd.Env = mergeEnv(os.Environ(), r.globalEnv, task.Env, opts.Env)
+	paramValues, err := resolveParamValues(task, opts.Params)
+	if err != nil {
+		return runOutcome{}, fmt.Errorf("task %q: %w", label, err)
+	}
+	cmd.Env = mergeEnv(os.Environ(), r.globalEnv, interpolateEnv(task.Env, paramValues), opts.Env, paramEnv(task, paramValues))
 
 	var stdoutBuf, stderrBuf bytes.Buffer
 	cmd.Stdout = io.MultiWriter(&stdoutBuf, prefixedWriter(prefix, opts.Stdout))
 	cmd.Stderr = io.MultiWriter(&stderrBuf, prefixedWriter(prefix, opts.Stderr))
 
-	err := cmd.Run()
+	err = cmd.Run()
 	finished := time.Now()
 	if err == nil {
 		return runOutcome{
@@ -330,6 +343,63 @@ func (r *Runner) runCommand(parent context.Context, label string, task config.Ta
 		started:  started,
 		finished: finished,
 	}, nil
+}
+
+func resolveParamValues(task config.Task, provided map[string]string) (map[string]string, error) {
+	values := map[string]string{}
+	for name, param := range task.Params {
+		if provided != nil {
+			if value, ok := provided[name]; ok {
+				values[name] = value
+				continue
+			}
+		}
+		if param.Default != "" {
+			values[name] = param.Default
+			continue
+		}
+		if param.Required {
+			return nil, fmt.Errorf("missing required param %q", name)
+		}
+	}
+	for name, value := range provided {
+		if _, ok := task.Params[name]; ok {
+			values[name] = value
+		}
+	}
+	return values, nil
+}
+
+func interpolateParams(value string, params map[string]string) string {
+	out := value
+	for name, paramValue := range params {
+		out = strings.ReplaceAll(out, "{{params."+name+"}}", paramValue)
+	}
+	return out
+}
+
+func interpolateEnv(env map[string]string, params map[string]string) map[string]string {
+	if len(env) == 0 {
+		return nil
+	}
+	out := make(map[string]string, len(env))
+	for key, value := range env {
+		out[key] = interpolateParams(value, params)
+	}
+	return out
+}
+
+func paramEnv(task config.Task, params map[string]string) map[string]string {
+	if len(task.Params) == 0 {
+		return nil
+	}
+	out := map[string]string{}
+	for name, param := range task.Params {
+		if value, ok := params[name]; ok {
+			out[param.Env] = value
+		}
+	}
+	return out
 }
 
 func toStepResult(index int, name, resolved string, outcome runOutcome) StepResult {

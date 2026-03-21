@@ -41,11 +41,17 @@ const (
 )
 
 type inferredTask struct {
-	Name  string
-	Desc  string
-	Cmd   string
-	Steps []string
-	Agent *bool
+	Name   string
+	Desc   string
+	Cmd    string
+	Steps  []string
+	Agent  *bool
+	Params map[string]config.Param
+}
+
+type makeTarget struct {
+	Name   string
+	Params []string
 }
 
 func Run(repoRoot string, opts Options) (string, error) {
@@ -262,6 +268,23 @@ func inferConfig(repoRoot string) string {
 		if task.Agent != nil {
 			builder.WriteString(fmt.Sprintf("    agent: %t\n", *task.Agent))
 		}
+		if len(task.Params) > 0 {
+			builder.WriteString("    params:\n")
+			for _, paramName := range sortedParamNames(task.Params) {
+				param := task.Params[paramName]
+				builder.WriteString(fmt.Sprintf("      %s:\n", paramName))
+				if param.Desc != "" {
+					builder.WriteString(fmt.Sprintf("        desc: %s\n", param.Desc))
+				}
+				builder.WriteString(fmt.Sprintf("        env: %s\n", param.Env))
+				if param.Required {
+					builder.WriteString("        required: true\n")
+				}
+				if param.Default != "" {
+					builder.WriteString(fmt.Sprintf("        default: %s\n", param.Default))
+				}
+			}
+		}
 		if len(task.Steps) > 0 {
 			builder.WriteString("    steps:\n")
 			for _, step := range task.Steps {
@@ -296,26 +319,32 @@ func inferTasks(repoRoot string) []inferredTask {
 	taskByName := map[string]inferredTask{}
 	order := []string{}
 
-	addTask := func(name, desc, cmd string, agent *bool) {
+	addTask := func(name, desc, cmd string, agent *bool, params map[string]config.Param) {
 		if _, exists := taskByName[name]; exists {
 			return
 		}
-		taskByName[name] = inferredTask{Name: name, Desc: desc, Cmd: cmd, Agent: agent}
+		taskByName[name] = inferredTask{Name: name, Desc: desc, Cmd: cmd, Agent: agent, Params: params}
 		order = append(order, name)
 	}
 
 	for _, target := range findMakeTargets(repoRoot) {
-		if shouldSkipInferredTarget(target) {
+		if shouldSkipInferredTarget(target.Name) {
 			continue
 		}
-		addTask(target, inferredTargetDesc("repository", target, "target"), fmt.Sprintf("make %s", target), inferredTargetAgent(target))
+		addTask(
+			target.Name,
+			inferredTargetDesc("repository", target.Name, "target"),
+			fmt.Sprintf("make %s", target.Name),
+			inferredTargetAgent(target.Name),
+			inferredParams(target.Params),
+		)
 	}
 
 	for _, target := range findJustTargets(repoRoot) {
 		if shouldSkipInferredTarget(target) {
 			continue
 		}
-		addTask(target, inferredTargetDesc("repository", target, "recipe"), fmt.Sprintf("just %s", target), inferredTargetAgent(target))
+		addTask(target, inferredTargetDesc("repository", target, "recipe"), fmt.Sprintf("just %s", target), inferredTargetAgent(target), nil)
 	}
 
 	scripts := findPackageScripts(repoRoot)
@@ -327,30 +356,30 @@ func inferTasks(repoRoot string) []inferredTask {
 	for _, name := range scriptNames {
 		switch name {
 		case "check":
-			addTask("check", "Run the package.json check script", fmt.Sprintf("npm run %s", name), nil)
+			addTask("check", "Run the package.json check script", fmt.Sprintf("npm run %s", name), nil, nil)
 		case "test":
-			addTask("test", "Run the package.json test script", fmt.Sprintf("npm run %s", name), nil)
+			addTask("test", "Run the package.json test script", fmt.Sprintf("npm run %s", name), nil, nil)
 		case "build":
-			addTask("build", "Run the package.json build script", fmt.Sprintf("npm run %s", name), nil)
+			addTask("build", "Run the package.json build script", fmt.Sprintf("npm run %s", name), nil, nil)
 		case "lint":
-			addTask("lint", "Run the package.json lint script", fmt.Sprintf("npm run %s", name), nil)
+			addTask("lint", "Run the package.json lint script", fmt.Sprintf("npm run %s", name), nil, nil)
 		case "dev":
-			addTask("dev", "Run the package.json dev script", fmt.Sprintf("npm run %s", name), nil)
+			addTask("dev", "Run the package.json dev script", fmt.Sprintf("npm run %s", name), nil, nil)
 		case "start":
-			addTask("start", "Run the package.json start script", fmt.Sprintf("npm run %s", name), nil)
+			addTask("start", "Run the package.json start script", fmt.Sprintf("npm run %s", name), nil, nil)
 		default:
 			if strings.HasPrefix(name, "test:") {
-				addTask(scriptTaskName(name), fmt.Sprintf("Run the package.json %s script", name), fmt.Sprintf("npm run %s", name), nil)
+				addTask(scriptTaskName(name), fmt.Sprintf("Run the package.json %s script", name), fmt.Sprintf("npm run %s", name), nil, nil)
 			}
 			if strings.HasPrefix(name, "lint:") {
-				addTask(scriptTaskName(name), fmt.Sprintf("Run the package.json %s script", name), fmt.Sprintf("npm run %s", name), nil)
+				addTask(scriptTaskName(name), fmt.Sprintf("Run the package.json %s script", name), fmt.Sprintf("npm run %s", name), nil, nil)
 			}
 		}
 	}
 
 	if hasFile(repoRoot, "go.mod") {
-		addTask("test", "Run the Go test suite", "go test ./...", nil)
-		addTask("build", "Build the Go packages", "go build ./...", nil)
+		addTask("test", "Run the Go test suite", "go test ./...", nil, nil)
+		addTask("build", "Build the Go packages", "go build ./...", nil, nil)
 	}
 
 	if _, ok := taskByName["check"]; !ok {
@@ -396,7 +425,7 @@ func inferredTargetAgent(name string) *bool {
 
 func shouldSkipInferredTarget(name string) bool {
 	switch name {
-	case "clean", "add-feature", "add-feature-git":
+	case "clean", "add-feature-git":
 		return true
 	default:
 		return false
@@ -453,6 +482,15 @@ func sortedTaskNames(tasks map[string]config.Task) []string {
 	return names
 }
 
+func sortedParamNames(params map[string]config.Param) []string {
+	names := make([]string, 0, len(params))
+	for name := range params {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}
+
 func sortedGuardNames(guards map[string]config.Guard) []string {
 	names := make([]string, 0, len(guards))
 	for name := range guards {
@@ -480,8 +518,47 @@ func sortedScopeNames(scopes map[string][]string) []string {
 	return names
 }
 
-func findMakeTargets(repoRoot string) []string {
-	return findTargets(filepath.Join(repoRoot, "Makefile"))
+func findMakeTargets(repoRoot string) []makeTarget {
+	raw, err := os.ReadFile(filepath.Join(repoRoot, "Makefile"))
+	if err != nil {
+		return nil
+	}
+	lines := strings.Split(strings.ReplaceAll(string(raw), "\r\n", "\n"), "\n")
+	seen := map[string]bool{}
+	var targets []makeTarget
+	for i := 0; i < len(lines); i++ {
+		line := lines[i]
+		name, ok := parseTargetName(line)
+		if !ok || seen[name] {
+			continue
+		}
+		seen[name] = true
+		paramsSet := map[string]bool{}
+		for j := i + 1; j < len(lines); j++ {
+			next := lines[j]
+			if next == "" {
+				continue
+			}
+			if !strings.HasPrefix(next, "\t") {
+				if _, ok := parseTargetName(next); ok {
+					break
+				}
+				if strings.TrimSpace(next) != "" {
+					break
+				}
+			}
+			for _, param := range findMakeVariables(next) {
+				paramsSet[param] = true
+			}
+		}
+		params := make([]string, 0, len(paramsSet))
+		for param := range paramsSet {
+			params = append(params, param)
+		}
+		sort.Strings(params)
+		targets = append(targets, makeTarget{Name: name, Params: params})
+	}
+	return targets
 }
 
 func findJustTargets(repoRoot string) []string {
@@ -504,16 +581,8 @@ func findTargets(path string) []string {
 		if trimmed == "" || strings.HasPrefix(trimmed, "#") || strings.HasPrefix(line, "\t") {
 			continue
 		}
-		colon := strings.Index(line, ":")
-		if colon <= 0 {
-			continue
-		}
-		name := strings.TrimSpace(line[:colon])
-		rest := strings.TrimSpace(line[colon+1:])
-		if name == "" || strings.Contains(name, " ") || strings.HasPrefix(name, ".") {
-			continue
-		}
-		if strings.HasPrefix(rest, "=") {
+		name, ok := parseTargetName(line)
+		if !ok {
 			continue
 		}
 		if seen[name] {
@@ -523,6 +592,75 @@ func findTargets(path string) []string {
 		targets = append(targets, name)
 	}
 	return targets
+}
+
+func parseTargetName(line string) (string, bool) {
+	colon := strings.Index(line, ":")
+	if colon <= 0 {
+		return "", false
+	}
+	name := strings.TrimSpace(line[:colon])
+	rest := strings.TrimSpace(line[colon+1:])
+	if name == "" || strings.Contains(name, " ") || strings.HasPrefix(name, ".") {
+		return "", false
+	}
+	if strings.HasPrefix(rest, "=") {
+		return "", false
+	}
+	return name, true
+}
+
+func findMakeVariables(line string) []string {
+	var names []string
+	seen := map[string]bool{}
+	for {
+		start := strings.Index(line, "$(")
+		if start < 0 {
+			break
+		}
+		line = line[start+2:]
+		end := strings.Index(line, ")")
+		if end < 0 {
+			break
+		}
+		name := strings.TrimSpace(line[:end])
+		line = line[end+1:]
+		if name == "" || seen[name] {
+			continue
+		}
+		if !isUpperSnake(name) {
+			continue
+		}
+		seen[name] = true
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}
+
+func inferredParams(names []string) map[string]config.Param {
+	if len(names) == 0 {
+		return nil
+	}
+	params := make(map[string]config.Param, len(names))
+	for _, name := range names {
+		paramName := strings.ToLower(strings.ReplaceAll(name, "_", "-"))
+		params[paramName] = config.Param{
+			Desc:     fmt.Sprintf("Value for %s", name),
+			Env:      name,
+			Required: true,
+		}
+	}
+	return params
+}
+
+func isUpperSnake(value string) bool {
+	for _, r := range value {
+		if (r < 'A' || r > 'Z') && (r < '0' || r > '9') && r != '_' {
+			return false
+		}
+	}
+	return true
 }
 
 func findPackageScripts(repoRoot string) map[string]string {

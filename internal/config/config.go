@@ -27,12 +27,20 @@ type Task struct {
 	Cmd             string            `yaml:"cmd"`
 	Steps           []string          `yaml:"steps"`
 	Parallel        bool              `yaml:"parallel"`
+	Params          map[string]Param  `yaml:"params"`
 	Env             map[string]string `yaml:"env"`
 	Dir             string            `yaml:"dir"`
 	Timeout         string            `yaml:"timeout"`
 	ContinueOnError bool              `yaml:"continue_on_error"`
 	Agent           *bool             `yaml:"agent"`
 	Scope           string            `yaml:"scope"`
+}
+
+type Param struct {
+	Desc     string `yaml:"desc"`
+	Env      string `yaml:"env"`
+	Required bool   `yaml:"required"`
+	Default  string `yaml:"default"`
 }
 
 type Guard struct {
@@ -177,6 +185,11 @@ func (c *Config) Validate(repoRoot string) error {
 		if task.Scope != "" {
 			if _, ok := c.Scopes[task.Scope]; !ok {
 				return fmt.Errorf("task %q references unknown scope %q", name, task.Scope)
+			}
+		}
+		for paramName, param := range task.Params {
+			if param.Env == "" {
+				return fmt.Errorf("task %q param %q: env is required", name, paramName)
 			}
 		}
 	}

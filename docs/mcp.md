@@ -35,6 +35,7 @@ That becomes a tool with:
 - name: `test`
 - description: `Run the test suite`
 - input schema supporting:
+  - named task params from `fkn.yaml`
   - `env`
   - `dry_run`
 
@@ -138,6 +139,7 @@ That is enough for a useful first integration surface, but it is still intention
 
 Supported arguments today:
 
+- named task params from the task schema
 - `dry_run: boolean`
 - `env: object`
 

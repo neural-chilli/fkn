@@ -84,3 +84,34 @@ func TestHandlePayloadToolsCallDryRun(t *testing.T) {
 		t.Fatalf("payload.Error = %+v, want nil", payload.Error)
 	}
 }
+
+func TestToolsExposeTaskParams(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{
+		Tasks: map[string]config.Task{
+			"add-feature": {
+				Desc: "Add feature",
+				Cmd:  "make add-feature",
+				Params: map[string]config.Param{
+					"feature": {
+						Desc:     "Feature name",
+						Env:      "FEATURE",
+						Required: true,
+					},
+				},
+			},
+		},
+	}
+
+	server := New(cfg, t.TempDir(), runner.New(cfg, t.TempDir()))
+	tools := server.Tools()
+	properties := tools[0].InputSchema["properties"].(map[string]any)
+	if _, ok := properties["feature"]; !ok {
+		t.Fatalf("properties = %#v, want feature param", properties)
+	}
+	required := tools[0].InputSchema["required"].([]string)
+	if len(required) != 1 || required[0] != "feature" {
+		t.Fatalf("required = %#v, want feature", required)
+	}
+}

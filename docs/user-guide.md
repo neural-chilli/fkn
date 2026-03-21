@@ -43,7 +43,7 @@ Current inference sources:
 - common `package.json` scripts like `test`, `build`, `check`, `lint`, `dev`, and `start`
 - Go module repos via `go.mod`
 
-For Makefiles and justfiles, `fkn` now imports most regular targets instead of only a tiny built-in subset. It still skips obviously awkward scaffolding targets like `clean` and parameterized helper targets such as `add-feature`.
+For Makefiles and justfiles, `fkn` now imports most regular targets instead of only a tiny built-in subset. It still skips obviously awkward scaffolding targets like `clean`, but it can now keep parameterized helper targets when it can infer env-style inputs such as `$(FEATURE)`.
 
 The goal is not to guess everything perfectly. The goal is to give you a believable first `fkn.yaml` that humans and agents can edit confidently.
 
@@ -158,6 +158,7 @@ tasks:
 
 Tasks can also include:
 
+- `params`
 - `env`
 - `dir`
 - `timeout`
@@ -184,6 +185,50 @@ Notes:
 - `continue_on_error` only affects sequential pipelines.
 - Parallel pipelines still fail fast in the current implementation.
 - `agent: false` hides a task from the MCP tool manifest.
+
+## Task Params
+
+Tasks can declare named params that map to environment variables and can also be interpolated into commands via `{{params.<name>}}`.
+
+Example:
+
+```yaml
+tasks:
+  add-feature:
+    desc: Add a feature scaffold
+    cmd: make add-feature
+    params:
+      feature:
+        desc: Feature name
+        env: FEATURE
+        required: true
+```
+
+Run it with:
+
+```bash
+fkn add-feature --param feature=auth
+```
+
+Template interpolation also works:
+
+```yaml
+tasks:
+  greet:
+    desc: Greet someone
+    cmd: echo hello {{params.name}}
+    params:
+      name:
+        desc: Person to greet
+        env: NAME
+        default: world
+```
+
+Notes:
+
+- pass params with repeated `--param name=value`
+- required params fail fast if omitted
+- params are exposed in MCP tool schemas for agent callers
 
 ## Guards
 

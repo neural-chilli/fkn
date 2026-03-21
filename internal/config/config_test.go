@@ -90,3 +90,28 @@ tasks:
 		t.Fatalf("Load() error = %v, want cycle message", err)
 	}
 }
+
+func TestLoadRejectsParamWithoutEnv(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "fkn.yaml"), []byte(`
+tasks:
+  add-feature:
+    desc: Add feature
+    cmd: make add-feature
+    params:
+      feature:
+        required: true
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := Load(filepath.Join(dir, "fkn.yaml"))
+	if err == nil {
+		t.Fatal("Load() error = nil, want param validation error")
+	}
+	if !strings.Contains(err.Error(), `param "feature": env is required`) {
+		t.Fatalf("Load() error = %v, want param env validation", err)
+	}
+}

@@ -398,6 +398,18 @@ func runList(args []string, stdout, stderr *os.File) int {
 			item.Parallel = task.Parallel
 			item.Steps = task.Steps
 		}
+		if len(task.Params) > 0 {
+			item.Params = make(map[string]listParam, len(task.Params))
+			for _, paramName := range sortedParamNames(task.Params) {
+				param := task.Params[paramName]
+				item.Params[paramName] = listParam{
+					Desc:     param.Desc,
+					Env:      param.Env,
+					Required: param.Required,
+					Default:  param.Default,
+				}
+			}
+		}
 		items = append(items, item)
 	}
 
@@ -548,11 +560,14 @@ func runWatchTarget(target string, stdout, stderr *os.File) error {
 }
 
 func runTask(args []string, stdout, stderr *os.File) int {
-	fs := flag.NewFlagSet("task", flag.ContinueOnError)
-	fs.SetOutput(stderr)
-	jsonOut := fs.Bool("json", false, "")
-	dryRun := fs.Bool("dry-run", false, "")
-	if err := fs.Parse(args[1:]); err != nil {
+	if len(args) == 0 {
+		printUsage(stdout)
+		return 0
+	}
+
+	taskName, taskArgs, params, err := parseTaskInvocation(args)
+	if err != nil {
+		printError(stderr, err)
 		return 2
 	}
 
@@ -562,16 +577,25 @@ func runTask(args []string, stdout, stderr *os.File) int {
 		return 1
 	}
 
-	if _, ok := cfg.Tasks[args[0]]; !ok {
-		printError(stderr, unknownTaskError(args[0], cfg))
+	if _, ok := cfg.Tasks[taskName]; !ok {
+		printError(stderr, unknownTaskError(taskName, cfg))
 		return 1
 	}
 
-	result, err := runner.New(cfg, repoRoot).Run(args[0], runner.Options{
+	fs := flag.NewFlagSet("task", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	jsonOut := fs.Bool("json", false, "")
+	dryRun := fs.Bool("dry-run", false, "")
+	if err := fs.Parse(taskArgs); err != nil {
+		return 2
+	}
+
+	result, err := runner.New(cfg, repoRoot).Run(taskName, runner.Options{
 		JSON:   *jsonOut,
 		DryRun: *dryRun,
 		Stdout: stdout,
 		Stderr: stderr,
+		Params: params,
 	})
 	if err != nil {
 		printError(stderr, err)
@@ -611,7 +635,7 @@ func sortedTaskNames(tasks map[string]config.Task) []string {
 
 func printUsage(stdout *os.File) {
 	lines := []string{
-		"fkn <task> [--dry-run] [--json]",
+		"fkn <task> [--param name=value] [--dry-run] [--json]",
 		"fkn docs [name] [--list]",
 		"fkn help [task]",
 		"fkn context [--agent] [--task <name>] [--out <file>] [--copy] [--max-tokens <n>]",
@@ -641,6 +665,26 @@ func printTaskHelp(stdout *os.File, name string, task config.Task) {
 	if task.Timeout != "" {
 		fmt.Fprintf(stdout, "Timeout: %s\n", task.Timeout)
 	}
+	if len(task.Params) > 0 {
+		fmt.Fprintln(stdout, "Params:")
+		for _, paramName := range sortedParamNames(task.Params) {
+			param := task.Params[paramName]
+			fmt.Fprintf(stdout, "- %s", paramName)
+			if param.Env != "" {
+				fmt.Fprintf(stdout, " (env: %s)", param.Env)
+			}
+			if param.Required {
+				fmt.Fprint(stdout, " required")
+			}
+			if param.Default != "" {
+				fmt.Fprintf(stdout, " default=%q", param.Default)
+			}
+			if param.Desc != "" {
+				fmt.Fprintf(stdout, " - %s", param.Desc)
+			}
+			fmt.Fprintln(stdout)
+		}
+	}
 	if task.Cmd != "" {
 		fmt.Fprintf(stdout, "Command: %s\n", task.Cmd)
 		return
@@ -650,6 +694,39 @@ func printTaskHelp(stdout *os.File, name string, task config.Task) {
 	for _, step := range task.Steps {
 		fmt.Fprintf(stdout, "- %s\n", step)
 	}
+}
+
+func parseTaskInvocation(args []string) (string, []string, map[string]string, error) {
+	taskName := args[0]
+	var taskArgs []string
+	params := map[string]string{}
+
+	for i := 1; i < len(args); i++ {
+		if args[i] != "--param" {
+			taskArgs = append(taskArgs, args[i])
+			continue
+		}
+		if i+1 >= len(args) {
+			return "", nil, nil, fmt.Errorf("--param requires name=value")
+		}
+		i++
+		parts := strings.SplitN(args[i], "=", 2)
+		if len(parts) != 2 || strings.TrimSpace(parts[0]) == "" {
+			return "", nil, nil, fmt.Errorf("--param requires name=value")
+		}
+		params[strings.TrimSpace(parts[0])] = parts[1]
+	}
+
+	return taskName, taskArgs, params, nil
+}
+
+func sortedParamNames(params map[string]config.Param) []string {
+	names := make([]string, 0, len(params))
+	for name := range params {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
 }
 
 func printGuardHelp(stdout *os.File, name string, guardCfg config.Guard) {
@@ -757,13 +834,21 @@ func printGuardReport(stdout *os.File, report guard.Report) {
 }
 
 type listTask struct {
-	Name     string   `json:"name"`
-	Desc     string   `json:"desc"`
-	Type     string   `json:"type"`
-	Parallel bool     `json:"parallel,omitempty"`
-	Steps    []string `json:"steps,omitempty"`
-	Scope    *string  `json:"scope"`
-	Agent    bool     `json:"agent"`
+	Name     string               `json:"name"`
+	Desc     string               `json:"desc"`
+	Type     string               `json:"type"`
+	Parallel bool                 `json:"parallel,omitempty"`
+	Steps    []string             `json:"steps,omitempty"`
+	Scope    *string              `json:"scope"`
+	Agent    bool                 `json:"agent"`
+	Params   map[string]listParam `json:"params,omitempty"`
+}
+
+type listParam struct {
+	Desc     string `json:"desc,omitempty"`
+	Env      string `json:"env"`
+	Required bool   `json:"required,omitempty"`
+	Default  string `json:"default,omitempty"`
 }
 
 type multiFlag []string

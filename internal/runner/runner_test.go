@@ -139,6 +139,60 @@ func TestParallelPipelineCancelsOtherStepOnFailure(t *testing.T) {
 	}
 }
 
+func TestRunCmdTaskInjectsParamsIntoEnvAndTemplate(t *testing.T) {
+	t.Parallel()
+
+	r := newTestRunner(t, map[string]config.Task{
+		"add-feature": {
+			Desc: "add",
+			Cmd:  `printf "%s|%s" "{{params.feature}}" "$FEATURE"`,
+			Params: map[string]config.Param{
+				"feature": {
+					Env:      "FEATURE",
+					Required: true,
+				},
+			},
+		},
+	})
+
+	result, err := r.Run("add-feature", Options{
+		Stdout: io.Discard,
+		Stderr: io.Discard,
+		Params: map[string]string{"feature": "auth"},
+	})
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if result.Stdout != "auth|auth" {
+		t.Fatalf("Stdout = %q, want interpolated/env param", result.Stdout)
+	}
+}
+
+func TestRunCmdTaskRejectsMissingRequiredParam(t *testing.T) {
+	t.Parallel()
+
+	r := newTestRunner(t, map[string]config.Task{
+		"add-feature": {
+			Desc: "add",
+			Cmd:  "echo hi",
+			Params: map[string]config.Param{
+				"feature": {
+					Env:      "FEATURE",
+					Required: true,
+				},
+			},
+		},
+	})
+
+	_, err := r.Run("add-feature", Options{Stdout: io.Discard, Stderr: io.Discard})
+	if err == nil {
+		t.Fatal("Run() error = nil, want missing param error")
+	}
+	if err.Error() != `task "add-feature": missing required param "feature"` {
+		t.Fatalf("Run() error = %v, want missing param message", err)
+	}
+}
+
 func newTestRunner(t *testing.T, tasks map[string]config.Task) *Runner {
 	t.Helper()
 	return New(&config.Config{Tasks: tasks}, t.TempDir())

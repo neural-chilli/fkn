@@ -65,22 +65,42 @@ func (s *Server) Tools() []Tool {
 		if !task.AgentEnabled() {
 			continue
 		}
+		properties := map[string]any{
+			"env": map[string]any{
+				"type":        "object",
+				"description": "Optional env var overrides for this invocation",
+			},
+			"dry_run": map[string]any{
+				"type":        "boolean",
+				"description": "Print the command without executing it",
+			},
+		}
+		required := []string{}
+		for _, paramName := range sortedParamNames(task.Params) {
+			param := task.Params[paramName]
+			prop := map[string]any{
+				"type":        "string",
+				"description": param.Desc,
+			}
+			if param.Default != "" {
+				prop["default"] = param.Default
+			}
+			properties[paramName] = prop
+			if param.Required {
+				required = append(required, paramName)
+			}
+		}
+		inputSchema := map[string]any{
+			"type":       "object",
+			"properties": properties,
+		}
+		if len(required) > 0 {
+			inputSchema["required"] = required
+		}
 		tools = append(tools, Tool{
 			Name:        name,
 			Description: task.Desc,
-			InputSchema: map[string]any{
-				"type": "object",
-				"properties": map[string]any{
-					"env": map[string]any{
-						"type":        "object",
-						"description": "Optional env var overrides for this invocation",
-					},
-					"dry_run": map[string]any{
-						"type":        "boolean",
-						"description": "Print the command without executing it",
-					},
-				},
-			},
+			InputSchema: inputSchema,
 		})
 	}
 	return tools
@@ -156,6 +176,11 @@ func (s *Server) callTool(raw json.RawMessage) (map[string]any, error) {
 
 	env := map[string]string{}
 	dryRun := false
+	paramValues := map[string]string{}
+	task, ok := s.cfg.Tasks[params.Name]
+	if !ok {
+		return nil, fmt.Errorf("unknown task %q", params.Name)
+	}
 	for key, value := range params.Arguments {
 		switch key {
 		case "dry_run":
@@ -168,6 +193,10 @@ func (s *Server) callTool(raw json.RawMessage) (map[string]any, error) {
 					env[envKey] = fmt.Sprint(envValue)
 				}
 			}
+		default:
+			if _, ok := task.Params[key]; ok {
+				paramValues[key] = fmt.Sprint(value)
+			}
 		}
 	}
 
@@ -176,6 +205,7 @@ func (s *Server) callTool(raw json.RawMessage) (map[string]any, error) {
 		Stdout: io.Discard,
 		Stderr: io.Discard,
 		Env:    env,
+		Params: paramValues,
 	})
 	if err != nil {
 		return nil, err
@@ -203,6 +233,15 @@ func (s *Server) callTool(raw json.RawMessage) (map[string]any, error) {
 		},
 		"isError": result.ExitCode != 0,
 	}, nil
+}
+
+func sortedParamNames(params map[string]config.Param) []string {
+	names := make([]string, 0, len(params))
+	for name := range params {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
 }
 
 func rawID(id json.RawMessage) any {
