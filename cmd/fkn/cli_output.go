@@ -17,6 +17,7 @@ func printUsage(stdout *os.File) {
 		"fkn [<task>] [--name value] [--param name=value] [--dry-run] [--json]",
 		"If fkn.yaml sets `default`, running `fkn` with no task runs that task.",
 		"fkn docs [name] [--list]",
+		"fkn diff-plan [--json]",
 		"fkn explain <target> [--json]",
 		"fkn help [task|group]",
 		"fkn plan [--json] [--file <path>] [files...]",

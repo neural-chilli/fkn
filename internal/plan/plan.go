@@ -2,6 +2,7 @@ package plan
 
 import (
 	"fmt"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -73,6 +74,14 @@ func Generate(cfg *config.Config, repoRoot string, files []string) (Output, erro
 	}
 	out.Markdown = render(out)
 	return out, nil
+}
+
+func GenerateFromGitDiff(cfg *config.Config, repoRoot string) (Output, error) {
+	files := gitDiffFiles(repoRoot)
+	if len(files) == 0 {
+		return Output{}, fmt.Errorf("no changed files found in git diff")
+	}
+	return Generate(cfg, repoRoot, files)
 }
 
 func normalizeFiles(repoRoot string, files []string) ([]string, error) {
@@ -395,4 +404,39 @@ func groupNamesForTask(groups map[string]config.Group, taskName string) []string
 	}
 	sort.Strings(names)
 	return names
+}
+
+func gitDiffFiles(repoRoot string) []string {
+	seen := map[string]bool{}
+	var files []string
+	for _, args := range [][]string{
+		{"diff", "--name-only", "--diff-filter=ACMR", "--"},
+		{"diff", "--cached", "--name-only", "--diff-filter=ACMR", "--"},
+		{"ls-files", "--others", "--exclude-standard"},
+	} {
+		for _, file := range gitLines(repoRoot, args...) {
+			file = strings.TrimSpace(file)
+			if file == "" || seen[file] {
+				continue
+			}
+			seen[file] = true
+			files = append(files, file)
+		}
+	}
+	sort.Strings(files)
+	return files
+}
+
+func gitLines(repoRoot string, args ...string) []string {
+	cmd := exec.Command("git", args...)
+	cmd.Dir = repoRoot
+	raw, err := cmd.Output()
+	if err != nil {
+		return nil
+	}
+	text := strings.TrimRight(string(raw), "\n")
+	if text == "" {
+		return nil
+	}
+	return strings.Split(text, "\n")
 }

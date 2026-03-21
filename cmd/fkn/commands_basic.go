@@ -347,6 +347,32 @@ func runPlan(args []string, stdout, stderr *os.File) int {
 	return 0
 }
 
+func runDiffPlan(args []string, stdout, stderr *os.File) int {
+	fs := flag.NewFlagSet("diff-plan", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	jsonOut := fs.Bool("json", false, "")
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+
+	cfg, repoRoot, err := loadConfig()
+	if err != nil {
+		printError(stderr, err)
+		return 1
+	}
+
+	result, err := planpkg.GenerateFromGitDiff(cfg, repoRoot)
+	if err != nil {
+		printError(stderr, err)
+		return 1
+	}
+	if *jsonOut {
+		return printJSON(stdout, result)
+	}
+	fmt.Fprintln(stdout, result.Markdown)
+	return 0
+}
+
 func runContext(args []string, stdout, stderr *os.File) int {
 	fs := flag.NewFlagSet("context", flag.ContinueOnError)
 	fs.SetOutput(stderr)

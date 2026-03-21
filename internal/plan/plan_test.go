@@ -1,6 +1,8 @@
 package plan
 
 import (
+	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -107,5 +109,55 @@ func TestGenerateRequiresFiles(t *testing.T) {
 	_, err := Generate(cfg, "/repo", nil)
 	if err == nil {
 		t.Fatal("Generate() error = nil, want file validation")
+	}
+}
+
+func TestGenerateFromGitDiff(t *testing.T) {
+	t.Parallel()
+
+	repoRoot := t.TempDir()
+	cfg := &config.Config{
+		Tasks: map[string]config.Task{
+			"test": {Desc: "Run tests", Cmd: "go test ./...", Scope: "cli"},
+		},
+		Scopes: map[string]config.Scope{
+			"cli": {Paths: []string{"cmd/fkn/"}},
+		},
+	}
+
+	runGit(t, repoRoot, "init")
+	runGit(t, repoRoot, "config", "user.email", "test@example.com")
+	runGit(t, repoRoot, "config", "user.name", "Test User")
+	writeFile(t, filepath.Join(repoRoot, "cmd/fkn/main.go"), "package main\n")
+	runGit(t, repoRoot, "add", "cmd/fkn/main.go")
+	runGit(t, repoRoot, "commit", "-m", "init")
+
+	writeFile(t, filepath.Join(repoRoot, "cmd/fkn/main.go"), "package main\n// changed\n")
+
+	out, err := GenerateFromGitDiff(cfg, repoRoot)
+	if err != nil {
+		t.Fatalf("GenerateFromGitDiff() error = %v", err)
+	}
+	if len(out.Files) != 1 || out.Files[0] != "cmd/fkn/main.go" {
+		t.Fatalf("Files = %+v, want changed file", out.Files)
+	}
+}
+
+func runGit(t *testing.T, repoRoot string, args ...string) {
+	t.Helper()
+	cmd := exec.Command("git", args...)
+	cmd.Dir = repoRoot
+	if raw, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("git %v failed: %v\n%s", args, err, string(raw))
+	}
+}
+
+func writeFile(t *testing.T, path, content string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
 	}
 }

@@ -706,6 +706,27 @@ The output is especially useful when you want to know:
 
 `fkn plan` is intentionally scope-first, so the quality of the output improves as task scopes and codemap entries become more accurate.
 
+## Diff Plan
+
+`fkn diff-plan` is the git-aware companion to `fkn plan`.
+
+Instead of passing explicit file paths, it reads:
+
+- unstaged tracked changes
+- staged tracked changes
+- untracked files
+
+and then runs the same matching logic against scopes, tasks, guards, groups, and codemap entries.
+
+Examples:
+
+```bash
+fkn diff-plan
+fkn diff-plan --json
+```
+
+This is especially useful after an edit, when you want a quick answer to “what should I rerun now?” without manually listing the files you changed.
+
 ## Context
 
 `fkn context` generates a bounded markdown briefing for humans or agents.
