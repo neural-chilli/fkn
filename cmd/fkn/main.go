@@ -24,6 +24,7 @@ import (
 	"github.com/neural-chilli/fkn/internal/initcmd"
 	"github.com/neural-chilli/fkn/internal/mcp"
 	"github.com/neural-chilli/fkn/internal/prompt"
+	"github.com/neural-chilli/fkn/internal/repair"
 	"github.com/neural-chilli/fkn/internal/runner"
 	"github.com/neural-chilli/fkn/internal/scope"
 	watchpkg "github.com/neural-chilli/fkn/internal/watch"
@@ -77,6 +78,8 @@ func run(args []string, stdout, stderr *os.File) int {
 		return runScope(args[1:], stdout, stderr)
 	case "validate":
 		return runValidate(args[1:], stdout, stderr)
+	case "repair":
+		return runRepair(args[1:], stdout, stderr)
 	default:
 		return runTask(args, stdout, stderr)
 	}
@@ -746,6 +749,7 @@ func printUsage(stdout *os.File) {
 		"fkn help [task]",
 		"fkn context [--agent] [--json] [--task <name>] [--out <file>] [--copy] [--max-tokens <approx-n>]",
 		"fkn guard [name] [--json]",
+		"fkn repair [name] [--json] [--copy]",
 		"fkn init [--from-repo] [--agents]",
 		"fkn list [--json] [--mcp]",
 		"fkn serve [--http] [--port <n>]",
@@ -1197,4 +1201,53 @@ func levenshtein(a, b string) int {
 		prev = current
 	}
 	return prev[len(b)]
+}
+
+func runRepair(args []string, stdout, stderr *os.File) int {
+	fs := flag.NewFlagSet("repair", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	jsonOut := fs.Bool("json", false, "Emit structured JSON")
+	copyOut := fs.Bool("copy", false, "Copy rendered markdown to the clipboard")
+	parsedArgs, err := parseSubcommandArgs(args, map[string]bool{"--json": false, "--copy": false})
+	if err != nil {
+		printError(stderr, err)
+		return 2
+	}
+	if err := fs.Parse(parsedArgs); err != nil {
+		return 2
+	}
+
+	guardName := ""
+	if fs.NArg() > 0 {
+		guardName = fs.Arg(0)
+	}
+
+	cfg, repoRoot, err := loadConfig()
+	if err != nil {
+		printError(stderr, err)
+		return 1
+	}
+
+	taskRunner := runner.New(cfg, repoRoot)
+	out, err := repair.New(cfg, repoRoot, guard.New(cfg, repoRoot, taskRunner)).Generate(repair.Options{GuardName: guardName})
+	if err != nil {
+		printError(stderr, err)
+		return 1
+	}
+
+	if *jsonOut {
+		if code := printJSON(stdout, out); code != 0 {
+			return code
+		}
+		return out.ExitCode
+	}
+
+	fmt.Fprintln(stdout, out.Markdown)
+	if *copyOut {
+		if err := copyToClipboard(out.Markdown); err != nil {
+			printError(stderr, err)
+			return 1
+		}
+	}
+	return out.ExitCode
 }

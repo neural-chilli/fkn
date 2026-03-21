@@ -162,7 +162,7 @@ func (r *Runner) RunGuardStep(stepName string, opts Options) (StepResult, error)
 		Status:      result.Status,
 		ExitCode:    result.ExitCode,
 		Stderr:      strPtr(stderr),
-		Errors:      result.Errors,
+		Errors:      collectResultErrors(result),
 		DurationMS:  &duration,
 		StartedAt:   &started,
 		FinishedAt:  &finished,
@@ -730,6 +730,20 @@ func parseGenericErrors(stderr string) []ErrorEntry {
 			Message:  strings.TrimSpace(match[4]),
 			Severity: "error",
 		})
+	}
+	return errors
+}
+
+func collectResultErrors(result Result) []ErrorEntry {
+	if len(result.Errors) > 0 {
+		return append([]ErrorEntry(nil), result.Errors...)
+	}
+	var errors []ErrorEntry
+	for _, step := range result.Steps {
+		errors = append(errors, step.Errors...)
+	}
+	if len(errors) == 0 {
+		return nil
 	}
 	return errors
 }

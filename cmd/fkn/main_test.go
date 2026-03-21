@@ -552,3 +552,45 @@ func TestRunDocsRejectsUnknownFlag(t *testing.T) {
 		t.Fatalf("stderr = %q, want unknown flag error", readStderr())
 	}
 }
+
+func TestRunRepairJSON(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "fkn.yaml"), []byte(`
+tasks:
+  test:
+    desc: Run tests
+    cmd: |
+      printf '%s\n' 'cmd/fkn/main_test.go:1: boom' >&2
+      exit 1
+    scope: cli
+    error_format: go_test
+guards:
+  default:
+    steps:
+      - test
+scopes:
+  cli:
+    - cmd/fkn/
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	restore := chdirForTest(t, dir)
+	defer restore()
+
+	stdout, readStdout := tempOutputFile(t)
+	stderr, readStderr := tempOutputFile(t)
+
+	code := run([]string{"repair", "--json"}, stdout, stderr)
+	if code == 0 {
+		t.Fatal("run(repair --json) code = 0, want failure exit code")
+	}
+	if readStderr() != "" {
+		t.Fatalf("stderr = %q, want empty", readStderr())
+	}
+	output := readStdout()
+	for _, want := range []string{`"guard": "default"`, `"failures":`, `"scope":`, `"markdown":`} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("stdout = %q, want %q", output, want)
+		}
+	}
+}

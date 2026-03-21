@@ -10,10 +10,12 @@ tasks:
 
   test:
     desc: Run the Go test suite
+    scope: cli
     cmd: go test ./...
 
   build:
     desc: Build the fkn binary
+    scope: cli
     cmd: go build -o bin/fkn ./cmd/fkn
 
   check:

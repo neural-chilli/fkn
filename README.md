@@ -56,6 +56,7 @@ Implemented today:
 - task params with CLI, runner, and MCP support
 - direct task param flags like `--feature auth`
 - structured error extraction in task, guard, and MCP JSON output
+- guided repair output via `fkn repair`
 - task-level shell configuration
 - global default working directory with task overrides
 - task aliases
@@ -111,6 +112,7 @@ go run ./cmd/fkn test
 go run ./cmd/fkn add-feature --feature auth
 go run ./cmd/fkn check --dry-run
 go run ./cmd/fkn guard
+go run ./cmd/fkn repair
 go run ./cmd/fkn scope cli
 go run ./cmd/fkn prompt continue-cli
 go run ./cmd/fkn context
@@ -162,7 +164,9 @@ Running `fkn` with no task name executes the configured default task when `defau
 
 `fkn list` now also shows summary metadata like task type, default marker, aliases, scope, and params in the human-readable view, and `fkn help <task>` includes a concrete usage line.
 
-Tasks can also declare `error_format` when they emit machine-parseable diagnostics. Supported values today are `go_test`, `pytest`, `tsc`, `eslint`, and `generic`. When set, task JSON, `guard --json`, and MCP tool results include a parsed `errors` array alongside raw stderr.
+Tasks can also declare `error_format` when they emit machine-parseable diagnostics. Supported values today are `go_test`, `pytest`, `tsc`, `eslint`, and `generic`. When set, task JSON, `guard --json`, `repair --json`, and MCP tool results include a parsed `errors` array alongside raw stderr.
+
+`fkn repair` builds on that by running a guard, collecting the failing steps, surfacing relevant scopes, and generating a repair-oriented markdown brief for the next agent loop.
 
 ## Commands Available Today
 
@@ -174,6 +178,7 @@ fkn docs [name] [--list]
 fkn help [task]
 fkn guard
 fkn guard --json
+fkn repair [name] [--json] [--copy]
 fkn context
 fkn context --json
 fkn context --agent --task <name>
@@ -205,6 +210,7 @@ internal/config/      # fkn.yaml loading and validation
 internal/context/     # bounded repo context generation
 internal/mcp/         # MCP manifest and transport handling
 internal/prompt/      # prompt template rendering
+internal/repair/      # guard-driven repair brief generation
 internal/scope/       # named scope lookup and formatting
 internal/runner/      # task and pipeline execution
 fkn.yaml              # repo-local dogfood config

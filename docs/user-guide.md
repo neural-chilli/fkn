@@ -196,13 +196,15 @@ Supported formats today:
 - `eslint`
 - `generic`
 
-This does not replace raw stderr. It adds a parsed `errors` array to task JSON output, `guard --json`, and MCP `tools/call` responses so agents do not have to scrape diagnostics back out of plain text.
+This does not replace raw stderr. It adds a parsed `errors` array to task JSON output, `guard --json`, `repair --json`, and MCP `tools/call` responses so agents do not have to scrape diagnostics back out of plain text.
 
 Example:
 
 ```bash
 fkn test --json
 fkn guard --json
+fkn repair
+fkn repair --json
 ```
 
 ## Aliases
@@ -485,6 +487,26 @@ Supported variables today:
 - `{{os}}`
 
 Unknown variables are left unchanged and emit a warning.
+
+## Repair
+
+`fkn repair` is the shortest path from a failing guard to an agent-ready fix brief. It reruns the target guard, keeps the latest guard cache up to date, and emits either markdown or structured JSON.
+
+Examples:
+
+```bash
+fkn repair
+fkn repair default --json
+```
+
+Current repair output includes:
+
+- current guard status and step timings
+- failing steps only
+- parsed structured errors when `error_format` is configured
+- relevant task scopes and scoped paths
+- current git diff, bounded by the context diff cap
+- a suggested next action
 
 ## Context
 
