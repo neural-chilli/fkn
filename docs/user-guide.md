@@ -268,6 +268,7 @@ tasks:
 Run it with:
 
 ```bash
+fkn add-feature --feature auth
 fkn add-feature --param feature=auth
 ```
 
@@ -287,7 +288,8 @@ tasks:
 
 Notes:
 
-- pass params with repeated `--param name=value`
+- declared params can be passed as direct flags like `--feature auth` or `--feature=auth`
+- repeated `--param name=value` still works
 - required params fail fast if omitted
 - params are exposed in MCP tool schemas for agent callers
 

@@ -202,6 +202,9 @@ func (c *Config) Validate(repoRoot string) error {
 			}
 		}
 		for paramName, param := range task.Params {
+			if isReservedParamName(paramName) {
+				return fmt.Errorf("task %q param %q uses a reserved CLI flag name", name, paramName)
+			}
 			if param.Env == "" {
 				return fmt.Errorf("task %q param %q: env is required", name, paramName)
 			}
@@ -244,6 +247,15 @@ func (c *Config) Validate(repoRoot string) error {
 	}
 
 	return c.validateCycles()
+}
+
+func isReservedParamName(name string) bool {
+	switch name {
+	case "dry-run", "json", "param":
+		return true
+	default:
+		return false
+	}
 }
 
 func (c *Config) validateCycles() error {

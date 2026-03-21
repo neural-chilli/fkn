@@ -47,6 +47,7 @@ Implemented today:
 - JSON output for key commands
 - broader Makefile/justfile task import during `init --from-repo`
 - task params with CLI, runner, and MCP support
+- direct task param flags like `--feature auth`
 - task aliases
 - explicit default task behavior
 
@@ -96,7 +97,7 @@ go run ./cmd/fkn list
 go run ./cmd/fkn docs
 go run ./cmd/fkn docs user-guide
 go run ./cmd/fkn test
-go run ./cmd/fkn add-feature --param feature=auth
+go run ./cmd/fkn add-feature --feature auth
 go run ./cmd/fkn check --dry-run
 go run ./cmd/fkn guard
 go run ./cmd/fkn scope cli
@@ -151,7 +152,7 @@ Running `fkn` with no task name executes the configured default task when `defau
 ## Commands Available Today
 
 ```text
-fkn [<task>] [--param name=value]
+fkn [<task>] [--name value] [--param name=value]
 fkn <task> --dry-run
 fkn <task> --json
 fkn docs [name] [--list]

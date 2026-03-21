@@ -211,3 +211,28 @@ tasks:
 		t.Fatalf("Load() error = %v, want default validation", err)
 	}
 }
+
+func TestLoadRejectsReservedParamName(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "fkn.yaml"), []byte(`
+tasks:
+  test:
+    desc: Run tests
+    cmd: echo test
+    params:
+      dry-run:
+        env: MODE
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := Load(filepath.Join(dir, "fkn.yaml"))
+	if err == nil {
+		t.Fatal("Load() error = nil, want reserved param validation error")
+	}
+	if !strings.Contains(err.Error(), `task "test" param "dry-run" uses a reserved CLI flag name`) {
+		t.Fatalf("Load() error = %v, want reserved param validation", err)
+	}
+}

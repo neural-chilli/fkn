@@ -150,6 +150,66 @@ aliases:
 	}
 }
 
+func TestRunTaskAcceptsDirectParamFlag(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "fkn.yaml"), []byte(`
+tasks:
+  add-feature:
+    desc: Add a feature
+    cmd: printf {{params.feature}}
+    params:
+      feature:
+        desc: Feature name
+        env: FEATURE
+        required: true
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	restore := chdirForTest(t, dir)
+	defer restore()
+
+	stdout, readStdout := tempOutputFile(t)
+	stderr, readStderr := tempOutputFile(t)
+
+	code := run([]string{"add-feature", "--feature", "auth"}, stdout, stderr)
+	if code != 0 {
+		t.Fatalf("run(add-feature --feature auth) code = %d, want 0; stderr=%s", code, readStderr())
+	}
+	if got := readStdout(); !strings.Contains(got, "auth") {
+		t.Fatalf("stdout = %q, want direct param flag output", got)
+	}
+}
+
+func TestRunTaskAcceptsDirectParamEqualsFlag(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "fkn.yaml"), []byte(`
+tasks:
+  add-feature:
+    desc: Add a feature
+    cmd: printf {{params.feature}}
+    params:
+      feature:
+        desc: Feature name
+        env: FEATURE
+        required: true
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	restore := chdirForTest(t, dir)
+	defer restore()
+
+	stdout, readStdout := tempOutputFile(t)
+	stderr, readStderr := tempOutputFile(t)
+
+	code := run([]string{"add-feature", "--feature=auth"}, stdout, stderr)
+	if code != 0 {
+		t.Fatalf("run(add-feature --feature=auth) code = %d, want 0; stderr=%s", code, readStderr())
+	}
+	if got := readStdout(); !strings.Contains(got, "auth") {
+		t.Fatalf("stdout = %q, want direct param flag output", got)
+	}
+}
+
 func TestRunDocsPrintsEmbeddedGuide(t *testing.T) {
 	t.Parallel()
 

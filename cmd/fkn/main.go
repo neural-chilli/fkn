@@ -574,22 +574,24 @@ func runTask(args []string, stdout, stderr *os.File) int {
 		return 0
 	}
 
-	taskName, taskArgs, params, err := parseTaskInvocation(args)
-	if err != nil {
-		printError(stderr, err)
-		return 2
-	}
-
 	cfg, repoRoot, err := loadConfig()
 	if err != nil {
 		printError(stderr, err)
 		return 1
 	}
 
+	taskName := args[0]
 	resolvedTaskName, ok := cfg.ResolveTaskName(taskName)
 	if !ok {
 		printError(stderr, unknownTaskError(taskName, cfg))
 		return 1
+	}
+	task := cfg.Tasks[resolvedTaskName]
+
+	taskArgs, params, err := parseTaskInvocation(args[1:], task)
+	if err != nil {
+		printError(stderr, err)
+		return 2
 	}
 
 	fs := flag.NewFlagSet("task", flag.ContinueOnError)
@@ -710,28 +712,66 @@ func printTaskHelp(stdout *os.File, invokedName, resolvedName string, task confi
 	}
 }
 
-func parseTaskInvocation(args []string) (string, []string, map[string]string, error) {
-	taskName := args[0]
+func parseTaskInvocation(args []string, task config.Task) ([]string, map[string]string, error) {
 	var taskArgs []string
 	params := map[string]string{}
 
-	for i := 1; i < len(args); i++ {
-		if args[i] != "--param" {
-			taskArgs = append(taskArgs, args[i])
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		if arg == "--param" {
+			if i+1 >= len(args) {
+				return nil, nil, fmt.Errorf("--param requires name=value")
+			}
+			i++
+			parts := strings.SplitN(args[i], "=", 2)
+			if len(parts) != 2 || strings.TrimSpace(parts[0]) == "" {
+				return nil, nil, fmt.Errorf("--param requires name=value")
+			}
+			params[strings.TrimSpace(parts[0])] = parts[1]
 			continue
 		}
-		if i+1 >= len(args) {
-			return "", nil, nil, fmt.Errorf("--param requires name=value")
+		name, value, ok, err := parseDirectParam(arg, args, i, task)
+		if err != nil {
+			return nil, nil, err
 		}
-		i++
-		parts := strings.SplitN(args[i], "=", 2)
-		if len(parts) != 2 || strings.TrimSpace(parts[0]) == "" {
-			return "", nil, nil, fmt.Errorf("--param requires name=value")
+		if ok {
+			params[name] = value
+			if !strings.Contains(arg, "=") {
+				i++
+			}
+			continue
 		}
-		params[strings.TrimSpace(parts[0])] = parts[1]
+		taskArgs = append(taskArgs, arg)
 	}
 
-	return taskName, taskArgs, params, nil
+	return taskArgs, params, nil
+}
+
+func parseDirectParam(arg string, args []string, index int, task config.Task) (string, string, bool, error) {
+	if !strings.HasPrefix(arg, "--") || arg == "--" {
+		return "", "", false, nil
+	}
+
+	nameValue := strings.TrimPrefix(arg, "--")
+	if nameValue == "json" || nameValue == "dry-run" {
+		return "", "", false, nil
+	}
+
+	if strings.Contains(nameValue, "=") {
+		parts := strings.SplitN(nameValue, "=", 2)
+		if _, ok := task.Params[parts[0]]; ok {
+			return parts[0], parts[1], true, nil
+		}
+		return "", "", false, nil
+	}
+
+	if _, ok := task.Params[nameValue]; !ok {
+		return "", "", false, nil
+	}
+	if index+1 >= len(args) {
+		return "", "", false, fmt.Errorf("missing value for --%s", nameValue)
+	}
+	return nameValue, args[index+1], true, nil
 }
 
 func sortedParamNames(params map[string]config.Param) []string {
