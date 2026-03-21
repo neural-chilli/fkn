@@ -281,6 +281,7 @@ That summary view now includes:
 - whether the task is the configured default
 - scope
 - aliases
+- dependencies
 - declared params
 - whether a task is hidden from agents
 
@@ -301,6 +302,7 @@ Type: cmd
 
 Tasks can also include:
 
+- `needs`
 - `params`
 - `env`
 - `dir`
@@ -318,9 +320,15 @@ defaults:
   dir: services/api
 
 tasks:
+  setup:
+    desc: Prepare generated assets
+    cmd: make setup
+
   integration:
     desc: Run integration tests
     cmd: go test -tags=integration ./...
+    needs:
+      - setup
     dir: tools
     shell: /bin/sh
     shell_args:
@@ -334,12 +342,47 @@ tasks:
 
 Notes:
 
+- `needs` runs reusable prerequisite tasks before the task itself.
+- dependencies can point at either command tasks or pipeline tasks.
 - `defaults.dir` sets the global working directory for tasks that do not declare their own `dir`.
 - task `dir` overrides `defaults.dir`.
 - `shell` and `shell_args` let a task opt into a specific interpreter or shell mode.
 - `continue_on_error` only affects sequential pipelines.
 - Parallel pipelines still fail fast in the current implementation.
 - `agent: false` hides a task from the MCP tool manifest.
+
+## Task Dependencies
+
+Use `needs` when one task should depend on another task but still remain its own command or pipeline.
+
+Example:
+
+```yaml
+tasks:
+  test:
+    desc: Run tests
+    cmd: go test ./...
+
+  build:
+    desc: Build the app
+    cmd: go build ./...
+    needs:
+      - test
+
+  release:
+    desc: Build and publish a release
+    cmd: ./scripts/release.sh
+    needs:
+      - build
+      - check
+```
+
+`needs` is different from `steps`:
+
+- `steps` makes the task itself a pipeline
+- `needs` runs prerequisite tasks first, then runs the task itself
+
+If a dependency fails, later dependencies and the main task are skipped.
 
 ## Task Params
 

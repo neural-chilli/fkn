@@ -246,6 +246,9 @@ func (g *Generator) taskSection() string {
 		if task.Scope != "" {
 			line += fmt.Sprintf(" (scope: `%s`)", task.Scope)
 		}
+		if len(task.Needs) > 0 {
+			line += fmt.Sprintf(" (needs: `%s`)", strings.Join(task.Needs, "`, `"))
+		}
 		lines = append(lines, line)
 	}
 	return strings.Join(lines, "\n")

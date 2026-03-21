@@ -31,6 +31,74 @@ func TestRunCmdTaskUsesInvocationEnvOverride(t *testing.T) {
 	}
 }
 
+func TestRunCmdTaskRunsDependenciesBeforeCommand(t *testing.T) {
+	t.Parallel()
+
+	repoRoot := t.TempDir()
+	r := New(&config.Config{Tasks: map[string]config.Task{
+		"setup": {Desc: "setup", Cmd: `printf setup > ready.txt`},
+		"build": {Desc: "build", Cmd: `cat ready.txt`, Needs: []string{"setup"}},
+	}}, repoRoot)
+
+	result, err := r.Run("build", Options{Stdout: io.Discard, Stderr: io.Discard})
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if result.Stdout != "setup" {
+		t.Fatalf("Stdout = %q, want dependency output source", result.Stdout)
+	}
+	if len(result.Needs) != 1 || result.Needs[0].Task != "setup" || result.Needs[0].Status != StatusPass {
+		t.Fatalf("Needs = %+v, want passing setup dependency", result.Needs)
+	}
+}
+
+func TestRunCmdTaskSkipsCommandWhenDependencyFails(t *testing.T) {
+	t.Parallel()
+
+	repoRoot := t.TempDir()
+	marker := filepath.Join(repoRoot, "main-ran.txt")
+	r := New(&config.Config{Tasks: map[string]config.Task{
+		"setup": {Desc: "setup", Cmd: "exit 1"},
+		"build": {Desc: "build", Cmd: "printf ran > main-ran.txt", Needs: []string{"setup"}},
+	}}, repoRoot)
+
+	result, err := r.Run("build", Options{Stdout: io.Discard, Stderr: io.Discard})
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if result.Status != StatusFail {
+		t.Fatalf("Status = %q, want fail", result.Status)
+	}
+	if result.ExitCode != 1 {
+		t.Fatalf("ExitCode = %d, want 1", result.ExitCode)
+	}
+	if _, err := os.Stat(marker); !os.IsNotExist(err) {
+		t.Fatalf("main command should not have run; stat err = %v", err)
+	}
+}
+
+func TestRunTaskAllowsPipelineDependencies(t *testing.T) {
+	t.Parallel()
+
+	repoRoot := t.TempDir()
+	r := New(&config.Config{Tasks: map[string]config.Task{
+		"test":  {Desc: "test", Cmd: `printf ok > ready.txt`},
+		"check": {Desc: "check", Steps: []string{"test"}},
+		"ship":  {Desc: "ship", Cmd: "cat ready.txt", Needs: []string{"check"}},
+	}}, repoRoot)
+
+	result, err := r.Run("ship", Options{Stdout: io.Discard, Stderr: io.Discard})
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if result.Stdout != "ok" {
+		t.Fatalf("Stdout = %q, want pipeline dependency to run first", result.Stdout)
+	}
+	if len(result.Needs) != 1 || result.Needs[0].Task != "check" || result.Needs[0].Type != "pipeline" {
+		t.Fatalf("Needs = %+v, want pipeline dependency result", result.Needs)
+	}
+}
+
 func TestRunDryRunPrintsCommand(t *testing.T) {
 	t.Parallel()
 

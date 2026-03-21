@@ -24,6 +24,7 @@ type TaskExplanation struct {
 	Type        string   `json:"type"`
 	Scope       string   `json:"scope,omitempty"`
 	ScopePaths  []string `json:"scope_paths,omitempty"`
+	Needs       []string `json:"needs,omitempty"`
 	Steps       []string `json:"steps,omitempty"`
 	Command     string   `json:"command,omitempty"`
 }
@@ -122,6 +123,7 @@ func explainTask(cfg *config.Config, invokedName, resolvedName string) Explanati
 		Type:        task.Type(),
 		Scope:       task.Scope,
 		Steps:       append([]string(nil), task.Steps...),
+		Needs:       append([]string(nil), task.Needs...),
 		Command:     task.Cmd,
 	}
 	if task.Scope != "" {
@@ -141,6 +143,9 @@ func explainTask(cfg *config.Config, invokedName, resolvedName string) Explanati
 	}
 	if len(task.Steps) > 0 {
 		lines = append(lines, fmt.Sprintf("- Steps: `%s`", strings.Join(task.Steps, "`, `")))
+	}
+	if len(task.Needs) > 0 {
+		lines = append(lines, fmt.Sprintf("- Needs: `%s`", strings.Join(task.Needs, "`, `")))
 	}
 	if task.Cmd != "" {
 		lines = append(lines, fmt.Sprintf("- Command: `%s`", task.Cmd))

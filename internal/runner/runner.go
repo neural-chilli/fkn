@@ -44,6 +44,7 @@ type Runner struct {
 type Result struct {
 	Task        string       `json:"task"`
 	Type        string       `json:"type"`
+	Needs       []Result     `json:"needs,omitempty"`
 	ResolvedCmd *string      `json:"resolved_cmd,omitempty"`
 	Parallel    bool         `json:"parallel,omitempty"`
 	Status      string       `json:"status"`
@@ -97,9 +98,33 @@ func New(cfg *config.Config, repoRoot string) *Runner {
 }
 
 func (r *Runner) Run(taskName string, opts Options) (Result, error) {
+	return r.runTask(context.Background(), taskName, opts)
+}
+
+func (r *Runner) runTask(ctx context.Context, taskName string, opts Options) (Result, error) {
 	task, ok := r.cfg.Tasks[taskName]
 	if !ok {
 		return Result{}, fmt.Errorf("unknown task %q", taskName)
+	}
+
+	started := time.Now()
+	needs, depFailure, err := r.runNeeds(ctx, task, opts)
+	if err != nil {
+		return Result{}, err
+	}
+	if depFailure != nil {
+		finished := time.Now()
+		return Result{
+			Task:       taskName,
+			Type:       task.Type(),
+			Needs:      needs,
+			Status:     depFailure.Status,
+			ExitCode:   depFailure.ExitCode,
+			Errors:     collectResultErrors(*depFailure),
+			DurationMS: finished.Sub(started).Milliseconds(),
+			StartedAt:  started.UTC().Format(time.RFC3339),
+			FinishedAt: finished.UTC().Format(time.RFC3339),
+		}, nil
 	}
 
 	if task.Cmd != "" {
@@ -116,6 +141,7 @@ func (r *Runner) Run(taskName string, opts Options) (Result, error) {
 		return Result{
 			Task:        taskName,
 			Type:        "cmd",
+			Needs:       needs,
 			ResolvedCmd: strPtr(resolved),
 			Status:      outcome.status,
 			ExitCode:    outcome.exitCode,
@@ -129,13 +155,13 @@ func (r *Runner) Run(taskName string, opts Options) (Result, error) {
 	}
 
 	if task.Parallel {
-		return r.runParallel(taskName, task, opts)
+		return r.runParallel(ctx, taskName, task, needs, started, opts)
 	}
-	return r.runSequential(taskName, task, opts)
+	return r.runSequential(ctx, taskName, task, needs, started, opts)
 }
 
 func (r *Runner) RunGuardStep(stepName string, opts Options) (StepResult, error) {
-	result, err := r.Run(stepName, opts)
+	result, err := r.runTask(context.Background(), stepName, opts)
 	if err != nil {
 		return StepResult{}, err
 	}
@@ -169,14 +195,13 @@ func (r *Runner) RunGuardStep(stepName string, opts Options) (StepResult, error)
 	}, nil
 }
 
-func (r *Runner) runSequential(taskName string, task config.Task, opts Options) (Result, error) {
-	started := time.Now()
+func (r *Runner) runSequential(ctx context.Context, taskName string, task config.Task, needs []Result, started time.Time, opts Options) (Result, error) {
 	steps := make([]StepResult, 0, len(task.Steps))
 	overallStatus := StatusPass
 	overallCode := 0
 
 	for i, step := range task.Steps {
-		stepRes, err := r.runStep(context.Background(), i, taskName, step, opts)
+		stepRes, err := r.runStep(ctx, i, taskName, step, opts)
 		if err != nil {
 			return Result{}, err
 		}
@@ -197,6 +222,7 @@ func (r *Runner) runSequential(taskName string, task config.Task, opts Options) 
 	return Result{
 		Task:       taskName,
 		Type:       "pipeline",
+		Needs:      needs,
 		Parallel:   false,
 		Status:     overallStatus,
 		ExitCode:   overallCode,
@@ -207,13 +233,12 @@ func (r *Runner) runSequential(taskName string, task config.Task, opts Options) 
 	}, nil
 }
 
-func (r *Runner) runParallel(taskName string, task config.Task, opts Options) (Result, error) {
-	started := time.Now()
+func (r *Runner) runParallel(parent context.Context, taskName string, task config.Task, needs []Result, started time.Time, opts Options) (Result, error) {
 	if task.ContinueOnError && !opts.JSON {
 		fmt.Fprintln(opts.Stderr, "warning: continue_on_error is ignored for parallel tasks in v1")
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
 
 	steps := make([]StepResult, len(task.Steps))
@@ -269,6 +294,7 @@ func (r *Runner) runParallel(taskName string, task config.Task, opts Options) (R
 	return Result{
 		Task:       taskName,
 		Type:       "pipeline",
+		Needs:      needs,
 		Parallel:   true,
 		Status:     overallStatus,
 		ExitCode:   overallCode,
@@ -277,6 +303,25 @@ func (r *Runner) runParallel(taskName string, task config.Task, opts Options) (R
 		FinishedAt: finished.UTC().Format(time.RFC3339),
 		Steps:      steps,
 	}, nil
+}
+
+func (r *Runner) runNeeds(ctx context.Context, task config.Task, opts Options) ([]Result, *Result, error) {
+	if len(task.Needs) == 0 {
+		return nil, nil, nil
+	}
+	results := make([]Result, 0, len(task.Needs))
+	for _, depName := range task.Needs {
+		result, err := r.runTask(ctx, depName, opts)
+		if err != nil {
+			return nil, nil, err
+		}
+		results = append(results, result)
+		if result.Status != StatusPass {
+			failed := result
+			return results, &failed, nil
+		}
+	}
+	return results, nil, nil
 }
 
 func (r *Runner) runStep(ctx context.Context, index int, parentTaskName, step string, opts Options) (StepResult, error) {

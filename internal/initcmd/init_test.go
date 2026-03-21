@@ -388,8 +388,13 @@ func TestRenderAgentsFKNIncludesScopesAndPrompts(t *testing.T) {
 		Tasks: map[string]config.Task{
 			"check": {
 				Desc:  "Run checks",
+				Needs: []string{"setup"},
 				Steps: []string{"test", "build"},
 				Scope: "backend",
+			},
+			"setup": {
+				Desc: "Prepare fixtures",
+				Cmd:  "make setup",
 			},
 			"test": {
 				Desc: "Run tests",
@@ -436,6 +441,7 @@ func TestRenderAgentsFKNIncludesScopesAndPrompts(t *testing.T) {
 		"## Prompts",
 		"`continue-backend`: Continue backend work",
 		"Scope: `backend`",
+		"Needs: `setup`",
 		"Scope Description: Backend workflows",
 		"Steps: `test`, `build`",
 		"## MCP",

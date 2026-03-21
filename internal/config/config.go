@@ -31,6 +31,7 @@ type Task struct {
 	Desc            string            `yaml:"desc"`
 	Cmd             string            `yaml:"cmd"`
 	Steps           []string          `yaml:"steps"`
+	Needs           []string          `yaml:"needs"`
 	Parallel        bool              `yaml:"parallel"`
 	Params          map[string]Param  `yaml:"params"`
 	Env             map[string]string `yaml:"env"`
@@ -269,6 +270,11 @@ func (c *Config) Validate(repoRoot string) error {
 				return fmt.Errorf("task %q references unknown scope %q", name, task.Scope)
 			}
 		}
+		for _, dep := range task.Needs {
+			if _, ok := c.Tasks[dep]; !ok {
+				return fmt.Errorf("task %q references unknown dependency %q", name, dep)
+			}
+		}
 		if task.ErrorFormat != "" {
 			switch task.ErrorFormat {
 			case "go_test", "pytest", "tsc", "eslint", "generic":
@@ -379,6 +385,13 @@ func (c *Config) validateCycles() error {
 
 		visiting[name] = true
 		stack = append(stack, name)
+		for _, dep := range task.Needs {
+			if _, ok := c.Tasks[dep]; ok {
+				if err := visit(dep); err != nil {
+					return err
+				}
+			}
+		}
 		for _, step := range task.Steps {
 			if _, ok := c.Tasks[step]; ok {
 				if err := visit(step); err != nil {

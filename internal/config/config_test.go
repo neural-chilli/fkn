@@ -91,6 +91,33 @@ tasks:
 	}
 }
 
+func TestLoadRejectsCircularDependencies(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "fkn.yaml"), []byte(`
+tasks:
+  one:
+    desc: one
+    cmd: echo one
+    needs: [two]
+  two:
+    desc: two
+    cmd: echo two
+    needs: [one]
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := Load(filepath.Join(dir, "fkn.yaml"))
+	if err == nil {
+		t.Fatal("Load() error = nil, want cycle error")
+	}
+	if !strings.Contains(err.Error(), "circular task dependency") {
+		t.Fatalf("Load() error = %v, want cycle message", err)
+	}
+}
+
 func TestLoadRejectsParamWithoutEnv(t *testing.T) {
 	t.Parallel()
 
@@ -285,6 +312,30 @@ groups:
 	}
 	if !strings.Contains(err.Error(), `group "qa" references unknown task "missing"`) {
 		t.Fatalf("Load() error = %v, want group validation", err)
+	}
+}
+
+func TestLoadRejectsUnknownTaskDependency(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "fkn.yaml"), []byte(`
+tasks:
+  build:
+    desc: Build the app
+    cmd: echo build
+    needs:
+      - setup
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := Load(filepath.Join(dir, "fkn.yaml"))
+	if err == nil {
+		t.Fatal("Load() error = nil, want dependency validation error")
+	}
+	if !strings.Contains(err.Error(), `task "build" references unknown dependency "setup"`) {
+		t.Fatalf("Load() error = %v, want dependency validation", err)
 	}
 }
 

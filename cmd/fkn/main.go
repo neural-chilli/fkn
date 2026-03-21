@@ -499,6 +499,9 @@ func runList(args []string, stdout, stderr *os.File) int {
 			item.Parallel = task.Parallel
 			item.Steps = task.Steps
 		}
+		if len(task.Needs) > 0 {
+			item.Needs = append([]string(nil), task.Needs...)
+		}
 		if len(task.Params) > 0 {
 			item.Params = make(map[string]listParam, len(task.Params))
 			for _, paramName := range sortedParamNames(task.Params) {
@@ -829,6 +832,9 @@ func printTaskHelp(stdout *os.File, invokedName, resolvedName string, cfg *confi
 	if groups := groupNamesForTask(cfg.Groups, resolvedName); len(groups) > 0 {
 		fmt.Fprintf(stdout, "Groups: %s\n", strings.Join(groups, ", "))
 	}
+	if len(task.Needs) > 0 {
+		fmt.Fprintf(stdout, "Needs: %s\n", strings.Join(task.Needs, ", "))
+	}
 	fmt.Fprintf(stdout, "Usage: %s\n", taskUsage(invokedName, task))
 	fmt.Fprintf(stdout, "Type: %s\n", task.Type())
 	if task.Scope != "" {
@@ -1100,6 +1106,7 @@ type listTask struct {
 	Desc     string               `json:"desc"`
 	Type     string               `json:"type"`
 	Parallel bool                 `json:"parallel,omitempty"`
+	Needs    []string             `json:"needs,omitempty"`
 	Steps    []string             `json:"steps,omitempty"`
 	Scope    *string              `json:"scope"`
 	Agent    bool                 `json:"agent"`
@@ -1163,6 +1170,9 @@ func formatListSummary(item listTask) string {
 	}
 	if len(item.Groups) > 0 {
 		meta = append(meta, "groups:"+strings.Join(item.Groups, ","))
+	}
+	if len(item.Needs) > 0 {
+		meta = append(meta, "needs:"+strings.Join(item.Needs, ","))
 	}
 	if len(item.Params) > 0 {
 		params := make([]string, 0, len(item.Params))

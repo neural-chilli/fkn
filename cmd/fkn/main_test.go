@@ -51,10 +51,13 @@ func TestRunHelpForTask(t *testing.T) {
 	if !strings.Contains(output, "Scope Desc: Main CLI commands and closely-related execution packages.") {
 		t.Fatalf("stdout = %q, want scope description", output)
 	}
+	if !strings.Contains(output, "Needs: fmt") {
+		t.Fatalf("stdout = %q, want dependency detail", output)
+	}
 	if !strings.Contains(output, "Usage: fkn check [--dry-run] [--json]") {
 		t.Fatalf("stdout = %q, want usage", output)
 	}
-	if !strings.Contains(output, "Steps:\n- fmt\n- test\n- build") {
+	if !strings.Contains(output, "Steps:\n- test\n- build") {
 		t.Fatalf("stdout = %q, want steps", output)
 	}
 }
@@ -81,6 +84,9 @@ func TestRunHelpForAlias(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "fkn.yaml"), []byte(`
 default: b
 tasks:
+  test:
+    desc: Run tests
+    cmd: echo test
   build:
     desc: Build the project
     cmd: echo build
@@ -418,10 +424,15 @@ func TestRunListShowsReadableMetadata(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "fkn.yaml"), []byte(`
 default: verify
 tasks:
+  test:
+    desc: Run tests
+    cmd: echo test
   build:
     desc: Build the project
     cmd: echo build
     scope: cli
+    needs:
+      - test
     params:
       target:
         desc: Build target
@@ -461,7 +472,7 @@ scopes:
 		"core",
 		"Everyday development commands",
 		"Build the project",
-		"[cmd | default | scope:cli | aliases:b,verify | groups:core | params:--profile?,--target]",
+		"[cmd | default | scope:cli | aliases:b,verify | groups:core | needs:test | params:--profile?,--target]",
 	} {
 		if !strings.Contains(output, want) {
 			t.Fatalf("stdout = %q, want %q", output, want)

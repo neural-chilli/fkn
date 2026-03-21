@@ -179,6 +179,9 @@ func renderAgentsFKN(cfg *config.Config) (string, error) {
 		if len(task.Steps) > 0 {
 			builder.WriteString(fmt.Sprintf("  Steps: `%s`\n", strings.Join(task.Steps, "`, `")))
 		}
+		if len(task.Needs) > 0 {
+			builder.WriteString(fmt.Sprintf("  Needs: `%s`\n", strings.Join(task.Needs, "`, `")))
+		}
 		if task.Cmd != "" {
 			builder.WriteString(fmt.Sprintf("  Command: `%s`\n", task.Cmd))
 		}

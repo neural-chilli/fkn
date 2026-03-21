@@ -21,8 +21,9 @@ tasks:
   check:
     desc: Run the default local verification pipeline
     scope: cli
-    steps:
+    needs:
       - fmt
+    steps:
       - test
       - build
 

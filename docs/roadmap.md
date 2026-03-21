@@ -17,9 +17,6 @@ This roadmap focuses on the major features that would make `fkn` feel more compl
 
 ## Workflow Features
 
-- better dependency semantics
-  - more expressive task-to-task relationships
-  - cleaner support for reusable prerequisite tasks
 - dotenv and environment behavior
   - richer `.env` support
   - clearer precedence rules
