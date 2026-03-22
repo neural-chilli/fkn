@@ -55,6 +55,7 @@ Current inference sources:
 - Go module repos via `go.mod`
 - Rust repos via `Cargo.toml`
 - Python repos via `pyproject.toml` and `tox.ini`
+- Java repos via `pom.xml`, `build.gradle`, and `build.gradle.kts`
 - Docker Compose via `docker-compose.yml`, `docker-compose.yaml`, `compose.yml`, or `compose.yaml`
 
 For Makefiles and justfiles, `fkn` now imports most regular targets instead of only a tiny built-in subset. It still skips obviously awkward scaffolding targets like `clean`, but it can now keep parameterized helper targets when it can infer env-style inputs such as `$(FEATURE)`.
@@ -66,6 +67,8 @@ For `package.json`, `fkn` now detects common `npm_config_*` patterns and turns t
 For Rust repos, `fkn` now scaffolds a practical starter set around `cargo fmt`, `cargo clippy`, `cargo test`, and `cargo build`.
 
 For Python repos, `fkn` can infer from `pyproject.toml` and `tox.ini`, including common setups around `pytest`, `tox`, `python -m build`, `ruff`, and `black`.
+
+For Java repos, `fkn` now scaffolds a simple Maven or Gradle starter set around `test` and `build`, preferring `./gradlew` when a Gradle wrapper is present.
 
 For Docker Compose repos, `fkn` scaffolds a few explicit service-control helpers like `compose-up`, `compose-down`, and `compose-logs`, and marks them as agent-hidden external tasks by default.
 

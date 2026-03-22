@@ -12,8 +12,8 @@ This roadmap focuses on the major features that would make `fkn` feel more compl
 - richer help and list output
   - ordering and filtering options
 - improved importer coverage
-  - shipped: Make, just, package.json, Go, Rust, Python, and Docker Compose starters
-  - next: Java and broader ecosystem depth
+  - shipped: Make, just, package.json, Go, Rust, Python, Java, and Docker Compose starters
+  - next: broader ecosystem depth and richer per-ecosystem inference
 
 ## Workflow Features
 

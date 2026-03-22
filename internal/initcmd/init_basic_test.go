@@ -553,3 +553,79 @@ func TestRunFromRepoInfersComposeTasks(t *testing.T) {
 		}
 	}
 }
+
+func TestRunFromRepoInfersMavenTasks(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	pom := `<project>
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.example</groupId>
+  <artifactId>demo</artifactId>
+  <version>1.0.0</version>
+</project>
+`
+	if err := os.WriteFile(filepath.Join(dir, "pom.xml"), []byte(pom), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(filepath.Join(dir, "src"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := Run(dir, Options{FromRepo: true}); err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+
+	cfg, err := os.ReadFile(filepath.Join(dir, "fkn.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(cfg)
+	for _, want := range []string{
+		"test:\n    desc: Run the Maven test suite\n    cmd: mvn test\n    safety: idempotent\n",
+		"build:\n    desc: Build the Maven project\n    cmd: mvn package\n    safety: idempotent\n",
+		"default: check",
+		"pom.xml",
+		"src/",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("fkn.yaml = %q, want %q", got, want)
+		}
+	}
+}
+
+func TestRunFromRepoInfersGradleTasks(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "build.gradle"), []byte("plugins { id 'java' }\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "gradlew"), []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(filepath.Join(dir, "app"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := Run(dir, Options{FromRepo: true}); err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+
+	cfg, err := os.ReadFile(filepath.Join(dir, "fkn.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(cfg)
+	for _, want := range []string{
+		"test:\n    desc: Run the Gradle test suite\n    cmd: ./gradlew test\n    safety: idempotent\n",
+		"build:\n    desc: Build the Gradle project\n    cmd: ./gradlew build\n    safety: idempotent\n",
+		"build.gradle",
+		"gradlew",
+		"app/",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("fkn.yaml = %q, want %q", got, want)
+		}
+	}
+}

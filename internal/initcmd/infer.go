@@ -148,6 +148,10 @@ func inferTasks(repoRoot string) []inferredTask {
 		addTask(task.Name, task.Desc, task.Cmd, task.Agent, task.Safety, task.Params)
 	}
 
+	for _, task := range findJavaTasks(repoRoot) {
+		addTask(task.Name, task.Desc, task.Cmd, task.Agent, task.Safety, task.Params)
+	}
+
 	if hasFile(repoRoot, "go.mod") {
 		addTask("test", "Run the Go test suite", "go test ./...", nil, "idempotent", nil)
 		addTask("build", "Build the Go packages", "go build ./...", nil, "idempotent", nil)
@@ -355,6 +359,7 @@ func inferredWatchPaths(repoRoot string) []string {
 	paths = append(paths, rustWatchPaths(repoRoot)...)
 	paths = append(paths, pythonWatchPaths(repoRoot)...)
 	paths = append(paths, composeWatchPaths(repoRoot)...)
+	paths = append(paths, javaWatchPaths(repoRoot)...)
 
 	seen := map[string]bool{}
 	out := make([]string, 0, len(paths))

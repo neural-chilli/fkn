@@ -53,7 +53,7 @@ Implemented today:
 - broader Makefile/justfile task import during `init --from-repo`
 - richer `justfile` import with aliases, params, and private-recipe filtering
 - package.json argument inference for `npm_config_*`-style scripts
-- Rust, Python, and Docker Compose task scaffolding during `init --from-repo`
+- Rust, Python, Java, and Docker Compose task scaffolding during `init --from-repo`
 - safer helper-task import with `agent: false` for mutating targets
 - task safety annotations for humans and agents
 - execution gating for `destructive` and `external` tasks
