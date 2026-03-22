@@ -53,12 +53,21 @@ Current inference sources:
 - `justfile` and `Justfile`
 - common `package.json` scripts like `test`, `build`, `check`, `lint`, `dev`, and `start`
 - Go module repos via `go.mod`
+- Rust repos via `Cargo.toml`
+- Python repos via `pyproject.toml` and `tox.ini`
+- Docker Compose via `docker-compose.yml`, `docker-compose.yaml`, `compose.yml`, or `compose.yaml`
 
 For Makefiles and justfiles, `fkn` now imports most regular targets instead of only a tiny built-in subset. It still skips obviously awkward scaffolding targets like `clean`, but it can now keep parameterized helper targets when it can infer env-style inputs such as `$(FEATURE)`.
 
 For `justfile`s specifically, `fkn` now also carries over common recipe aliases, positional/defaulted recipe parameters, and skips `_hidden` or `[private]` recipes so the generated config matches what humans usually invoke.
 
 For `package.json`, `fkn` now detects common `npm_config_*` patterns and turns them into declared task params. That means scripts like `vite build --mode=$npm_config_mode` can scaffold to a task that exposes `mode` explicitly instead of hiding it inside the raw npm script string.
+
+For Rust repos, `fkn` now scaffolds a practical starter set around `cargo fmt`, `cargo clippy`, `cargo test`, and `cargo build`.
+
+For Python repos, `fkn` can infer from `pyproject.toml` and `tox.ini`, including common setups around `pytest`, `tox`, `python -m build`, `ruff`, and `black`.
+
+For Docker Compose repos, `fkn` scaffolds a few explicit service-control helpers like `compose-up`, `compose-down`, and `compose-logs`, and marks them as agent-hidden external tasks by default.
 
 When imported tasks look like helper or repo-mutating workflows such as `clean`, `ci-init`, `release`, `deploy`, or parameterized scaffold commands, `fkn` now tends to keep them in the generated config but mark them `agent: false`. That keeps the repo surface visible to humans without encouraging autonomous agent execution for risky helper tasks.
 

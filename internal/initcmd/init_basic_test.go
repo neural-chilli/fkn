@@ -408,3 +408,148 @@ func TestRunFromRepoMarksParameterizedPackageHelpersAgentFalse(t *testing.T) {
 		t.Fatalf("fkn.yaml = %q, want regular build script", got)
 	}
 }
+
+func TestRunFromRepoInfersRustTasks(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	cargo := `[package]
+name = "demo"
+version = "0.1.0"
+edition = "2021"
+`
+	if err := os.WriteFile(filepath.Join(dir, "Cargo.toml"), []byte(cargo), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(filepath.Join(dir, "src"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := Run(dir, Options{FromRepo: true}); err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+
+	cfg, err := os.ReadFile(filepath.Join(dir, "fkn.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(cfg)
+	for _, want := range []string{
+		"fmt:\n    desc: Format the Rust workspace\n    cmd: cargo fmt --all\n    safety: idempotent\n",
+		"lint:\n    desc: Run clippy across the Rust workspace\n    cmd: cargo clippy --all-targets --all-features -- -D warnings\n    safety: idempotent\n",
+		"test:\n    desc: Run the Rust test suite\n    cmd: cargo test\n    safety: idempotent\n",
+		"build:\n    desc: Build the Rust workspace\n    cmd: cargo build\n    safety: idempotent\n",
+		"default: check",
+		"Cargo.toml",
+		"src/",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("fkn.yaml = %q, want %q", got, want)
+		}
+	}
+}
+
+func TestRunFromRepoInfersPythonTasks(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	pyproject := `[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+`
+	if err := os.WriteFile(filepath.Join(dir, "pyproject.toml"), []byte(pyproject), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(filepath.Join(dir, "tests"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := Run(dir, Options{FromRepo: true}); err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+
+	cfg, err := os.ReadFile(filepath.Join(dir, "fkn.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(cfg)
+	for _, want := range []string{
+		"test:\n    desc: Run the Python test suite\n    cmd: pytest\n    safety: idempotent\n",
+		"build:\n    desc: Build the Python package\n    cmd: python -m build\n    safety: idempotent\n",
+		"lint:\n    desc: Run Ruff checks\n    cmd: ruff check .\n    safety: idempotent\n",
+		"fmt:\n    desc: Format the codebase with Ruff\n    cmd: ruff format .\n    safety: idempotent\n",
+		"pyproject.toml",
+		"tests/",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("fkn.yaml = %q, want %q", got, want)
+		}
+	}
+}
+
+func TestRunFromRepoPrefersToxForPythonTests(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "pyproject.toml"), []byte("[build-system]\nrequires = [\"setuptools\"]\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "tox.ini"), []byte("[tox]\nenvlist = py\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := Run(dir, Options{FromRepo: true}); err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+
+	cfg, err := os.ReadFile(filepath.Join(dir, "fkn.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(cfg)
+	if !strings.Contains(got, "test:\n    desc: Run the Python test environments\n    cmd: tox\n    safety: idempotent\n") {
+		t.Fatalf("fkn.yaml = %q, want tox-backed test task", got)
+	}
+	if !strings.Contains(got, "tox.ini") {
+		t.Fatalf("fkn.yaml = %q, want tox.ini watch path", got)
+	}
+}
+
+func TestRunFromRepoInfersComposeTasks(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	compose := `services:
+  db:
+    image: postgres:16
+`
+	if err := os.WriteFile(filepath.Join(dir, "docker-compose.yml"), []byte(compose), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := Run(dir, Options{FromRepo: true}); err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+
+	cfg, err := os.ReadFile(filepath.Join(dir, "fkn.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(cfg)
+	for _, want := range []string{
+		"compose-up:\n    desc: Start the Docker Compose services\n    cmd: docker compose up -d\n    agent: false\n    safety: external\n",
+		"compose-down:\n    desc: Stop the Docker Compose services\n    cmd: docker compose down\n    agent: false\n    safety: external\n",
+		"compose-logs:\n    desc: Stream Docker Compose service logs\n    cmd: docker compose logs -f\n    agent: false\n    safety: external\n",
+		"docker-compose.yml",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("fkn.yaml = %q, want %q", got, want)
+		}
+	}
+}
