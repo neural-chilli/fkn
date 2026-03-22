@@ -49,7 +49,8 @@ This roadmap focuses on the major features that would make `fkn` feel more compl
   - GitHub release assets
   - Homebrew and other install paths
 - shell completions
-  - zsh, bash, fish, PowerShell
+  - shipped: bash, zsh, fish, and PowerShell generation plus install helpers
+  - next: richer context-aware completion depth
 - better version and release metadata
   - clearer binary provenance
   - easier upgrade visibility

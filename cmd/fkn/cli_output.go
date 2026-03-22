@@ -17,6 +17,8 @@ func printUsage(stdout *os.File) {
 		"fkn [<task>] [--name value] [--param name=value] [--dry-run] [--allow-unsafe] [--json]",
 		"If fkn.yaml sets `default`, running `fkn` with no task runs that task.",
 		"fkn agent-brief [--task <name> | --diff | --file <path>...] [--json] [--max-tokens <approx-n>]",
+		"fkn completion <bash|zsh|fish|powershell>",
+		"fkn completion install [--shell <bash|zsh|fish|powershell>]",
 		"fkn docs [name] [--list]",
 		"fkn diff-plan [--json]",
 		"fkn explain <target> [--json]",

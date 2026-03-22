@@ -28,8 +28,12 @@ func run(args []string, stdout, stderr *os.File) int {
 	}
 
 	switch args[0] {
+	case "__complete":
+		return runComplete(args[1:], stdout, stderr)
 	case "version":
 		return runVersion(args[1:], stdout, stderr)
+	case "completion":
+		return runCompletion(args[1:], stdout, stderr)
 	case "help":
 		return runHelp(args[1:], stdout, stderr)
 	case "agent-brief":

@@ -37,6 +37,23 @@ fkn docs user-guide
 fkn docs --list
 ```
 
+You can also enable shell completions:
+
+```bash
+fkn completion bash
+fkn completion install
+fkn completion install --shell powershell
+```
+
+Supported shells today:
+
+- `bash`
+- `zsh`
+- `fish`
+- `PowerShell`
+
+`fkn completion <shell>` prints a completion script, and `fkn completion install` does a best-effort install into the standard location for the current shell.
+
 ## Bootstrapping An Existing Repo
 
 If a repo already has a `Makefile`, `package.json`, or a `go.mod`, start here:

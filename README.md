@@ -55,6 +55,7 @@ Implemented today:
 - package.json argument inference for `npm_config_*`-style scripts
 - Rust, Python, Java, and Docker Compose task scaffolding during `init --from-repo`
 - safer helper-task import with `agent: false` for mutating targets
+- shell completions with install helpers for bash, zsh, fish, and PowerShell
 - task safety annotations for humans and agents
 - execution gating for `destructive` and `external` tasks
 - task params with CLI and runner support
@@ -152,6 +153,8 @@ go run ./cmd/fkn context --agent --task check
 go run ./cmd/fkn init
 go run ./cmd/fkn init --from-repo
 go run ./cmd/fkn init --docs
+go run ./cmd/fkn completion bash
+go run ./cmd/fkn completion install
 go run ./cmd/fkn watch test --path README.md
 go run ./cmd/fkn help check
 ```
@@ -247,6 +250,8 @@ fkn [<task>] [--name value] [--param name=value]
 fkn <task> --dry-run
 fkn <task> --allow-unsafe
 fkn <task> --json
+fkn completion <bash|zsh|fish|powershell>
+fkn completion install [--shell <bash|zsh|fish|powershell>]
 fkn docs [name] [--list]
 fkn diff-plan [--json]
 fkn agent-brief [--task <name> | --diff | --file <path>...] [--json] [--max-tokens <approx-n>]
