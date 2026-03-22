@@ -160,6 +160,8 @@ func positionalParamNames(params map[string]config.Param) []string {
 }
 
 func parseSubcommandArgs(args []string, flags map[string]bool) ([]string, error) {
+	// We want users to be able to place flags before or after positionals, which
+	// the stdlib flag package does not support cleanly for our subcommand UX.
 	var flagArgs []string
 	var positionals []string
 

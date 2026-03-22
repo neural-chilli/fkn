@@ -132,7 +132,7 @@ func (r *Runner) runTask(ctx context.Context, taskName string, opts Options) (Re
 			return Result{}, fmt.Errorf("task %q: %w", taskName, err)
 		}
 		resolved := interpolateParams(task.Cmd, paramValues)
-		outcome, err := r.runCommand(context.Background(), stepName, task, resolved, opts, "")
+		outcome, err := r.runCommand(ctx, stepName, task, resolved, opts, "")
 		if err != nil {
 			return Result{}, err
 		}

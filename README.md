@@ -4,6 +4,8 @@
 
 It is designed to make a repository's operational surface obvious to both humans and coding agents. The long-term model is simple: one file defines how the repo is built, checked, run, and exposed to agents.
 
+It is also intentionally easy to install in locked-down environments: one Go-based binary, buildable from source with `go install`, no extra runtime, no container requirement, and now optional prebuilt release archives for teams that prefer them.
+
 ## What It Is
 
 Most repositories accumulate commands, scripts, checks, conventions, and "run this exact thing" tribal knowledge. `fkn` turns that into an explicit interface:
@@ -94,7 +96,7 @@ Implemented today:
 
 ### Install
 
-For the latest version from GitHub:
+For teams that already have Go approved, the simplest path is still source install:
 
 ```bash
 go install github.com/neural-chilli/fkn/cmd/fkn@latest

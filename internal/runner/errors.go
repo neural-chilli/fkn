@@ -7,11 +7,11 @@ import (
 )
 
 var (
-	genericErrorPattern = regexp.MustCompile(`^(.+?):(\d+)(?::(\d+))?:\s*(.+)$`)
-	goTestPattern       = regexp.MustCompile(`^\s*(.+?\.go):(\d+):\s*(.+)$`)
-	pytestPattern       = regexp.MustCompile(`^(.+?):(\d+):\s+(.+)$`)
-	tscPattern          = regexp.MustCompile(`^(.+?)\((\d+),(\d+)\):\s+error\s+[^:]+:\s+(.+)$`)
-	eslintPattern       = regexp.MustCompile(`^(.+)$`)
+	genericErrorPattern  = regexp.MustCompile(`^(.+?):(\d+)(?::(\d+))?:\s*(.+)$`)
+	goTestPattern        = regexp.MustCompile(`^\s*(.+?\.go):(\d+):\s*(.+)$`)
+	pytestPattern        = regexp.MustCompile(`^(.+?):(\d+):\s+(.+)$`)
+	tscPattern           = regexp.MustCompile(`^(.+?)\((\d+),(\d+)\):\s+error\s+[^:]+:\s+(.+)$`)
+	eslintSummaryPattern = regexp.MustCompile(`^\d+:\d+\s+error\s+.+$`)
 )
 
 func extractErrors(format, stderr string) []ErrorEntry {
@@ -113,7 +113,7 @@ func parseEslintErrors(stderr string) []ErrorEntry {
 			})
 			continue
 		}
-		if eslintPattern.MatchString(line) && strings.Contains(line, "error") {
+		if eslintSummaryPattern.MatchString(line) {
 			errors = append(errors, ErrorEntry{
 				Message:  line,
 				Severity: "error",
