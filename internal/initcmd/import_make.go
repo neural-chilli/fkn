@@ -16,6 +16,7 @@ func findMakeTargets(repoRoot string) []makeTarget {
 		return nil
 	}
 	lines := strings.Split(strings.ReplaceAll(string(raw), "\r\n", "\n"), "\n")
+	assigned := findAssignedMakeVariables(lines)
 	seen := map[string]bool{}
 	var targets []makeTarget
 	for i := 0; i < len(lines); i++ {
@@ -40,6 +41,9 @@ func findMakeTargets(repoRoot string) []makeTarget {
 				}
 			}
 			for _, param := range findMakeVariables(next) {
+				if assigned[param] {
+					continue
+				}
 				paramsSet[param] = true
 			}
 		}
@@ -51,6 +55,37 @@ func findMakeTargets(repoRoot string) []makeTarget {
 		targets = append(targets, makeTarget{Name: name, Params: params})
 	}
 	return targets
+}
+
+func findAssignedMakeVariables(lines []string) map[string]bool {
+	assigned := map[string]bool{}
+	for _, line := range lines {
+		name, ok := parseAssignedMakeVariable(line)
+		if !ok {
+			continue
+		}
+		assigned[name] = true
+	}
+	return assigned
+}
+
+func parseAssignedMakeVariable(line string) (string, bool) {
+	trimmed := strings.TrimSpace(line)
+	if trimmed == "" || strings.HasPrefix(trimmed, "#") || strings.HasPrefix(trimmed, "\t") {
+		return "", false
+	}
+	for _, op := range []string{":=", "?=", "+=", "="} {
+		index := strings.Index(trimmed, op)
+		if index <= 0 {
+			continue
+		}
+		name := strings.TrimSpace(trimmed[:index])
+		if name == "" || !isUpperSnake(name) {
+			return "", false
+		}
+		return name, true
+	}
+	return "", false
 }
 
 func parseTargetName(line string) (string, bool) {

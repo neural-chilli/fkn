@@ -355,11 +355,18 @@ func TestRunFromRepoIncludesMostMakeTargets(t *testing.T) {
 		"  APP_NAME:\n",
 		"  KETUU:\n",
 		"  BIN:\n",
+		"      app-name:\n",
+		"      go:\n",
+		"      ketuu:\n",
+		"      bin:\n",
 		"  add-feature-git:\n",
 	} {
 		if strings.Contains(got, unwanted) {
 			t.Fatalf("fkn.yaml = %q, did not want inferred target %q", got, unwanted)
 		}
+	}
+	if strings.Contains(got, "build:\n    desc: Run the repository build target\n    cmd: make build\n    agent: false\n") {
+		t.Fatalf("fkn.yaml = %q, did not want build target treated as parameterized helper", got)
 	}
 	if !strings.Contains(got, "  add-feature:\n") {
 		t.Fatalf("fkn.yaml = %q, want parameterized add-feature target", got)
