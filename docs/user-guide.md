@@ -6,6 +6,8 @@ This guide is the practical walkthrough: what to put in `fkn.yaml`, how the comm
 
 ## Installing fkn
 
+If you are evaluating whether `fkn` should replace or sit on top of an existing Makefile, read [docs/why-not-make.md](/Users/josephfrost/code/fkn/docs/why-not-make.md) too. The short version is that `fkn` is designed to layer over existing repo commands, not force a rip-and-replace.
+
 If you just want the CLI:
 
 ```bash
@@ -61,6 +63,8 @@ For `package.json`, `fkn` now detects common `npm_config_*` patterns and turns t
 When imported tasks look like helper or repo-mutating workflows such as `clean`, `ci-init`, `release`, `deploy`, or parameterized scaffold commands, `fkn` now tends to keep them in the generated config but mark them `agent: false`. That keeps the repo surface visible to humans without encouraging autonomous agent execution for risky helper tasks.
 
 The goal is not to guess everything perfectly. The goal is to give you a believable first `fkn.yaml` that humans and agents can edit confidently.
+
+Treat `init --from-repo` as a strong starting point, not a source of truth. Import heuristics are intentionally best-effort and should be reviewed before you rely on the generated config.
 
 If you also want repo-specific human and agent docs generated from `fkn.yaml`:
 

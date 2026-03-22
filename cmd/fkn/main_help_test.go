@@ -314,7 +314,7 @@ func TestRunDocsList(t *testing.T) {
 		t.Fatalf("run(docs --list) code = %d, want 0; stderr=%s", code, readStderr())
 	}
 	output := readStdout()
-	for _, want := range []string{"readme", "user-guide", "releasing"} {
+	for _, want := range []string{"readme", "user-guide", "why-not-make", "releasing"} {
 		if !strings.Contains(output, want) {
 			t.Fatalf("stdout = %q, want %q", output, want)
 		}

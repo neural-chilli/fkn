@@ -23,6 +23,7 @@ YAML is a deliberate part of that story. `fkn.yaml` uses a format that is alread
 Start here:
 
 - [User Guide](/Users/josephfrost/code/fkn/docs/user-guide.md)
+- [Why Not Just Use make?](/Users/josephfrost/code/fkn/docs/why-not-make.md)
 - [Release Guide](/Users/josephfrost/code/fkn/docs/releasing.md)
 - [Roadmap](/Users/josephfrost/code/fkn/docs/roadmap.md)
 
@@ -157,6 +158,7 @@ go run ./cmd/fkn help check
 For realistic examples and a full config walkthrough:
 
 - [docs/user-guide.md](/Users/josephfrost/code/fkn/docs/user-guide.md)
+- [docs/why-not-make.md](/Users/josephfrost/code/fkn/docs/why-not-make.md)
 
 For editor support, the repo also ships [fkn.schema.json](/Users/josephfrost/code/fkn/fkn.schema.json).
 

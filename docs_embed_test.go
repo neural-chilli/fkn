@@ -22,7 +22,7 @@ func TestDocNamesIncludesPrimaryPages(t *testing.T) {
 
 	names := DocNames()
 	joined := strings.Join(names, ",")
-	for _, want := range []string{"readme", "releasing", "user-guide"} {
+	for _, want := range []string{"readme", "releasing", "user-guide", "why-not-make"} {
 		if !strings.Contains(joined, want) {
 			t.Fatalf("DocNames() = %v, want %q", names, want)
 		}
