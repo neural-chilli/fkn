@@ -1,6 +1,6 @@
 # fkn
 
-`fkn` is Function Kit Nextgen: a repo-local task runner and agent integration layer driven by a single `fkn.yaml`.
+`fkn` is Flow Kit Neu: a repo-local task runner and agent integration layer driven by a single `fkn.yaml`.
 
 It is designed to make a repository's operational surface obvious to both humans and coding agents. The long-term model is simple: one file defines how the repo is built, checked, run, and exposed to agents.
 

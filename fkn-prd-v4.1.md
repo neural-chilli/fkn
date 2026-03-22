@@ -1,4 +1,4 @@
-# Product Requirements Document: `fkn` — Function Kit Nextgen
+# Product Requirements Document: `fkn` — Flow Kit Neu
 
 **Version:** 0.4.1  
 **Status:** Ready to Build  
