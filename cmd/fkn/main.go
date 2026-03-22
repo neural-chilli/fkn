@@ -44,8 +44,6 @@ func run(args []string, stdout, stderr *os.File) int {
 		return runInit(args[1:], stdout, stderr)
 	case "list":
 		return runList(args[1:], stdout, stderr)
-	case "serve":
-		return runServe(args[1:], stdout, stderr)
 	case "watch":
 		return runWatch(args[1:], stdout, stderr)
 	case "context":

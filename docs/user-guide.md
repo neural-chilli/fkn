@@ -58,7 +58,7 @@ For `justfile`s specifically, `fkn` now also carries over common recipe aliases,
 
 For `package.json`, `fkn` now detects common `npm_config_*` patterns and turns them into declared task params. That means scripts like `vite build --mode=$npm_config_mode` can scaffold to a task that exposes `mode` explicitly instead of hiding it inside the raw npm script string.
 
-When imported tasks look like helper or repo-mutating workflows such as `clean`, `ci-init`, `release`, `deploy`, or parameterized scaffold commands, `fkn` now tends to keep them in the generated config but mark them `agent: false`. That keeps the repo surface visible to humans without eagerly exposing risky helper tasks over MCP.
+When imported tasks look like helper or repo-mutating workflows such as `clean`, `ci-init`, `release`, `deploy`, or parameterized scaffold commands, `fkn` now tends to keep them in the generated config but mark them `agent: false`. That keeps the repo surface visible to humans without encouraging autonomous agent execution for risky helper tasks.
 
 The goal is not to guess everything perfectly. The goal is to give you a believable first `fkn.yaml` that humans and agents can edit confidently.
 
@@ -79,7 +79,7 @@ The generated agent docs include:
 - task summaries, including scopes, commands, and pipeline steps
 - guard summaries
 - scopes and prompts
-- context, MCP, and watch configuration highlights
+- context and watch configuration highlights
 
 If you want agents to explicitly treat `fkn.yaml` as an accrual surface for learned repo knowledge, enable:
 
@@ -131,7 +131,7 @@ That means one file defines:
 - what scopes an agent should touch
 - what prompts should render
 - what context gets handed to an agent
-- what MCP tools should be exposed
+- what workflow guidance agents should follow
 
 If a repo has a `README`, `Makefile`, scattered scripts, and tribal knowledge, `fkn` aims to turn that into one structured interface.
 
@@ -251,7 +251,7 @@ Supported formats today:
 - `eslint`
 - `generic`
 
-This does not replace raw stderr. It adds a parsed `errors` array to task JSON output, `guard --json`, `repair --json`, and MCP `tools/call` responses so agents do not have to scrape diagnostics back out of plain text.
+This does not replace raw stderr. It adds a parsed `errors` array to task JSON output, `guard --json`, and `repair --json` so agents do not have to scrape diagnostics back out of plain text.
 
 Example:
 
@@ -405,7 +405,7 @@ Notes:
 - `shell` and `shell_args` let a task opt into a specific interpreter or shell mode.
 - `continue_on_error` only affects sequential pipelines.
 - Parallel pipelines still fail fast in the current implementation.
-- `agent: false` hides a task from the MCP tool manifest.
+- `agent: false` marks a task as not intended for autonomous agent use.
 - `safety` describes how cautious agents should be:
   - `safe` for read-only or low-risk tasks
   - `idempotent` for tasks that are safe to rerun repeatedly
@@ -419,8 +419,6 @@ fkn deploy --allow-unsafe
 fkn guard --allow-unsafe
 fkn repair --allow-unsafe
 ```
-
-In MCP mode, pass `allow_unsafe: true` in the tool arguments.
 
 `--dry-run` still works without that override, so risky tasks can be inspected before they are executed.
 
@@ -528,8 +526,7 @@ Notes:
 - positional params are assigned by ascending `position`
 - a variadic param must be the last positional param
 - required params fail fast if omitted
-- params are exposed in MCP tool schemas for agent callers
-- safety is exposed in `fkn help`, `fkn list`, generated agent docs, and MCP tool annotations
+- safety is exposed in `fkn help`, `fkn list`, and generated agent docs
 
 ## Guards
 
@@ -601,7 +598,7 @@ scopes:
     paths:
       - cmd/fkn/
       - internal/runner/
-      - internal/mcp/
+      - internal/context/
 ```
 
 Use them with:
@@ -813,13 +810,13 @@ Agent mode:
 
 ```bash
 fkn context --agent --task check
-fkn context --about "MCP transport"
+fkn context --about "task safety"
 ```
 
 Topic mode:
 
 ```bash
-fkn context --about "MCP transport"
+fkn context --about "task safety"
 ```
 
 Structured mode:
@@ -937,22 +934,6 @@ Behavior notes:
 - a timestamp separator is printed before each rerun
 - `.git/`, `.fkn/`, and `bin/` are ignored
 
-## Serve
-
-`fkn serve` exposes agent-enabled tasks as MCP tools.
-
-Examples:
-
-```bash
-fkn serve
-fkn serve --http --port 8080
-fkn list --mcp
-```
-
-See the dedicated MCP guide:
-
-- [docs/mcp.md](/Users/josephfrost/code/fkn/docs/mcp.md)
-
 ## Realistic Example
 
 Here is a more realistic `fkn.yaml` for a Go API:
@@ -1033,11 +1014,6 @@ watch:
     - cmd/
     - internal/
     - fkn.yaml
-
-serve:
-  transport: stdio
-  port: 8080
-  token_env: FKN_MCP_TOKEN
 ```
 
 Typical workflow:
@@ -1071,8 +1047,6 @@ Common issues:
 - prompt variable not rendering
   Unknown variables are left unchanged and produce a warning.
 
-- HTTP serve mode starts unauthenticated
-  Set the env var named by `serve.token_env`, which defaults to `FKN_MCP_TOKEN`.
 
 ## Status
 

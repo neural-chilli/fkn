@@ -16,7 +16,6 @@ import (
 	"github.com/neural-chilli/fkn/internal/codemap"
 	"github.com/neural-chilli/fkn/internal/config"
 	"github.com/neural-chilli/fkn/internal/guard"
-	"github.com/neural-chilli/fkn/internal/mcp"
 	"github.com/neural-chilli/fkn/internal/repair"
 	"github.com/neural-chilli/fkn/internal/runner"
 	watchpkg "github.com/neural-chilli/fkn/internal/watch"
@@ -26,7 +25,6 @@ func runList(args []string, stdout, stderr *os.File) int {
 	fs := flag.NewFlagSet("list", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	jsonOut := fs.Bool("json", false, "")
-	mcpOut := fs.Bool("mcp", false, "")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -35,11 +33,6 @@ func runList(args []string, stdout, stderr *os.File) int {
 	if err != nil {
 		printError(stderr, err)
 		return 1
-	}
-
-	if *mcpOut {
-		tools := mcp.New(cfg, "", nil).Tools()
-		return printJSON(stdout, map[string]any{"tools": tools})
 	}
 
 	items := make([]listTask, 0, len(cfg.Tasks))
@@ -139,52 +132,6 @@ func runList(args []string, stdout, stderr *os.File) int {
 			}
 			fmt.Fprintf(stdout, "%s%-*s  %s\n", prefix, width, item.Name, formatListSummary(item))
 		}
-	}
-	return 0
-}
-
-func runServe(args []string, stdout, stderr *os.File) int {
-	fs := flag.NewFlagSet("serve", flag.ContinueOnError)
-	fs.SetOutput(stderr)
-	httpMode := fs.Bool("http", false, "")
-	port := fs.Int("port", 0, "")
-	parsedArgs, err := parseSubcommandArgs(args, map[string]bool{"--http": false, "--port": true})
-	if err != nil {
-		printError(stderr, err)
-		return 2
-	}
-	if err := fs.Parse(parsedArgs); err != nil {
-		return 2
-	}
-
-	cfg, repoRoot, err := loadConfig()
-	if err != nil {
-		printError(stderr, err)
-		return 1
-	}
-
-	serveHTTP := *httpMode || strings.EqualFold(cfg.Serve.Transport, "http")
-	servePort := cfg.Serve.Port
-	if *port != 0 {
-		servePort = *port
-	}
-
-	ctx, stop := signal.NotifyContext(stdcontext.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
-
-	taskRunner := runner.New(cfg, repoRoot)
-	server := mcp.New(cfg, repoRoot, taskRunner)
-	if serveHTTP {
-		if err := server.ServeHTTP(ctx, servePort, stderr); err != nil {
-			printError(stderr, err)
-			return 1
-		}
-		return 0
-	}
-
-	if err := server.ServeStdio(ctx, os.Stdin, stdout, stderr); err != nil && !errors.Is(err, stdcontext.Canceled) {
-		printError(stderr, err)
-		return 1
 	}
 	return 0
 }

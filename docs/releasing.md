@@ -10,7 +10,6 @@ Make sure all of these are true:
 - `go build ./cmd/fkn` succeeds
 - [README.md](/Users/josephfrost/code/fkn/README.md) matches current behavior
 - [docs/user-guide.md](/Users/josephfrost/code/fkn/docs/user-guide.md) reflects any user-facing changes
-- [docs/mcp.md](/Users/josephfrost/code/fkn/docs/mcp.md) reflects any MCP-facing changes
 - CI is green on `main`
 
 ## Suggested First Release
@@ -56,7 +55,6 @@ For the first release, keep the notes practical:
 
 - what `fkn` is
 - which commands are implemented
-- whether MCP compatibility is verified or still provisional
 - any known limitations worth calling out
 
 ## Install Path

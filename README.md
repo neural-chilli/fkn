@@ -13,7 +13,7 @@ Most repositories accumulate commands, scripts, checks, conventions, and "run th
 - one config file
 - one CLI
 - stable JSON output for machine consumers
-- task metadata that can later be exposed as MCP tools
+- task metadata that can guide human and agent execution safely
 - a path toward agent handoff and repo-aware prompts without scattered docs
 
 YAML is a deliberate part of that story. `fkn.yaml` uses a format that is already common across developer tooling, easy for humans to scan, and straightforward for agents and automation to parse.
@@ -23,11 +23,10 @@ YAML is a deliberate part of that story. `fkn.yaml` uses a format that is alread
 Start here:
 
 - [User Guide](/Users/josephfrost/code/fkn/docs/user-guide.md)
-- [MCP Guide](/Users/josephfrost/code/fkn/docs/mcp.md)
 - [Release Guide](/Users/josephfrost/code/fkn/docs/releasing.md)
 - [Roadmap](/Users/josephfrost/code/fkn/docs/roadmap.md)
 
-The README is the short version. The user guide is the practical walkthrough with realistic examples. The MCP guide is the current compatibility and transport reference.
+The README is the short version. The user guide is the practical walkthrough with realistic examples.
 
 ## Current Status
 
@@ -47,9 +46,6 @@ Implemented today:
 - embedded offline docs in the CLI
 - config validation via `fkn validate`
 - structured context output via `fkn context --json`
-- MCP serve mode
-- MCP resources for context, scopes, and cached guard state
-- MCP prompt discovery and retrieval
 - fsnotify-backed watch mode with polling fallback
 - help output and task suggestions
 - JSON output for key commands
@@ -59,9 +55,9 @@ Implemented today:
 - safer helper-task import with `agent: false` for mutating targets
 - task safety annotations for humans and agents
 - execution gating for `destructive` and `external` tasks
-- task params with CLI, runner, and MCP support
+- task params with CLI and runner support
 - direct task param flags like `--feature auth`
-- structured error extraction in task, guard, and MCP JSON output
+- structured error extraction in task and guard JSON output
 - guided repair output via `fkn repair`
 - file-targeted impact planning via `fkn plan`
 - git-diff-aware planning via `fkn diff-plan`
@@ -154,14 +150,9 @@ go run ./cmd/fkn context --agent --task check
 go run ./cmd/fkn init
 go run ./cmd/fkn init --from-repo
 go run ./cmd/fkn init --docs
-go run ./cmd/fkn serve
-go run ./cmd/fkn serve --http --port 8080
 go run ./cmd/fkn watch test --path README.md
 go run ./cmd/fkn help check
-go run ./cmd/fkn list --mcp
 ```
-
-HTTP mode reads an optional bearer token from `FKN_MCP_TOKEN` by default.
 
 For realistic examples and a full config walkthrough:
 
@@ -218,7 +209,7 @@ Running `fkn` with no task name executes the configured default task when `defau
 
 The repo now also ships [fkn.schema.json](/Users/josephfrost/code/fkn/fkn.schema.json), so editors and language servers can validate `fkn.yaml` without needing to run the CLI first.
 
-Scopes can still be simple path lists, but the richer object form lets you attach intent that shows up in `fkn scope`, `fkn help <task>`, repair briefs, generated agent docs, and MCP scope resources.
+Scopes can still be simple path lists, but the richer object form lets you attach intent that shows up in `fkn scope`, `fkn help <task>`, repair briefs, and generated agent docs.
 
 Groups give you a lightweight way to model task families. `fkn list` uses them to organize larger configs, and `fkn help <group>` prints the group description and member tasks.
 
@@ -230,11 +221,11 @@ Tasks can declare positional params with `position`, and the last positional par
 
 Pipeline steps can now also reference other pipeline tasks directly, so larger workflows can be composed hierarchically instead of flattening every step into one long task.
 
-Tasks can also declare `safety` as one of `safe`, `idempotent`, `destructive`, or `external`. This shows up in `fkn help`, `fkn list`, generated agent docs, and MCP tool annotations so agents can make better decisions about what to run autonomously.
+Tasks can also declare `safety` as one of `safe`, `idempotent`, `destructive`, or `external`. This shows up in `fkn help`, `fkn list`, and generated agent docs so agents can make better decisions about what to run autonomously.
 
-Tasks marked `destructive` or `external` now fail closed by default. To execute them anyway, opt in explicitly with `--allow-unsafe` on the CLI, or `allow_unsafe: true` in MCP tool calls. Dry runs still work without that override.
+Tasks marked `destructive` or `external` now fail closed by default. To execute them anyway, opt in explicitly with `--allow-unsafe` on the CLI. Dry runs still work without that override.
 
-Tasks can also declare `error_format` when they emit machine-parseable diagnostics. Supported values today are `go_test`, `pytest`, `tsc`, `eslint`, and `generic`. When set, task JSON, `guard --json`, `repair --json`, and MCP tool results include a parsed `errors` array alongside raw stderr.
+Tasks can also declare `error_format` when they emit machine-parseable diagnostics. Supported values today are `go_test`, `pytest`, `tsc`, `eslint`, and `generic`. When set, task JSON, `guard --json`, and `repair --json` include a parsed `errors` array alongside raw stderr.
 
 `fkn repair` builds on that by running a guard, collecting the failing steps, surfacing relevant scopes, and generating a repair-oriented markdown brief for the next agent loop.
 
@@ -269,8 +260,6 @@ fkn context --about <topic>
 fkn context --out <file>
 fkn context --copy
 fkn init [--from-repo] [--docs]
-fkn serve
-fkn serve --http --port <n>
 fkn watch <target>
 fkn prompt <name>
 fkn prompt <name> --copy
@@ -281,7 +270,6 @@ fkn validate
 fkn validate --json
 fkn list
 fkn list --json
-fkn list --mcp
 fkn version
 fkn --version
 fkn version --json
@@ -294,7 +282,6 @@ cmd/fkn/              # CLI entrypoint
 internal/config/      # fkn.yaml loading and validation
 internal/context/     # bounded repo context generation
 internal/codemap/     # semantic repo explanations and matching
-internal/mcp/         # MCP manifest and transport handling
 internal/prompt/      # prompt template rendering
 internal/repair/      # guard-driven repair brief generation
 internal/scope/       # named scope lookup and formatting
@@ -302,17 +289,6 @@ internal/runner/      # task and pipeline execution
 fkn.yaml              # repo-local dogfood config
 fkn-prd-v4.1.md       # product requirements document
 ```
-
-## Compatibility
-
-MCP status today:
-
-- raw stdio MCP requests: tested
-- raw HTTP+SSE MCP requests: tested
-- GitHub Copilot integration: unverified
-- Claude Code integration: unverified
-
-That means `fkn serve` is usable now for experimentation, but client-specific compatibility should still be treated as provisional until tested directly.
 
 ## Development
 
@@ -331,7 +307,7 @@ The current product direction is described in [fkn-prd-v4.1.md](/Users/josephfro
 
 The forward-looking feature roadmap is in [docs/roadmap.md](/Users/josephfrost/code/fkn/docs/roadmap.md).
 
-`fkn docs` now serves embedded copies of the README, user guide, MCP guide, and release guide so installed binaries can explain themselves offline.
+`fkn docs` now serves embedded copies of the README, user guide, and release guide so installed binaries can explain themselves offline.
 
 `fkn init --docs` now generates `HUMANS.md`, `AGENTS.md`, and `CLAUDE.md` directly from `fkn.yaml`, so repo workflow guidance stays aligned with the actual task/config surface.
 
@@ -345,7 +321,7 @@ If you want to help early, the highest-leverage areas are:
 - command UX rough edges
 - JSON contract feedback
 - guard/context implementation
-- expanded tests for init, context, watch, runner execution, MCP, and CLI edge cases
+- expanded tests for init, context, watch, runner execution, and CLI edge cases
 
 ## License
 

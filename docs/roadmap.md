@@ -33,15 +33,13 @@ This roadmap focuses on the major features that would make `fkn` feel more compl
 
 ## Agent Features
 
-- richer MCP schemas
-  - task params, defaults, and validation surfaced more explicitly
 - safer task capabilities
   - clearer distinction between safe, destructive, and environment-sensitive tasks
 - generated human and agent docs with stronger repo awareness
   - richer `HUMANS.md`, `AGENTS.md`, and `CLAUDE.md` output
   - more scope-, prompt-, and codemap-aware guidance
-- compatibility validation against real external MCP clients
-  - not just raw protocol smoke tests
+- stronger agent-facing execution contracts
+  - task params, defaults, and validation surfaced more explicitly
 
 ## Distribution Features
 
