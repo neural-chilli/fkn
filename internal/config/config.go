@@ -21,6 +21,7 @@ type Config struct {
 	Guards      map[string]Guard  `yaml:"guards"`
 	Scopes      map[string]Scope  `yaml:"scopes"`
 	Prompts     map[string]Prompt `yaml:"prompts"`
+	Agent       AgentConfig       `yaml:"agent"`
 	Context     ContextConfig     `yaml:"context"`
 	Codemap     CodemapConfig     `yaml:"codemap"`
 	Serve       ServeConfig       `yaml:"serve"`
@@ -72,6 +73,10 @@ type Scope struct {
 type Prompt struct {
 	Desc     string `yaml:"desc"`
 	Template string `yaml:"template"`
+}
+
+type AgentConfig struct {
+	AccrueKnowledge bool `yaml:"accrue_knowledge"`
 }
 
 type DefaultsConfig struct {

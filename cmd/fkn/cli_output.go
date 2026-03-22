@@ -25,7 +25,7 @@ func printUsage(stdout *os.File) {
 		"fkn context [--agent] [--json] [--task <name>] [--about <topic>] [--out <file>] [--copy] [--max-tokens <approx-n>]",
 		"fkn guard [name] [--json]",
 		"fkn repair [name] [--json] [--copy]",
-		"fkn init [--from-repo] [--agents]",
+		"fkn init [--from-repo] [--docs]",
 		"fkn list [--json] [--mcp]",
 		"fkn serve [--http] [--port <n>]",
 		"fkn watch <target> [--path <glob>]",

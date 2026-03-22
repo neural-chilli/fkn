@@ -104,8 +104,8 @@ func runInit(args []string, stdout, stderr *os.File) int {
 	fs := flag.NewFlagSet("init", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	fromRepo := fs.Bool("from-repo", false, "")
-	agents := fs.Bool("agents", false, "")
-	parsedArgs, err := parseSubcommandArgs(args, map[string]bool{"--from-repo": false, "--agents": false})
+	docs := fs.Bool("docs", false, "")
+	parsedArgs, err := parseSubcommandArgs(args, map[string]bool{"--from-repo": false, "--docs": false})
 	if err != nil {
 		printError(stderr, err)
 		return 2
@@ -122,7 +122,7 @@ func runInit(args []string, stdout, stderr *os.File) int {
 
 	message, err := initcmd.Run(repoRoot, initcmd.Options{
 		FromRepo: *fromRepo,
-		Agents:   *agents,
+		Docs:     *docs,
 	})
 	if err != nil {
 		printError(stderr, err)

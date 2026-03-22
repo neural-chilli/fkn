@@ -43,7 +43,7 @@ Implemented today:
 - init scaffolding
 - repo-aware init scaffolding from existing task surfaces
 - guards can reuse pipeline tasks
-- generated agent guidance via `AGENTS_FKN.md`
+- generated repo docs for humans and agents
 - embedded offline docs in the CLI
 - config validation via `fkn validate`
 - structured context output via `fkn context --json`
@@ -153,7 +153,7 @@ go run ./cmd/fkn context
 go run ./cmd/fkn context --agent --task check
 go run ./cmd/fkn init
 go run ./cmd/fkn init --from-repo
-go run ./cmd/fkn init --agents
+go run ./cmd/fkn init --docs
 go run ./cmd/fkn serve
 go run ./cmd/fkn serve --http --port 8080
 go run ./cmd/fkn watch test --path README.md
@@ -268,7 +268,7 @@ fkn context --agent --task <name>
 fkn context --about <topic>
 fkn context --out <file>
 fkn context --copy
-fkn init [--from-repo] [--agents]
+fkn init [--from-repo] [--docs]
 fkn serve
 fkn serve --http --port <n>
 fkn watch <target>
@@ -333,7 +333,7 @@ The forward-looking feature roadmap is in [docs/roadmap.md](/Users/josephfrost/c
 
 `fkn docs` now serves embedded copies of the README, user guide, MCP guide, and release guide so installed binaries can explain themselves offline.
 
-`fkn init --agents` now generates a richer `AGENTS_FKN.md` that summarizes tasks, guards, scopes, prompts, context, MCP settings, and watch paths for agents.
+`fkn init --docs` now generates `HUMANS.md`, `AGENTS.md`, and `CLAUDE.md` directly from `fkn.yaml`, so repo workflow guidance stays aligned with the actual task/config surface.
 
 ## Contributing
 

@@ -9,7 +9,7 @@ import (
 	"github.com/neural-chilli/fkn/internal/config"
 )
 
-func TestRunWithAgentsWritesCompanionFiles(t *testing.T) {
+func TestRunWithDocsWritesGeneratedDocs(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
@@ -18,36 +18,31 @@ func TestRunWithAgentsWritesCompanionFiles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	msg, err := Run(dir, Options{Agents: true})
+	msg, err := Run(dir, Options{Docs: true})
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
-	if !strings.Contains(msg, "wrote AGENTS_FKN.md") {
-		t.Fatalf("Run() message = %q, want AGENTS_FKN note", msg)
+	for _, want := range []string{"wrote HUMANS.md", "updated AGENTS.md", "wrote CLAUDE.md"} {
+		if !strings.Contains(msg, want) {
+			t.Fatalf("Run() message = %q, want %q", msg, want)
+		}
 	}
 
-	agentFKN, err := os.ReadFile(filepath.Join(dir, "AGENTS_FKN.md"))
+	humans, err := os.ReadFile(filepath.Join(dir, "HUMANS.md"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	gotAgentFKN := string(agentFKN)
-	if !strings.Contains(gotAgentFKN, "# AGENTS_FKN") {
-		t.Fatalf("AGENTS_FKN.md = %q, want header", gotAgentFKN)
-	}
-	if !strings.Contains(gotAgentFKN, "`test`: Run the test suite") {
-		t.Fatalf("AGENTS_FKN.md = %q, want task summary", gotAgentFKN)
-	}
-	if !strings.Contains(gotAgentFKN, "Scope Description: Main CLI commands and closely-related execution packages.") {
-		t.Fatalf("AGENTS_FKN.md = %q, want scope description", gotAgentFKN)
-	}
-	if !strings.Contains(gotAgentFKN, "## Context") {
-		t.Fatalf("AGENTS_FKN.md = %q, want context section", gotAgentFKN)
-	}
-	if !strings.Contains(gotAgentFKN, "Command: `go test ./...`") {
-		t.Fatalf("AGENTS_FKN.md = %q, want command detail", gotAgentFKN)
-	}
-	if !strings.Contains(gotAgentFKN, "## Groups") {
-		t.Fatalf("AGENTS_FKN.md = %q, want groups section", gotAgentFKN)
+	gotHumans := string(humans)
+	for _, want := range []string{
+		"# HUMANS",
+		"Default command: `fkn check`",
+		"`test`: Run the test suite",
+		"## Groups",
+		"## Scopes",
+	} {
+		if !strings.Contains(gotHumans, want) {
+			t.Fatalf("HUMANS.md = %q, want %q", gotHumans, want)
+		}
 	}
 
 	agentRoot, err := os.ReadFile(filepath.Join(dir, "AGENTS.md"))
@@ -58,16 +53,34 @@ func TestRunWithAgentsWritesCompanionFiles(t *testing.T) {
 	if !strings.Contains(gotAgentRoot, "Keep this section.") {
 		t.Fatalf("AGENTS.md = %q, want original content preserved", gotAgentRoot)
 	}
-	if !strings.Contains(gotAgentRoot, "## fkn Workflow") {
-		t.Fatalf("AGENTS.md = %q, want fkn workflow block", gotAgentRoot)
+	for _, want := range []string{
+		"<!-- fkn:agents:start -->",
+		"# AGENTS",
+		"## How To Work Here",
+		"## Tasks",
+	} {
+		if !strings.Contains(gotAgentRoot, want) {
+			t.Fatalf("AGENTS.md = %q, want %q", gotAgentRoot, want)
+		}
+	}
+
+	claude, err := os.ReadFile(filepath.Join(dir, "CLAUDE.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	gotClaude := string(claude)
+	for _, want := range []string{"# CLAUDE", "## How To Work Here", "## Tasks"} {
+		if !strings.Contains(gotClaude, want) {
+			t.Fatalf("CLAUDE.md = %q, want %q", gotClaude, want)
+		}
 	}
 }
 
-func TestRunWithAgentsIsIdempotent(t *testing.T) {
+func TestRunWithDocsIsIdempotent(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
-	if _, err := Run(dir, Options{Agents: true}); err != nil {
+	if _, err := Run(dir, Options{Docs: true}); err != nil {
 		t.Fatalf("first Run() error = %v", err)
 	}
 	before, err := os.ReadFile(filepath.Join(dir, "AGENTS.md"))
@@ -75,12 +88,12 @@ func TestRunWithAgentsIsIdempotent(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	msg, err := Run(dir, Options{Agents: true})
+	msg, err := Run(dir, Options{Docs: true})
 	if err != nil {
 		t.Fatalf("second Run() error = %v", err)
 	}
-	if !strings.Contains(msg, "AGENTS.md already includes fkn guidance") {
-		t.Fatalf("Run() message = %q, want existing guidance note", msg)
+	if !strings.Contains(msg, "updated AGENTS.md") {
+		t.Fatalf("Run() message = %q, want AGENTS.md update note", msg)
 	}
 	after, err := os.ReadFile(filepath.Join(dir, "AGENTS.md"))
 	if err != nil {
@@ -91,12 +104,16 @@ func TestRunWithAgentsIsIdempotent(t *testing.T) {
 	}
 }
 
-func TestRenderAgentsFKNIncludesScopesAndPrompts(t *testing.T) {
+func TestRenderAgentDocIncludesKnowledgeAccrualGuidance(t *testing.T) {
 	t.Parallel()
 
 	cfg := &config.Config{
 		Project:     "demo",
 		Description: "Demo repo",
+		Default:     "check",
+		Agent: config.AgentConfig{
+			AccrueKnowledge: true,
+		},
 		Tasks: map[string]config.Task{
 			"check": {
 				Desc:  "Run checks",
@@ -109,8 +126,9 @@ func TestRenderAgentsFKNIncludesScopesAndPrompts(t *testing.T) {
 				Cmd:  "make setup",
 			},
 			"test": {
-				Desc: "Run tests",
-				Cmd:  "go test ./...",
+				Desc:   "Run tests",
+				Cmd:    "go test ./...",
+				Safety: "idempotent",
 			},
 		},
 		Guards: map[string]config.Guard{
@@ -139,28 +157,19 @@ func TestRenderAgentsFKNIncludesScopesAndPrompts(t *testing.T) {
 		},
 	}
 
-	got, err := renderAgentsFKN(cfg)
-	if err != nil {
-		t.Fatalf("renderAgentsFKN() error = %v", err)
-	}
+	got := renderAgentDoc("AGENTS", cfg)
 	for _, want := range []string{
-		"## Scopes",
-		"`backend`: `cmd/`, `internal/`",
-		"Description: Backend workflows",
-		"## Groups",
-		"`qa`: `test`, `check`",
-		"Description: Verification tasks",
-		"## Prompts",
-		"`continue-backend`: Continue backend work",
-		"Scope: `backend`",
-		"Needs: `setup`",
+		"## Knowledge Accrual",
+		"Build prerequisites or ordering -> task `needs`",
+		"Package purpose or structure -> `codemap.packages`",
+		"`check`: Run checks",
 		"Scope Description: Backend workflows",
-		"Steps: `test`, `build`",
+		"Needs: `setup`",
 		"## MCP",
 		"## Watch",
 	} {
 		if !strings.Contains(got, want) {
-			t.Fatalf("renderAgentsFKN() = %q, want %q", got, want)
+			t.Fatalf("renderAgentDoc() = %q, want %q", got, want)
 		}
 	}
 }

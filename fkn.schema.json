@@ -37,6 +37,7 @@
       "type": "object",
       "additionalProperties": { "$ref": "#/$defs/prompt" }
     },
+    "agent": { "$ref": "#/$defs/agent" },
     "context": { "$ref": "#/$defs/context" },
     "codemap": { "$ref": "#/$defs/codemap" },
     "serve": { "$ref": "#/$defs/serve" },
@@ -166,6 +167,13 @@
       "properties": {
         "desc": { "type": "string" },
         "template": { "type": "string" }
+      }
+    },
+    "agent": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "accrue_knowledge": { "type": "boolean" }
       }
     },
     "context": {

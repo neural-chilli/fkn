@@ -35,6 +35,9 @@ func TestRunCreatesStarterFiles(t *testing.T) {
 	if !strings.Contains(string(cfg), "default: check") {
 		t.Fatalf("fkn.yaml = %q, want starter default task", string(cfg))
 	}
+	if !strings.Contains(string(cfg), "agent:\n  accrue_knowledge: false\n") {
+		t.Fatalf("fkn.yaml = %q, want starter agent config", string(cfg))
+	}
 
 	gitignore, err := os.ReadFile(filepath.Join(dir, ".gitignore"))
 	if err != nil {

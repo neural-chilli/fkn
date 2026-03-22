@@ -3,27 +3,95 @@ package initcmd
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/neural-chilli/fkn/internal/config"
 )
 
-func renderAgentsFKN(cfg *config.Config) (string, error) {
-	var builder strings.Builder
-	builder.WriteString("# AGENTS_FKN\n\n")
-	builder.WriteString("This repository uses `fkn` as its structured task interface.\n\n")
-	builder.WriteString("## How To Work Here\n\n")
-	builder.WriteString("- Start with `fkn list` to discover the available tasks.\n")
-	builder.WriteString("- Use `fkn help <task>` before inventing an equivalent command.\n")
-	builder.WriteString("- Use `fkn context` for a bounded repo summary.\n")
-	builder.WriteString("- Use `fkn guard` when you want a validation report across multiple checks.\n")
-	builder.WriteString("- Prefer `fkn` tasks over ad hoc shell commands when the task already exists.\n\n")
+func writeDocs(repoRoot string, cfg *config.Config) ([]string, error) {
+	statuses := make([]string, 0, 3)
+	items := []struct {
+		path  string
+		start string
+		end   string
+		body  string
+	}{
+		{path: filepath.Join(repoRoot, "HUMANS.md"), start: humansBlockStart, end: humansBlockEnd, body: renderHumansDoc(cfg)},
+		{path: filepath.Join(repoRoot, "AGENTS.md"), start: agentsBlockStart, end: agentsBlockEnd, body: renderAgentDoc("AGENTS", cfg)},
+		{path: filepath.Join(repoRoot, "CLAUDE.md"), start: claudeBlockStart, end: claudeBlockEnd, body: renderAgentDoc("CLAUDE", cfg)},
+	}
+	for _, item := range items {
+		status, err := writeManagedDoc(item.path, item.start, item.end, item.body)
+		if err != nil {
+			return nil, err
+		}
+		statuses = append(statuses, status)
+	}
+	return statuses, nil
+}
 
+func renderHumansDoc(cfg *config.Config) string {
+	var builder strings.Builder
+	builder.WriteString("# HUMANS\n\n")
+	builder.WriteString("This file is generated from `fkn.yaml` and summarizes how this repository is intended to be used by people.\n\n")
 	builder.WriteString("## Project\n\n")
 	builder.WriteString(fmt.Sprintf("- Project: `%s`\n", cfg.Project))
 	if cfg.Description != "" {
 		builder.WriteString(fmt.Sprintf("- Description: %s\n", cfg.Description))
 	}
+	if cfg.Default != "" {
+		builder.WriteString(fmt.Sprintf("- Default command: `fkn %s`\n", cfg.Default))
+	}
+	builder.WriteString("\n## Recommended Start\n\n")
+	builder.WriteString("1. `fkn list`\n")
+	builder.WriteString("2. `fkn help <task>`\n")
+	builder.WriteString("3. `fkn context`\n")
+	builder.WriteString("4. `fkn guard` or `fkn <task>`\n")
+	writeTaskSummary(&builder, cfg, false)
+	writeGuardSection(&builder, cfg)
+	writeGroupSection(&builder, cfg)
+	writeScopeSection(&builder, cfg)
+	return builder.String()
+}
+
+func renderAgentDoc(name string, cfg *config.Config) string {
+	var builder strings.Builder
+	builder.WriteString("# " + name + "\n\n")
+	builder.WriteString("This file is generated from `fkn.yaml` and is the repo-specific workflow guide for coding agents.\n\n")
+	builder.WriteString("## How To Work Here\n\n")
+	builder.WriteString("- Start with `fkn list` to discover the available tasks.\n")
+	builder.WriteString("- Use `fkn help <task>` before inventing an equivalent command.\n")
+	builder.WriteString("- Use `fkn context` for a bounded repo summary.\n")
+	builder.WriteString("- Use `fkn agent-brief` when you want one combined handoff artifact.\n")
+	builder.WriteString("- Use `fkn guard` when you want a validation report across multiple checks.\n")
+	builder.WriteString("- Prefer `fkn` tasks over ad hoc shell commands when the task already exists.\n")
+	if cfg.Agent.AccrueKnowledge {
+		builder.WriteString("- When you discover operational knowledge, propose a structured update to `fkn.yaml`, then run `fkn validate` before suggesting it.\n")
+	}
+	builder.WriteString("\n## Project\n\n")
+	builder.WriteString(fmt.Sprintf("- Project: `%s`\n", cfg.Project))
+	if cfg.Description != "" {
+		builder.WriteString(fmt.Sprintf("- Description: %s\n", cfg.Description))
+	}
+	if cfg.Default != "" {
+		builder.WriteString(fmt.Sprintf("- Default command: `fkn %s`\n", cfg.Default))
+	}
+	writeTaskSummary(&builder, cfg, true)
+	writeGuardSection(&builder, cfg)
+	writeGroupSection(&builder, cfg)
+	writeScopeSection(&builder, cfg)
+	writePromptSection(&builder, cfg)
+	writeContextSection(&builder, cfg)
+	writeServeSection(&builder, cfg)
+	writeWatchSection(&builder, cfg)
+	if cfg.Agent.AccrueKnowledge {
+		writeKnowledgeSection(&builder)
+	}
+	return builder.String()
+}
+
+func writeTaskSummary(builder *strings.Builder, cfg *config.Config, includeAgentFields bool) {
 	builder.WriteString("\n## Tasks\n\n")
 	for _, name := range sortedTaskNames(cfg.Tasks) {
 		task := cfg.Tasks[name]
@@ -43,24 +111,11 @@ func renderAgentsFKN(cfg *config.Config) (string, error) {
 		if task.Cmd != "" {
 			builder.WriteString(fmt.Sprintf("  Command: `%s`\n", task.Cmd))
 		}
-		builder.WriteString(fmt.Sprintf("  Agent visible: `%t`\n", task.AgentEnabled()))
-		builder.WriteString(fmt.Sprintf("  Safety: `%s`\n", task.SafetyLevel()))
+		if includeAgentFields {
+			builder.WriteString(fmt.Sprintf("  Agent visible: `%t`\n", task.AgentEnabled()))
+			builder.WriteString(fmt.Sprintf("  Safety: `%s`\n", task.SafetyLevel()))
+		}
 	}
-
-	writeGuardSection(&builder, cfg)
-	writeGroupSection(&builder, cfg)
-	writeScopeSection(&builder, cfg)
-	writePromptSection(&builder, cfg)
-	writeContextSection(&builder, cfg)
-	writeServeSection(&builder, cfg)
-	writeWatchSection(&builder, cfg)
-
-	builder.WriteString("\n## Suggested Command Order\n\n")
-	builder.WriteString("1. `fkn list`\n")
-	builder.WriteString("2. `fkn help <task>`\n")
-	builder.WriteString("3. `fkn context` or `fkn context --agent --task <task>`\n")
-	builder.WriteString("4. `fkn <task>` or `fkn guard`\n")
-	return builder.String(), nil
 }
 
 func writeGuardSection(builder *strings.Builder, cfg *config.Config) {
@@ -146,49 +201,47 @@ func writeWatchSection(builder *strings.Builder, cfg *config.Config) {
 	builder.WriteString(fmt.Sprintf("- Debounce: `%dms`\n", cfg.Watch.DebounceMS))
 }
 
-func ensureAgentsReference(path string) (bool, error) {
-	block := strings.Join([]string{
-		agentsBlockStart,
-		"## fkn Workflow",
-		"",
-		"If `fkn.yaml` exists in this repo:",
-		"- read `AGENTS_FKN.md`",
-		"- start with `fkn list`",
-		"- use `fkn help <task>` before guessing commands",
-		"- use `fkn context` or `fkn guard` when you need bounded repo context or validation",
-		agentsBlockEnd,
-		"",
-	}, "\n")
+func writeKnowledgeSection(builder *strings.Builder) {
+	builder.WriteString("\n## Knowledge Accrual\n\n")
+	builder.WriteString("When you discover operational knowledge about this repository, propose a structured update to `fkn.yaml`.\n\n")
+	builder.WriteString("- Build prerequisites or ordering -> task `needs`\n")
+	builder.WriteString("- Required environment -> task `env` or `params`\n")
+	builder.WriteString("- Files that should not be edited -> scope paths or context `exclude`\n")
+	builder.WriteString("- Package purpose or structure -> `codemap.packages`\n")
+	builder.WriteString("- Naming conventions -> `codemap.conventions`\n")
+	builder.WriteString("- Domain terminology -> `codemap.glossary`\n")
+	builder.WriteString("- Run `fkn validate` before proposing the change.\n")
+	builder.WriteString("- Always confirm with the user before applying it.\n")
+}
 
+func writeManagedDoc(path, start, end, body string) (string, error) {
+	block := strings.Join([]string{start, body, end, ""}, "\n")
 	raw, err := os.ReadFile(path)
 	if err != nil && !os.IsNotExist(err) {
-		return false, err
+		return "", err
 	}
 
 	content := string(raw)
-	if strings.Contains(content, agentsBlockStart) && strings.Contains(content, agentsBlockEnd) {
-		start := strings.Index(content, agentsBlockStart)
-		end := strings.Index(content, agentsBlockEnd)
-		if start >= 0 && end >= start {
-			end += len(agentsBlockEnd)
-			updated := content[:start] + block + strings.TrimLeft(content[end:], "\n")
-			if err := os.WriteFile(path, []byte(updated), 0o644); err != nil {
-				return false, err
-			}
-			return false, nil
+	statusPrefix := "wrote "
+	if strings.Contains(content, start) && strings.Contains(content, end) {
+		startIdx := strings.Index(content, start)
+		endIdx := strings.Index(content, end)
+		if startIdx >= 0 && endIdx >= startIdx {
+			endIdx += len(end)
+			content = content[:startIdx] + block + strings.TrimLeft(content[endIdx:], "\n")
+			statusPrefix = "updated "
 		}
-	}
-
-	trimmed := strings.TrimRight(content, "\n")
-	if trimmed == "" {
+	} else if strings.TrimSpace(content) == "" {
 		content = block
 	} else {
-		content = trimmed + "\n\n" + block
+		content = strings.TrimRight(content, "\n") + "\n\n" + block
+		statusPrefix = "updated "
 	}
+
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
-		return false, err
+		return "", err
 	}
-	return true, nil
+	return statusPrefix + filepath.Base(path), nil
 }
 
 func ensureGitignoreEntry(path, entry string) (bool, error) {
@@ -197,9 +250,8 @@ func ensureGitignoreEntry(path, entry string) (bool, error) {
 		return false, err
 	}
 
-	lines := []string{}
 	if len(raw) > 0 {
-		lines = strings.Split(strings.ReplaceAll(string(raw), "\r\n", "\n"), "\n")
+		lines := strings.Split(strings.ReplaceAll(string(raw), "\r\n", "\n"), "\n")
 		for _, line := range lines {
 			if strings.TrimSpace(line) == entry {
 				return false, nil

@@ -62,23 +62,33 @@ When imported tasks look like helper or repo-mutating workflows such as `clean`,
 
 The goal is not to guess everything perfectly. The goal is to give you a believable first `fkn.yaml` that humans and agents can edit confidently.
 
-If you also want agent-facing guidance files:
+If you also want repo-specific human and agent docs generated from `fkn.yaml`:
 
 ```bash
-fkn init --agents
+fkn init --docs
 ```
 
 That writes:
 
-- `AGENTS_FKN.md` with repo-specific `fkn` workflow guidance
-- a small managed `fkn` section in `AGENTS.md` pointing agents at `AGENTS_FKN.md`
+- `HUMANS.md` with a people-oriented repo workflow summary
+- `AGENTS.md` with agent workflow guidance and managed `fkn` sections
+- `CLAUDE.md` with the same repo-specific guidance for Claude-style agent flows
 
-The generated `AGENTS_FKN.md` now includes:
+The generated agent docs include:
 
 - task summaries, including scopes, commands, and pipeline steps
 - guard summaries
 - scopes and prompts
 - context, MCP, and watch configuration highlights
+
+If you want agents to explicitly treat `fkn.yaml` as an accrual surface for learned repo knowledge, enable:
+
+```yaml
+agent:
+  accrue_knowledge: true
+```
+
+When enabled, the generated agent docs tell agents to propose structured updates back into `fkn.yaml` for things like dependencies, params, codemap entries, conventions, and glossary terms.
 
 ## Validate Config
 

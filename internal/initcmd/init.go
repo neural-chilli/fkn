@@ -10,7 +10,7 @@ import (
 
 type Options struct {
 	FromRepo bool
-	Agents   bool
+	Docs     bool
 }
 
 const starterConfig = `project: my-project
@@ -49,11 +49,18 @@ scopes:
     paths:
       - cmd/
       - internal/
+
+agent:
+  accrue_knowledge: false
 `
 
 const (
+	humansBlockStart = "<!-- fkn:humans:start -->"
+	humansBlockEnd   = "<!-- fkn:humans:end -->"
 	agentsBlockStart = "<!-- fkn:agents:start -->"
 	agentsBlockEnd   = "<!-- fkn:agents:end -->"
+	claudeBlockStart = "<!-- fkn:claude:start -->"
+	claudeBlockEnd   = "<!-- fkn:claude:end -->"
 )
 
 type inferredTask struct {
@@ -121,29 +128,16 @@ func Run(repoRoot string, opts Options) (string, error) {
 		messages = append(messages, ".gitignore already includes .fkn/")
 	}
 
-	if opts.Agents {
+	if opts.Docs {
 		cfg, err := config.Load(cfgPath)
 		if err != nil {
 			return "", err
 		}
-		agentDoc, err := renderAgentsFKN(cfg)
+		statuses, err := writeDocs(repoRoot, cfg)
 		if err != nil {
 			return "", err
 		}
-		if err := os.WriteFile(filepath.Join(repoRoot, "AGENTS_FKN.md"), []byte(agentDoc), 0o644); err != nil {
-			return "", err
-		}
-		messages = append(messages, "wrote AGENTS_FKN.md")
-
-		updatedAgents, err := ensureAgentsReference(filepath.Join(repoRoot, "AGENTS.md"))
-		if err != nil {
-			return "", err
-		}
-		if updatedAgents {
-			messages = append(messages, "updated AGENTS.md with fkn guidance")
-		} else {
-			messages = append(messages, "AGENTS.md already includes fkn guidance")
-		}
+		messages = append(messages, statuses...)
 	}
 
 	return strings.Join(messages, "\n"), nil
