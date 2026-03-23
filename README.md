@@ -1,5 +1,11 @@
 # fkn
 
+[![CI](https://github.com/neural-chilli/fkn/actions/workflows/ci.yml/badge.svg)](https://github.com/neural-chilli/fkn/actions/workflows/ci.yml)
+[![Release](https://github.com/neural-chilli/fkn/actions/workflows/release.yml/badge.svg)](https://github.com/neural-chilli/fkn/actions/workflows/release.yml)
+[![Latest Release](https://img.shields.io/github/v/release/neural-chilli/fkn)](https://github.com/neural-chilli/fkn/releases)
+[![Go Version](https://img.shields.io/badge/go-1.22%2B-00ADD8)](https://go.dev/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+
 `fkn` is Flow Kit Neu: a repo-local task runner and agent integration layer driven by a single `fkn.yaml`.
 
 It is designed to make a repository's operational surface obvious to both humans and coding agents. The long-term model is simple: one file defines how the repo is built, checked, run, and exposed to agents.
