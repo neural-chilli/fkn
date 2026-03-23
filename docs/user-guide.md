@@ -6,7 +6,7 @@ This guide is the practical walkthrough: what to put in `fkn.yaml`, how the comm
 
 ## Installing fkn
 
-If you are evaluating whether `fkn` should replace or sit on top of an existing Makefile, read [docs/why-not-make.md](/Users/josephfrost/code/fkn/docs/why-not-make.md) too. The short version is that `fkn` is designed to layer over existing repo commands, not force a rip-and-replace.
+If you are evaluating whether `fkn` should replace or sit on top of an existing Makefile, read [docs/why-not-make.md](why-not-make.md) too. The short version is that `fkn` is designed to layer over existing repo commands, not force a rip-and-replace.
 
 If you just want the CLI:
 
@@ -136,7 +136,7 @@ That is the simplest way to confirm a config edit before you try `list`, `guard`
 
 ## Editor Schema
 
-The repo ships [fkn.schema.json](/Users/josephfrost/code/fkn/fkn.schema.json) so editors can validate `fkn.yaml` directly.
+The repo ships [fkn.schema.json](../fkn.schema.json) so editors can validate `fkn.yaml` directly.
 
 For YAML language server clients such as VS Code, add this at the top of `fkn.yaml`:
 

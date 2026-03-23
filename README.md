@@ -22,10 +22,10 @@ YAML is a deliberate part of that story. `fkn.yaml` uses a format that is alread
 
 Start here:
 
-- [User Guide](/Users/josephfrost/code/fkn/docs/user-guide.md)
-- [Why Not Just Use make?](/Users/josephfrost/code/fkn/docs/why-not-make.md)
-- [Release Guide](/Users/josephfrost/code/fkn/docs/releasing.md)
-- [Roadmap](/Users/josephfrost/code/fkn/docs/roadmap.md)
+- [User Guide](docs/user-guide.md)
+- [Why Not Just Use make?](docs/why-not-make.md)
+- [Release Guide](docs/releasing.md)
+- [Roadmap](docs/roadmap.md)
 
 The README is the short version. The user guide is the practical walkthrough with realistic examples.
 
@@ -161,10 +161,10 @@ go run ./cmd/fkn help check
 
 For realistic examples and a full config walkthrough:
 
-- [docs/user-guide.md](/Users/josephfrost/code/fkn/docs/user-guide.md)
-- [docs/why-not-make.md](/Users/josephfrost/code/fkn/docs/why-not-make.md)
+- [docs/user-guide.md](docs/user-guide.md)
+- [docs/why-not-make.md](docs/why-not-make.md)
 
-For editor support, the repo also ships [fkn.schema.json](/Users/josephfrost/code/fkn/fkn.schema.json).
+For editor support, the repo also ships [fkn.schema.json](fkn.schema.json).
 
 ## Example `fkn.yaml`
 
@@ -213,7 +213,7 @@ scopes:
 
 Running `fkn` with no task name executes the configured default task when `default:` is set.
 
-The repo now also ships [fkn.schema.json](/Users/josephfrost/code/fkn/fkn.schema.json), so editors and language servers can validate `fkn.yaml` without needing to run the CLI first.
+The repo now also ships [fkn.schema.json](fkn.schema.json), so editors and language servers can validate `fkn.yaml` without needing to run the CLI first.
 
 Scopes can still be simple path lists, but the richer object form lets you attach intent that shows up in `fkn scope`, `fkn help <task>`, repair briefs, and generated agent docs.
 
@@ -309,11 +309,11 @@ go test ./...
 go run ./cmd/fkn check --dry-run
 ```
 
-GitHub Actions now verifies formatting, runs `go test ./...`, and builds `./cmd/fkn` on pushes to `main` and on pull requests.
+GitHub Actions now verifies formatting, runs `go test ./...`, runs `go vet ./...`, and builds `./cmd/fkn` on pushes to `main` and on pull requests.
 
-The current product direction is described in [fkn-prd-v4.1.md](/Users/josephfrost/code/fkn/fkn-prd-v4.1.md).
+The current product direction is described in [fkn-prd-v4.1.md](fkn-prd-v4.1.md).
 
-The forward-looking feature roadmap is in [docs/roadmap.md](/Users/josephfrost/code/fkn/docs/roadmap.md).
+The forward-looking feature roadmap is in [docs/roadmap.md](docs/roadmap.md).
 
 `fkn docs` now serves embedded copies of the README, user guide, and release guide so installed binaries can explain themselves offline.
 
@@ -321,7 +321,7 @@ The forward-looking feature roadmap is in [docs/roadmap.md](/Users/josephfrost/c
 
 ## Contributing
 
-Contributions are welcome. For the best starting point, read [CONTRIBUTING.md](/Users/josephfrost/code/fkn/CONTRIBUTING.md).
+Contributions are welcome. For the best starting point, read [CONTRIBUTING.md](CONTRIBUTING.md).
 
 If you want to help early, the highest-leverage areas are:
 
@@ -333,4 +333,4 @@ If you want to help early, the highest-leverage areas are:
 
 ## License
 
-This project is licensed under the MIT License. See [LICENSE](/Users/josephfrost/code/fkn/LICENSE).
+This project is licensed under the MIT License. See [LICENSE](LICENSE).

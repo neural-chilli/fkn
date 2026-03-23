@@ -34,7 +34,7 @@ go run ./cmd/fkn list
 go run ./cmd/fkn check --dry-run
 ```
 
-CI runs `gofmt`, `go test ./...`, and `go build ./cmd/fkn` on pushes to `main` and on pull requests.
+CI runs `gofmt`, `go test ./...`, `go vet ./...`, and `go build ./cmd/fkn` on pushes to `main` and on pull requests.
 
 ## Before Opening A PR
 
@@ -55,7 +55,7 @@ Good PRs usually include:
 
 ## Releases
 
-For the current lightweight release flow, see [docs/releasing.md](/Users/josephfrost/code/fkn/docs/releasing.md).
+For the current lightweight release flow, see [docs/releasing.md](docs/releasing.md).
 
 ## Design Notes
 

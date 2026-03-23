@@ -8,8 +8,9 @@ Make sure all of these are true:
 
 - `go test ./...` passes
 - `go build ./cmd/fkn` succeeds
-- [README.md](/Users/josephfrost/code/fkn/README.md) matches current behavior
-- [docs/user-guide.md](/Users/josephfrost/code/fkn/docs/user-guide.md) reflects any user-facing changes
+- `go vet ./...` passes
+- [README.md](../README.md) matches current behavior
+- [docs/user-guide.md](user-guide.md) reflects any user-facing changes
 - CI is green on `main`
 
 ## Suggested First Release

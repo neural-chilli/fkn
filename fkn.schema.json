@@ -7,92 +7,105 @@
   "additionalProperties": false,
   "required": ["tasks"],
   "properties": {
-    "project": { "type": "string" },
-    "description": { "type": "string" },
-    "default": { "type": "string" },
-    "env_file": { "type": "string" },
-    "defaults": { "$ref": "#/$defs/defaults" },
+    "project": { "type": "string", "description": "Short repository or project name shown in generated docs and context output." },
+    "description": { "type": "string", "description": "Human-readable summary of what this repository contains or does." },
+    "default": { "type": "string", "description": "Task or alias to run when `fkn` is invoked without an explicit task name." },
+    "env_file": { "type": "string", "description": "Optional `.env`-style file to load before task execution." },
+    "defaults": { "$ref": "#/$defs/defaults", "description": "Global defaults inherited by tasks unless they override them." },
     "tasks": {
       "type": "object",
       "minProperties": 1,
+      "description": "Named tasks that define the operational surface of the repository.",
       "additionalProperties": { "$ref": "#/$defs/task" }
     },
     "aliases": {
       "type": "object",
+      "description": "Short alternative names that resolve to real tasks.",
       "additionalProperties": { "type": "string" }
     },
     "groups": {
       "type": "object",
+      "description": "Human-oriented task families used for discovery and help output.",
       "additionalProperties": { "$ref": "#/$defs/group" }
     },
     "guards": {
       "type": "object",
+      "description": "Reusable validation bundles that run all listed steps and report a combined result.",
       "additionalProperties": { "$ref": "#/$defs/guard" }
     },
     "scopes": {
       "type": "object",
+      "description": "Named path sets that describe where related code lives and what that area means.",
       "additionalProperties": { "$ref": "#/$defs/scope" }
     },
     "prompts": {
       "type": "object",
+      "description": "Reusable prompt templates that can render repo-aware handoff or workflow text.",
       "additionalProperties": { "$ref": "#/$defs/prompt" }
     },
-    "agent": { "$ref": "#/$defs/agent" },
-    "context": { "$ref": "#/$defs/context" },
-    "codemap": { "$ref": "#/$defs/codemap" },
-    "serve": { "$ref": "#/$defs/serve" },
-    "watch": { "$ref": "#/$defs/watch" }
+    "agent": { "$ref": "#/$defs/agent", "description": "Agent-specific repo policy and knowledge-accrual settings." },
+    "context": { "$ref": "#/$defs/context", "description": "Controls for generated context documents and bounded repo summaries." },
+    "codemap": { "$ref": "#/$defs/codemap", "description": "Semantic explanations of important packages, conventions, and glossary terms." },
+    "serve": { "$ref": "#/$defs/serve", "description": "Reserved transport settings for the dormant internal MCP implementation." },
+    "watch": { "$ref": "#/$defs/watch", "description": "Defaults for rerunning tasks or guards when repo files change." }
   },
   "$defs": {
     "defaults": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "dir": { "type": "string" }
+        "dir": { "type": "string", "description": "Default working directory for tasks that do not declare their own `dir`." }
       }
     },
     "task": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "desc": { "type": "string" },
-        "cmd": { "type": "string" },
+        "desc": { "type": "string", "description": "Human-readable explanation shown in help, list output, and generated docs." },
+        "cmd": { "type": "string", "description": "Shell command to execute for a single-command task." },
         "steps": {
           "type": "array",
+          "description": "Ordered child task names for a pipeline task.",
           "items": { "type": "string" },
           "minItems": 1
         },
         "needs": {
           "type": "array",
+          "description": "Task dependencies that must run successfully before the task itself starts.",
           "items": { "type": "string" }
         },
-        "parallel": { "type": "boolean" },
+        "parallel": { "type": "boolean", "description": "Run pipeline steps concurrently instead of sequentially." },
         "params": {
           "type": "object",
+          "description": "Declared task inputs that can map to flags, env vars, and positional args.",
           "additionalProperties": { "$ref": "#/$defs/param" }
         },
         "env": {
           "type": "object",
+          "description": "Environment variables to set when running this task.",
           "additionalProperties": { "type": "string" }
         },
-        "dir": { "type": "string" },
-        "shell": { "type": "string" },
+        "dir": { "type": "string", "description": "Working directory for this task, relative to the repo root." },
+        "shell": { "type": "string", "description": "Override shell executable for this task." },
         "shell_args": {
           "type": "array",
+          "description": "Arguments passed to the configured shell before the task command.",
           "items": { "type": "string" }
         },
         "safety": {
           "type": "string",
+          "description": "Safety classification used for help output, planning, and execution gating.",
           "enum": ["safe", "idempotent", "destructive", "external"]
         },
         "error_format": {
           "type": "string",
+          "description": "Structured stderr parser to apply to task output for JSON and repair flows.",
           "enum": ["go_test", "pytest", "tsc", "eslint", "generic"]
         },
-        "timeout": { "type": "string" },
-        "continue_on_error": { "type": "boolean" },
-        "agent": { "type": "boolean" },
-        "scope": { "type": "string" }
+        "timeout": { "type": "string", "description": "Execution timeout using Go duration syntax such as `30s` or `5m`." },
+        "continue_on_error": { "type": "boolean", "description": "Continue running later pipeline steps after a failure." },
+        "agent": { "type": "boolean", "description": "Whether this task should be treated as agent-visible by default." },
+        "scope": { "type": "string", "description": "Named scope that best describes where this task operates." }
       },
       "required": ["desc"],
       "oneOf": [
@@ -104,12 +117,12 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "desc": { "type": "string" },
-        "env": { "type": "string" },
-        "required": { "type": "boolean" },
-        "default": { "type": "string" },
-        "position": { "type": "integer", "minimum": 1 },
-        "variadic": { "type": "boolean" }
+        "desc": { "type": "string", "description": "Human-readable explanation of what this input means." },
+        "env": { "type": "string", "description": "Environment variable used to inject this param into the underlying command." },
+        "required": { "type": "boolean", "description": "Require the caller to provide this param explicitly." },
+        "default": { "type": "string", "description": "Default value used when the caller omits this param." },
+        "position": { "type": "integer", "minimum": 1, "description": "Optional positional argument index for CLI invocation." },
+        "variadic": { "type": "boolean", "description": "Treat this positional param as a final catch-all variadic argument." }
       },
       "required": ["env"]
     },
@@ -120,6 +133,7 @@
       "properties": {
         "steps": {
           "type": "array",
+          "description": "Tasks to run for this guard in order, reporting all results.",
           "items": { "type": "string" },
           "minItems": 1
         }
@@ -130,9 +144,10 @@
       "additionalProperties": false,
       "required": ["tasks"],
       "properties": {
-        "desc": { "type": "string" },
+        "desc": { "type": "string", "description": "Human-readable explanation of the task family." },
         "tasks": {
           "type": "array",
+          "description": "Tasks that belong to this group.",
           "items": { "type": "string" },
           "minItems": 1
         }
@@ -142,6 +157,7 @@
       "oneOf": [
         {
           "type": "array",
+          "description": "Simple scope form: a list of repo-relative paths.",
           "items": { "type": "string" },
           "minItems": 1
         },
@@ -150,9 +166,10 @@
           "additionalProperties": false,
           "required": ["paths"],
           "properties": {
-            "desc": { "type": "string" },
+            "desc": { "type": "string", "description": "Intent or explanation for this scope." },
             "paths": {
               "type": "array",
+              "description": "Repo-relative paths that belong to this scope.",
               "items": { "type": "string" },
               "minItems": 1
             }
@@ -165,57 +182,61 @@
       "additionalProperties": false,
       "required": ["desc", "template"],
       "properties": {
-        "desc": { "type": "string" },
-        "template": { "type": "string" }
+        "desc": { "type": "string", "description": "Short explanation of when to use this prompt." },
+        "template": { "type": "string", "description": "Prompt template with supported `{{...}}` repo variables." }
       }
     },
     "agent": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "accrue_knowledge": { "type": "boolean" }
+        "accrue_knowledge": { "type": "boolean", "description": "Tell generated agent docs to propose structured `fkn.yaml` updates when repo knowledge is discovered." }
       }
     },
     "context": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "file_tree": { "type": "boolean" },
-        "git_log_lines": { "type": "integer", "minimum": 0 },
-        "git_diff": { "type": "boolean" },
-        "todos": { "type": "boolean" },
-        "dependencies": { "type": "boolean" },
+        "file_tree": { "type": "boolean", "description": "Include a repo file tree in generated context output." },
+        "git_log_lines": { "type": "integer", "minimum": 0, "description": "Default number of recent git log lines to include." },
+        "git_diff": { "type": "boolean", "description": "Include a recent git diff section in context output." },
+        "todos": { "type": "boolean", "description": "Include discovered TODO and FIXME lines in context output." },
+        "dependencies": { "type": "boolean", "description": "Include dependency manifest excerpts such as `go.mod` or `package.json`." },
         "agent_files": {
           "type": "array",
+          "description": "Repo files to prioritize for agent-oriented context output.",
           "items": { "type": "string" }
         },
         "files": {
           "type": "array",
+          "description": "Specific files to include in bounded context output.",
           "items": { "type": "string" }
         },
         "include": {
           "type": "array",
+          "description": "Path globs to include when building the file tree and related context sections.",
           "items": { "type": "string" }
         },
         "exclude": {
           "type": "array",
+          "description": "Path globs to exclude from file tree and related context sections.",
           "items": { "type": "string" }
         },
-        "caps": { "$ref": "#/$defs/contextCaps" }
+        "caps": { "$ref": "#/$defs/contextCaps", "description": "Bounds used to keep context output compact and predictable." }
       }
     },
     "contextCaps": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "file_tree_entries": { "type": "integer", "minimum": 0 },
-        "files_max": { "type": "integer", "minimum": 0 },
-        "file_lines": { "type": "integer", "minimum": 0 },
-        "git_log_lines": { "type": "integer", "minimum": 0 },
-        "git_diff_lines": { "type": "integer", "minimum": 0 },
-        "todos_max": { "type": "integer", "minimum": 0 },
-        "agent_file_lines": { "type": "integer", "minimum": 0 },
-        "dependency_lines": { "type": "integer", "minimum": 0 }
+        "file_tree_entries": { "type": "integer", "minimum": 0, "description": "Maximum number of file tree entries to include." },
+        "files_max": { "type": "integer", "minimum": 0, "description": "Maximum number of explicit file excerpts to include." },
+        "file_lines": { "type": "integer", "minimum": 0, "description": "Maximum lines per included file excerpt." },
+        "git_log_lines": { "type": "integer", "minimum": 0, "description": "Maximum git log lines allowed in bounded context." },
+        "git_diff_lines": { "type": "integer", "minimum": 0, "description": "Maximum git diff lines allowed in bounded context." },
+        "todos_max": { "type": "integer", "minimum": 0, "description": "Maximum TODO or FIXME matches to include." },
+        "agent_file_lines": { "type": "integer", "minimum": 0, "description": "Maximum lines per configured agent file excerpt." },
+        "dependency_lines": { "type": "integer", "minimum": 0, "description": "Maximum lines per dependency manifest excerpt." }
       }
     },
     "codemap": {
@@ -224,14 +245,17 @@
       "properties": {
         "packages": {
           "type": "object",
+          "description": "Named package or directory explanations used by `fkn explain` and agent context.",
           "additionalProperties": { "$ref": "#/$defs/codemapPackage" }
         },
         "conventions": {
           "type": "array",
+          "description": "Cross-cutting repo conventions that are useful in generated docs and context.",
           "items": { "type": "string" }
         },
         "glossary": {
           "type": "object",
+          "description": "Project-specific terms and definitions for humans and agents.",
           "additionalProperties": { "type": "string" }
         }
       }
@@ -241,21 +265,25 @@
       "additionalProperties": false,
       "required": ["desc"],
       "properties": {
-        "desc": { "type": "string" },
+        "desc": { "type": "string", "description": "High-level description of the package or directory." },
         "key_types": {
           "type": "array",
+          "description": "Important types, interfaces, or concepts defined in this package.",
           "items": { "type": "string" }
         },
         "entry_points": {
           "type": "array",
+          "description": "Functions, commands, or files that usually serve as entry points.",
           "items": { "type": "string" }
         },
         "conventions": {
           "type": "array",
+          "description": "Package-specific implementation conventions or rules of thumb.",
           "items": { "type": "string" }
         },
         "depends_on": {
           "type": "array",
+          "description": "Other packages or subsystems this package relies on conceptually.",
           "items": { "type": "string" }
         }
       }
@@ -266,19 +294,21 @@
       "properties": {
         "transport": {
           "type": "string",
+          "description": "Dormant internal transport mode placeholder.",
           "enum": ["stdio", "http"]
         },
-        "port": { "type": "integer", "minimum": 1 },
-        "token_env": { "type": "string" }
+        "port": { "type": "integer", "minimum": 1, "description": "Dormant internal network port placeholder." },
+        "token_env": { "type": "string", "description": "Dormant internal auth token env var placeholder." }
       }
     },
     "watch": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "debounce_ms": { "type": "integer", "minimum": 0 },
+        "debounce_ms": { "type": "integer", "minimum": 0, "description": "Debounce window in milliseconds between watch-triggered reruns." },
         "paths": {
           "type": "array",
+          "description": "Repo-relative files, directories, or globs to watch for changes.",
           "items": { "type": "string" }
         }
       }
