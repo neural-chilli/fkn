@@ -30,6 +30,7 @@ Start here:
 
 - [User Guide](docs/user-guide.md)
 - [Why Not Just Use make?](docs/why-not-make.md)
+- [Changelog](CHANGELOG.md)
 - [Release Guide](docs/releasing.md)
 - [Roadmap](docs/roadmap.md)
 
