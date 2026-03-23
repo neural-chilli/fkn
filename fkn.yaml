@@ -71,6 +71,9 @@ prompts:
       {{git_diff}}
       Unknown variable should remain: {{unknown_var}}
 
+agent:
+  accrue_knowledge: true
+
 context:
   file_tree: true
   git_log_lines: 10
@@ -125,16 +128,6 @@ codemap:
         - All command execution flows through runCommand
       depends_on:
         - internal/config
-    internal/mcp:
-      desc: MCP server implementation for stdio and HTTP transports.
-      key_types:
-        - Server
-        - Tool
-      entry_points:
-        - Server.ServeStdio
-        - Server.ServeHTTP
-      depends_on:
-        - internal/runner
   conventions:
     - Prefer explicit config over silent inference
     - JSON output contracts are part of the public interface
@@ -142,11 +135,6 @@ codemap:
     task: A named unit of work with either cmd or steps
     guard: A validation-oriented step list that always runs all steps
     scope: A named list of file paths used to constrain work
-
-serve:
-  transport: stdio
-  port: 8080
-  token_env: FKN_MCP_TOKEN
 
 watch:
   debounce_ms: 500

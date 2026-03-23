@@ -1,10 +1,10 @@
 # Product Requirements Document: `fkn` — Flow Kit Neu
 
-**Version:** 0.4.1  
-**Status:** Ready to Build  
+**Version:** 0.5.0  
+**Status:** Updated to current direction  
 **Author:** TBD  
-**Last Updated:** 2026-03-21  
-**Changelog:** v0.4.1 — added exit code contract table, `fkn list --mcp`, global `env_file`, `{{os}}` prompt variable, `fkn init` adds `.fkn/` to `.gitignore`, tightened truncation marker wording to address agent file-end assumption risk, parallel `continue_on_error` added to open questions.
+**Last Updated:** 2026-03-23  
+**Changelog:** v0.5.0 — removed MCP from the public product surface, made `fkn init --docs` and generated `HUMANS.md` / `AGENTS.md` / `CLAUDE.md` core features, added `agent.accrue_knowledge`, broadened `init --from-repo`, and aligned the PRD with the current shipped direction.
 
 ---
 
@@ -31,9 +31,9 @@
 
 `fkn` is a single interface that exposes how a repository is built, checked, run, and governed.
 
-**`fkn.yaml` is the operational API of the repo.** The task manifest, MCP tool surface, validation pipeline, context document, and agent prompts are all derived from one file. There is no second config, no separate manifest, no generated code to keep in sync.
+**`fkn.yaml` is the operational API of the repo.** The task manifest, validation pipeline, context document, generated human/agent docs, and agent prompts are all derived from one file. There is no second config, no separate manifest, and no generated code to keep in sync.
 
-`fkn` is a repo-agnostic, YAML-configured task runner and AI agent integration tool. It simplifies complex or frequently forgotten commands, orchestrates multi-step workflows with optional parallelism, and makes repository capabilities available to AI coding agents — as callable MCP tools, as structured JSON output, and as bounded context documents.
+`fkn` is a repo-agnostic, YAML-configured task runner and AI agent integration tool. It simplifies complex or frequently forgotten commands, orchestrates multi-step workflows with optional parallelism, and makes repository capabilities available to humans and AI coding agents through structured config, generated docs, stable JSON output, and bounded context documents.
 
 The binary is named `fkn`. All configuration lives in `fkn.yaml` at the repo root.
 
@@ -82,7 +82,8 @@ This problem is compounded in AI-assisted development:
 - Provide a simple, memorable CLI for running repo-defined tasks
 - Support sequential and parallel multi-step task pipelines
 - Be language- and framework-agnostic; work in any repo
-- Expose tasks as MCP tools for AI coding agent consumption
+- Generate repo-specific docs for humans and coding agents from the same source of truth
+- Support knowledge accrual back into `fkn.yaml` through an explicit agent workflow
 - Generate bounded, high-signal context documents for LLM consumption
 - Define stable JSON output contracts for agent-facing commands
 - Keep configuration simple: single-file YAML with obvious structure
@@ -112,7 +113,7 @@ Engineers who want to standardise how tasks are invoked across a team. They defi
 
 ### Tertiary: AI Coding Agents
 
-MCP-compatible agents consuming the `fkn serve` endpoint. From the agent's perspective, `fkn` is a set of callable tools that map directly to how the repo works.
+Agents that can read repo files and run local commands. From the agent's perspective, `fkn` is the structured interface that explains how the repo works and which commands are safe and relevant.
 
 ---
 
@@ -156,13 +157,13 @@ Define named tasks in `fkn.yaml`, run them with `fkn <task-name>`.
 
 - Tasks support a single `cmd` (shell string) or a list of `steps`; not both
 - Steps may be a reference to another named task or an inline shell command string
-- `desc` field is required; shown in help output and MCP manifest
+- `desc` field is required; shown in help output and generated docs
 - `env` map of key-value pairs injected as environment variables for this task
 - `dir` field sets working directory relative to repo root (default: repo root)
 - Task output is streamed in real time, not buffered
 - Non-zero exit codes and missing binaries are both `fail`; see exit code table in [Section 1](#1-overview)
 - `timeout` field (e.g. `"5m"`) kills the process after the specified duration; step status is `timeout`, exit code `124`
-- `agent: false` excludes a task from the MCP manifest (default: `true`)
+- `agent: false` marks a task as not intended for autonomous agent use (default: `true`)
 - `scope` field associates a named scope with this task, used in `fkn context --agent`
 
 **Pipeline semantics (`continue_on_error`):**
@@ -191,42 +192,20 @@ Define named tasks in `fkn.yaml`, run them with `fkn <task-name>`.
 
 ---
 
-### 6.3 MCP Server Mode (`fkn serve`)
+### 6.3 Generated Docs and Knowledge Accrual (`fkn init --docs`)
 
-**Priority:** P0 — Killer feature.
+**Priority:** P0 — Core differentiator.
 
-Exposes all defined tasks as callable MCP tools. `fkn.yaml` becomes the tool manifest.
+`fkn init --docs` generates repo-specific guidance for humans and coding agents directly from `fkn.yaml`.
 
 **Requirements:**
 
-- `fkn serve` starts an MCP server; default transport is **stdio** (standard for local agent use)
-- `fkn serve --http --port 8080` starts an HTTP+SSE server; intended for local team use, not public hosting
-- Each task where `agent: true` is exposed as an MCP tool; `desc` is the tool description
-- The MCP tool manifest is auto-generated from `fkn.yaml`; no separate file required
-- Tool responses include stdout, stderr, exit code, and duration
-- **Auth (HTTP mode):** Token is read from the environment variable named in `serve.token_env` (default: `FKN_MCP_TOKEN`). If the env var is unset, HTTP mode starts unauthenticated with a warning. Tokens are never stored in `fkn.yaml`
-
-**MCP Tool Schema (per task):**
-
-```json
-{
-  "name": "wheel",
-  "description": "Build Python distribution wheel",
-  "inputSchema": {
-    "type": "object",
-    "properties": {
-      "env": {
-        "type": "object",
-        "description": "Optional env var overrides for this invocation"
-      },
-      "dry_run": {
-        "type": "boolean",
-        "description": "Print the command without executing it"
-      }
-    }
-  }
-}
-```
+- Generate `HUMANS.md`, `AGENTS.md`, and `CLAUDE.md`
+- Use managed block markers so generated sections can be updated safely
+- Preserve content outside the managed blocks
+- Keep generated content aligned with tasks, guards, scopes, prompts, codemap, context, and watch configuration
+- When `agent.accrue_knowledge: true` is set, include explicit instructions telling agents how to propose structured updates back into `fkn.yaml`
+- `HUMANS.md` is onboarding-oriented; `AGENTS.md` and `CLAUDE.md` include agent-specific workflow guidance like safety and knowledge accrual
 
 ---
 
@@ -379,17 +358,14 @@ Re-runs a task on file system changes. Especially useful as `fkn watch guard` du
 
 **Priority:** P1.
 
-`--json` is supported on key commands. This is the primary interface for agent consumption outside of MCP. Schemas are stable and versioned (see [Section 7](#7-json-output-contracts)).
+`--json` is supported on key commands. This is the primary structured interface for agent consumption. Schemas are stable and versioned (see [Section 7](#7-json-output-contracts)).
 
 | Command | JSON content |
 |---|---|
 | `fkn list --json` | Array of task descriptors |
-| `fkn list --mcp` | MCP tool manifest preview (same payload `fkn serve` broadcasts) |
 | `fkn <task> --json` | Task execution result with per-step detail |
 | `fkn guard --json` | Guard report |
 | `fkn scope <n> --json` | Scope object with name and path array |
-
-`fkn list --mcp` is a dry-run preview of the MCP manifest — it prints exactly what `fkn serve` would broadcast without starting the server. Use it to verify `agent: true/false` configuration before connecting an agent.
 
 ---
 
@@ -435,31 +411,7 @@ See exit code table in [Section 1](#1-overview) for the mapping to process exit 
 }
 ```
 
-### 7.2 `fkn list --mcp`
-
-Prints the MCP tool manifest as it would be broadcast by `fkn serve`. Same JSON structure as the MCP tools array. Does not start a server.
-
-```json
-{
-  "tools": [
-    {
-      "name": "wheel",
-      "description": "Build Python distribution wheel",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "env": { "type": "object" },
-          "dry_run": { "type": "boolean" }
-        }
-      }
-    }
-  ]
-}
-```
-
----
-
-### 7.3 `fkn <task> --json`
+### 7.2 `fkn <task> --json`
 
 Single `cmd` task:
 
@@ -621,7 +573,7 @@ tasks:
     dir: "relative/path"              # working directory (default: repo root)
     timeout: "5m"                     # kill after duration; step status becomes "timeout" (exit 124)
     continue_on_error: false          # sequential pipelines only; ignored for parallel with warning
-    agent: true                       # expose in MCP manifest (default: true)
+    agent: true                       # intended for autonomous agent use (default: true)
     scope: api                        # associated scope name (optional); used in context --agent
 
 # --- Guards ---
@@ -677,12 +629,9 @@ prompts:
       Branch: {{git_branch}}
       {{git_diff}}
 
-# --- MCP Server ---
-serve:
-  transport: stdio                    # stdio | http (default: stdio)
-  port: 8080                          # used when transport: http
-  token_env: FKN_MCP_TOKEN            # env var name for bearer token (HTTP mode only)
-                                      # tokens are never stored in fkn.yaml
+# --- Agent Behaviour ---
+agent:
+  accrue_knowledge: true              # generated agent docs instruct agents to propose structured fkn.yaml updates
 
 # --- Watch ---
 watch:
@@ -700,7 +649,7 @@ fkn <task> --dry-run                 Print command without executing
 fkn <task> --json                    Output result as JSON
 fkn list                             List all tasks with descriptions
 fkn list --json                      Task list as JSON
-fkn list --mcp                       Preview MCP tool manifest without starting server
+fkn init --docs                      Generate HUMANS.md, AGENTS.md, and CLAUDE.md
 fkn help [task]                      Show help, or detail for a named task
 fkn --version                        Print fkn version (also: fkn version)
 
@@ -723,9 +672,6 @@ fkn prompt <n> --copy                Copy to clipboard
 fkn watch <task>                     Re-run task on file changes
 fkn watch <task> --path <glob>       Watch specific paths
 
-fkn serve                            Start MCP server (stdio)
-fkn serve --http --port 8080         Start MCP server (HTTP+SSE)
-
 fkn init                             Scaffold a starter fkn.yaml and update .gitignore
 fkn version                          Print fkn version (also: fkn --version)
 ```
@@ -740,7 +686,6 @@ fkn version                          Print fkn version (also: fkn --version)
 - **Distribution:** Single static binary via GoReleaser; `brew`, `curl | sh`, direct download
 - **Config:** `gopkg.in/yaml.v3`
 - **File watching:** `github.com/fsnotify/fsnotify`
-- **MCP:** Evaluate available Go MCP libraries at implementation time; surface area is small enough to hand-roll cleanly
 - **Clipboard:** `github.com/atotto/clipboard`
 
 ### Package Structure
@@ -753,14 +698,12 @@ fkn/
 ├── internal/
 │   ├── config/                   # fkn.yaml loading, validation, defaults
 │   ├── runner/                   # Task execution, pipeline orchestration
-│   ├── parallel/                 # Concurrent step execution, output muxing
-│   ├── mcp/                      # MCP server, manifest generation, list --mcp
 │   ├── context/                  # Context document generation, section caps
 │   ├── guard/                    # Guard runner, report formatter, result cache
 │   ├── prompt/                   # Prompt template rendering
 │   ├── scope/                    # Scope path resolution and formatting
 │   ├── watch/                    # File watcher
-│   └── shell/                    # Cross-platform shell invocation
+│   └── initcmd/                  # Repo scaffolding and generated docs
 ├── .fkn/                         # Runtime state — add to .gitignore
 │   └── last-guard.json           # Cached guard result for context --agent
 ├── fkn.yaml                      # fkn's own tasks (dogfood)
@@ -774,11 +717,11 @@ Scaffolds a starter `fkn.yaml` in the current directory. Also appends `.fkn/` to
 
 ### Key Design Principles
 
-- **`fkn.yaml` is the operational API of the repo.** The MCP manifest, help text, context documents, and JSON schemas are all derived from one file.
+- **`fkn.yaml` is the operational API of the repo.** Help text, generated docs, context documents, and JSON schemas are all derived from one file.
 - **Shell transparency.** Commands are passed to the system shell as-is. `fkn` does not parse or interpret them.
 - **Fail loudly.** Missing tasks, malformed config, missing binaries, and non-zero exits are all `fail`. No silent failures, no benign-looking status codes for broken environments.
 - **Task output is streamed** in real time, not buffered.
-- **No daemon.** `fkn serve` is the only long-running mode.
+- **No daemon.** Commands are short-lived; `watch` is the only intentionally long-running public mode.
 - **JSON contracts are stable.** The schemas in Section 7 are v1 commitments. Breaking changes require a major version bump.
 
 ---
@@ -817,19 +760,13 @@ Scaffolds a starter `fkn.yaml` in the current directory. Also appends `.fkn/` to
 ## 12. Installation and Distribution
 
 ```bash
-# Homebrew
-brew install fkn
-
-# Shell installer
-curl -fsSL https://fkn.dev/install.sh | sh
-
 # Go install
-go install github.com/<org>/fkn@latest
+go install github.com/neural-chilli/fkn/cmd/fkn@latest
 ```
 
-Supported platforms: macOS (arm64, amd64), Linux (amd64, arm64), Windows (amd64).
+Tagged releases also publish prebuilt archives for macOS, Linux, and Windows.
 
-GoReleaser manages cross-compilation, checksums, and Homebrew tap updates.
+GoReleaser manages cross-compilation, checksums, and GitHub release assets.
 
 ---
 
@@ -837,7 +774,7 @@ GoReleaser manages cross-compilation, checksums, and Homebrew tap updates.
 
 | # | Question | Notes |
 |---|----------|-------|
-| 1 | MCP Go SDK or hand-roll? | Surface area is small; hand-rolling is reasonable if no stable Go SDK exists |
+| 1 | Should `init --from-repo` imply `--docs`? | A strong suggestion may be better than surprising users with generated files |
 | 2 | Monorepo: per-subdirectory `fkn.yaml` with inheritance? | Strong candidate for v1.1 |
 | 3 | Should `fkn init` offer language-specific starter templates? | Nice to have; not critical path |
 | 4 | `.fkn/` directory — should location be configurable? | Defaulting to repo root is simplest; revisit for monorepo support |

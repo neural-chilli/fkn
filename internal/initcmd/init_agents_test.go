@@ -147,9 +147,14 @@ func TestRenderAgentDocIncludesKnowledgeAccrualGuidance(t *testing.T) {
 			AgentFiles: []string{"README.md"},
 			Include:    []string{"cmd/", "internal/"},
 		},
-		Serve: config.ServeConfig{
-			Transport: "stdio",
-			Port:      8080,
+		Codemap: config.CodemapConfig{
+			Packages: map[string]config.CodemapPackage{
+				"internal/backend": {Desc: "Backend service layer"},
+			},
+			Conventions: []string{"Keep handlers thin"},
+			Glossary: map[string]string{
+				"tenant": "An isolated customer account",
+			},
 		},
 		Watch: config.WatchConfig{
 			DebounceMS: 500,
@@ -165,11 +170,50 @@ func TestRenderAgentDocIncludesKnowledgeAccrualGuidance(t *testing.T) {
 		"`check`: Run checks",
 		"Scope Description: Backend workflows",
 		"Needs: `setup`",
-		"## MCP",
+		"## Codemap",
 		"## Watch",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("renderAgentDoc() = %q, want %q", got, want)
+		}
+	}
+}
+
+func TestRenderHumansDocIncludesPromptsAndCodemapWhenConfigured(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{
+		Project:     "demo",
+		Description: "Demo repo",
+		Default:     "check",
+		Tasks: map[string]config.Task{
+			"check": {Desc: "Run checks", Cmd: "make check"},
+		},
+		Prompts: map[string]config.Prompt{
+			"continue-backend": {Desc: "Continue backend work"},
+		},
+		Codemap: config.CodemapConfig{
+			Packages: map[string]config.CodemapPackage{
+				"internal/backend": {Desc: "Backend service layer"},
+			},
+			Conventions: []string{"Keep handlers thin"},
+			Glossary: map[string]string{
+				"tenant": "An isolated customer account",
+			},
+		},
+	}
+
+	got := renderHumansDoc(cfg)
+	for _, want := range []string{
+		"## Prompts",
+		"`continue-backend`: Continue backend work",
+		"## Codemap",
+		"`internal/backend`: Backend service layer",
+		"Conventions:",
+		"Glossary:",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("renderHumansDoc() = %q, want %q", got, want)
 		}
 	}
 }

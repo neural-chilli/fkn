@@ -92,6 +92,9 @@ func TestRunFromRepoInfersGoTasks(t *testing.T) {
 	if !strings.Contains(msg, "scaffolded tasks from existing repo files") {
 		t.Fatalf("Run() message = %q, want inferred scaffold note", msg)
 	}
+	if !strings.Contains(msg, "tip: run `fkn init --docs`") {
+		t.Fatalf("Run() message = %q, want docs hint", msg)
+	}
 
 	cfg, err := os.ReadFile(filepath.Join(dir, "fkn.yaml"))
 	if err != nil {
@@ -106,6 +109,9 @@ func TestRunFromRepoInfersGoTasks(t *testing.T) {
 	}
 	if !strings.Contains(got, "default: check") {
 		t.Fatalf("fkn.yaml = %q, want inferred default task", got)
+	}
+	if !strings.Contains(got, "agent:\n  accrue_knowledge: true\n") {
+		t.Fatalf("fkn.yaml = %q, want inferred agent accrual enabled", got)
 	}
 	if !strings.Contains(got, "cmd: go build ./...") {
 		t.Fatalf("fkn.yaml = %q, want Go build task", got)

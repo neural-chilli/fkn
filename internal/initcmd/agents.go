@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/neural-chilli/fkn/internal/config"
@@ -52,6 +53,8 @@ func renderHumansDoc(cfg *config.Config) string {
 	writeGuardSection(&builder, cfg)
 	writeGroupSection(&builder, cfg)
 	writeScopeSection(&builder, cfg)
+	writePromptSection(&builder, cfg)
+	writeCodemapSection(&builder, cfg)
 	return builder.String()
 }
 
@@ -82,8 +85,8 @@ func renderAgentDoc(name string, cfg *config.Config) string {
 	writeGroupSection(&builder, cfg)
 	writeScopeSection(&builder, cfg)
 	writePromptSection(&builder, cfg)
+	writeCodemapSection(&builder, cfg)
 	writeContextSection(&builder, cfg)
-	writeServeSection(&builder, cfg)
 	writeWatchSection(&builder, cfg)
 	if cfg.Agent.AccrueKnowledge {
 		writeKnowledgeSection(&builder)
@@ -168,6 +171,41 @@ func writePromptSection(builder *strings.Builder, cfg *config.Config) {
 	}
 }
 
+func writeCodemapSection(builder *strings.Builder, cfg *config.Config) {
+	if len(cfg.Codemap.Packages) == 0 && len(cfg.Codemap.Conventions) == 0 && len(cfg.Codemap.Glossary) == 0 {
+		return
+	}
+	builder.WriteString("\n## Codemap\n\n")
+	if len(cfg.Codemap.Packages) > 0 {
+		packageNames := make([]string, 0, len(cfg.Codemap.Packages))
+		for name := range cfg.Codemap.Packages {
+			packageNames = append(packageNames, name)
+		}
+		sort.Strings(packageNames)
+		for _, name := range packageNames {
+			pkg := cfg.Codemap.Packages[name]
+			builder.WriteString(fmt.Sprintf("- `%s`: %s\n", name, pkg.Desc))
+		}
+	}
+	if len(cfg.Codemap.Conventions) > 0 {
+		builder.WriteString("\nConventions:\n")
+		for _, convention := range cfg.Codemap.Conventions {
+			builder.WriteString(fmt.Sprintf("- %s\n", convention))
+		}
+	}
+	if len(cfg.Codemap.Glossary) > 0 {
+		builder.WriteString("\nGlossary:\n")
+		glossaryTerms := make([]string, 0, len(cfg.Codemap.Glossary))
+		for term := range cfg.Codemap.Glossary {
+			glossaryTerms = append(glossaryTerms, term)
+		}
+		sort.Strings(glossaryTerms)
+		for _, term := range glossaryTerms {
+			builder.WriteString(fmt.Sprintf("- `%s`: %s\n", term, cfg.Codemap.Glossary[term]))
+		}
+	}
+}
+
 func writeContextSection(builder *strings.Builder, cfg *config.Config) {
 	builder.WriteString("\n## Context\n\n")
 	builder.WriteString("- Use `fkn context` for a general repo briefing.\n")
@@ -178,18 +216,6 @@ func writeContextSection(builder *strings.Builder, cfg *config.Config) {
 	if len(cfg.Context.Include) > 0 {
 		builder.WriteString(fmt.Sprintf("- Included paths: `%s`\n", strings.Join(cfg.Context.Include, "`, `")))
 	}
-}
-
-func writeServeSection(builder *strings.Builder, cfg *config.Config) {
-	if cfg.Serve.Transport == "" && cfg.Serve.Port == 0 {
-		return
-	}
-	builder.WriteString("\n## MCP\n\n")
-	builder.WriteString(fmt.Sprintf("- Serve transport: `%s`\n", cfg.Serve.Transport))
-	if cfg.Serve.Port != 0 {
-		builder.WriteString(fmt.Sprintf("- HTTP port: `%d`\n", cfg.Serve.Port))
-	}
-	builder.WriteString("- Use `fkn list --mcp` to inspect exposed agent tools.\n")
 }
 
 func writeWatchSection(builder *strings.Builder, cfg *config.Config) {

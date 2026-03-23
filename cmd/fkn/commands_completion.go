@@ -35,6 +35,9 @@ func runCompletion(args []string, stdout, stderr *os.File) int {
 }
 
 func runComplete(args []string, stdout, stderr *os.File) int {
+	// Completions should still work for top-level commands even when the repo
+	// has no valid fkn.yaml yet, so config load failures intentionally degrade
+	// to a nil config instead of surfacing an error.
 	cfg, _, err := loadConfig()
 	if err != nil {
 		cfg = nil

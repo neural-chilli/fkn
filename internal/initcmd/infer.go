@@ -71,6 +71,8 @@ func inferConfig(repoRoot string) string {
 
 	writeAliasConfig(&builder, aliases)
 	writeGuardConfig(&builder, tasks)
+	builder.WriteString("\nagent:\n")
+	builder.WriteString("  accrue_knowledge: true\n")
 	writeWatchConfig(&builder, repoRoot)
 	return builder.String()
 }

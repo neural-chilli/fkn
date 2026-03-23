@@ -113,6 +113,9 @@ func Run(repoRoot string, opts Options) (string, error) {
 		messages = append(messages, "created fkn.yaml")
 		if opts.FromRepo {
 			messages = append(messages, "scaffolded tasks from existing repo files")
+			if !opts.Docs {
+				messages = append(messages, "tip: run `fkn init --docs` to generate HUMANS.md, AGENTS.md, and CLAUDE.md")
+			}
 		}
 	} else {
 		return "", err
