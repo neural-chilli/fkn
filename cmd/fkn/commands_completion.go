@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/neural-chilli/fkn/internal/config"
+	"github.com/neural-chilli/fkn/internal/ordered"
 )
 
 func runCompletion(args []string, stdout, stderr *os.File) int {
@@ -173,8 +174,8 @@ func topLevelCandidates(cfg *config.Config) []string {
 	if cfg == nil {
 		return candidates
 	}
-	candidates = append(candidates, sortedTaskNames(cfg.Tasks)...)
-	for _, alias := range sortedAliasNames(cfg.Aliases) {
+	candidates = append(candidates, ordered.Keys(cfg.Tasks)...)
+	for _, alias := range ordered.Keys(cfg.Aliases) {
 		candidates = append(candidates, alias)
 	}
 	return uniqueStrings(candidates)
@@ -184,19 +185,11 @@ func helpCandidates(cfg *config.Config) []string {
 	if cfg == nil {
 		return nil
 	}
-	candidates := append([]string{}, sortedTaskNames(cfg.Tasks)...)
-	candidates = append(candidates, sortedAliasNames(cfg.Aliases)...)
-	groupNames := make([]string, 0, len(cfg.Groups))
-	for name := range cfg.Groups {
-		groupNames = append(groupNames, name)
-	}
-	sort.Strings(groupNames)
+	candidates := append([]string{}, ordered.Keys(cfg.Tasks)...)
+	candidates = append(candidates, ordered.Keys(cfg.Aliases)...)
+	groupNames := ordered.Keys(cfg.Groups)
 	candidates = append(candidates, groupNames...)
-	guardNames := make([]string, 0, len(cfg.Guards))
-	for name := range cfg.Guards {
-		guardNames = append(guardNames, name)
-	}
-	sort.Strings(guardNames)
+	guardNames := ordered.Keys(cfg.Guards)
 	candidates = append(candidates, guardNames...)
 	return uniqueStrings(candidates)
 }
@@ -204,12 +197,7 @@ func helpCandidates(cfg *config.Config) []string {
 func guardCandidates(args []string, cfg *config.Config) []string {
 	candidates := []string{"--json", "--allow-unsafe"}
 	if cfg != nil {
-		names := make([]string, 0, len(cfg.Guards))
-		for name := range cfg.Guards {
-			names = append(names, name)
-		}
-		sort.Strings(names)
-		candidates = append(candidates, names...)
+		candidates = append(candidates, ordered.Keys(cfg.Guards)...)
 	}
 	return candidates
 }
@@ -217,10 +205,10 @@ func guardCandidates(args []string, cfg *config.Config) []string {
 func watchCandidates(args []string, cfg *config.Config) []string {
 	candidates := []string{"--path", "--allow-unsafe", "guard"}
 	if cfg != nil {
-		for _, name := range sortedTaskNames(cfg.Tasks) {
+		for _, name := range ordered.Keys(cfg.Tasks) {
 			candidates = append(candidates, name)
 		}
-		for _, alias := range sortedAliasNames(cfg.Aliases) {
+		for _, alias := range ordered.Keys(cfg.Aliases) {
 			candidates = append(candidates, alias)
 		}
 		guards := make([]string, 0, len(cfg.Guards))
@@ -349,13 +337,4 @@ func isTaskLikeCompletion(name string, cfg *config.Config) bool {
 func cfgFromAny(value any) (*config.Config, bool) {
 	cfg, ok := value.(*config.Config)
 	return cfg, ok
-}
-
-func sortedAliasNames(aliases map[string]string) []string {
-	names := make([]string, 0, len(aliases))
-	for name := range aliases {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	return names
 }

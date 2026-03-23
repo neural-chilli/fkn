@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"github.com/neural-chilli/fkn/internal/config"
+	"github.com/neural-chilli/fkn/internal/ordered"
 )
 
 func writeDocs(repoRoot string, cfg *config.Config) ([]string, error) {
@@ -96,7 +96,7 @@ func renderAgentDoc(name string, cfg *config.Config) string {
 
 func writeTaskSummary(builder *strings.Builder, cfg *config.Config, includeAgentFields bool) {
 	builder.WriteString("\n## Tasks\n\n")
-	for _, name := range sortedTaskNames(cfg.Tasks) {
+	for _, name := range ordered.Keys(cfg.Tasks) {
 		task := cfg.Tasks[name]
 		builder.WriteString(fmt.Sprintf("- `%s`: %s\n", name, task.Desc))
 		if task.Scope != "" {
@@ -126,7 +126,7 @@ func writeGuardSection(builder *strings.Builder, cfg *config.Config) {
 		return
 	}
 	builder.WriteString("\n## Guards\n\n")
-	for _, name := range sortedGuardNames(cfg.Guards) {
+	for _, name := range ordered.Keys(cfg.Guards) {
 		guardCfg := cfg.Guards[name]
 		builder.WriteString(fmt.Sprintf("- `%s`: `%s`\n", name, strings.Join(guardCfg.Steps, "`, `")))
 	}
@@ -137,7 +137,7 @@ func writeGroupSection(builder *strings.Builder, cfg *config.Config) {
 		return
 	}
 	builder.WriteString("\n## Groups\n\n")
-	for _, name := range sortedGroupNames(cfg.Groups) {
+	for _, name := range ordered.Keys(cfg.Groups) {
 		group := cfg.Groups[name]
 		builder.WriteString(fmt.Sprintf("- `%s`: `%s`\n", name, strings.Join(group.Tasks, "`, `")))
 		if group.Desc != "" {
@@ -151,7 +151,7 @@ func writeScopeSection(builder *strings.Builder, cfg *config.Config) {
 		return
 	}
 	builder.WriteString("\n## Scopes\n\n")
-	for _, name := range sortedScopeNames(cfg.Scopes) {
+	for _, name := range ordered.Keys(cfg.Scopes) {
 		scopeDef := cfg.Scopes[name]
 		builder.WriteString(fmt.Sprintf("- `%s`: `%s`\n", name, strings.Join(scopeDef.Paths, "`, `")))
 		if scopeDef.Desc != "" {
@@ -165,7 +165,7 @@ func writePromptSection(builder *strings.Builder, cfg *config.Config) {
 		return
 	}
 	builder.WriteString("\n## Prompts\n\n")
-	for _, name := range sortedPromptNames(cfg.Prompts) {
+	for _, name := range ordered.Keys(cfg.Prompts) {
 		promptCfg := cfg.Prompts[name]
 		builder.WriteString(fmt.Sprintf("- `%s`: %s\n", name, promptCfg.Desc))
 	}
@@ -177,12 +177,7 @@ func writeCodemapSection(builder *strings.Builder, cfg *config.Config) {
 	}
 	builder.WriteString("\n## Codemap\n\n")
 	if len(cfg.Codemap.Packages) > 0 {
-		packageNames := make([]string, 0, len(cfg.Codemap.Packages))
-		for name := range cfg.Codemap.Packages {
-			packageNames = append(packageNames, name)
-		}
-		sort.Strings(packageNames)
-		for _, name := range packageNames {
+		for _, name := range ordered.Keys(cfg.Codemap.Packages) {
 			pkg := cfg.Codemap.Packages[name]
 			builder.WriteString(fmt.Sprintf("- `%s`: %s\n", name, pkg.Desc))
 		}
@@ -195,12 +190,7 @@ func writeCodemapSection(builder *strings.Builder, cfg *config.Config) {
 	}
 	if len(cfg.Codemap.Glossary) > 0 {
 		builder.WriteString("\nGlossary:\n")
-		glossaryTerms := make([]string, 0, len(cfg.Codemap.Glossary))
-		for term := range cfg.Codemap.Glossary {
-			glossaryTerms = append(glossaryTerms, term)
-		}
-		sort.Strings(glossaryTerms)
-		for _, term := range glossaryTerms {
+		for _, term := range ordered.Keys(cfg.Codemap.Glossary) {
 			builder.WriteString(fmt.Sprintf("- `%s`: %s\n", term, cfg.Codemap.Glossary[term]))
 		}
 	}

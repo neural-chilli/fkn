@@ -9,6 +9,7 @@ import (
 
 	"github.com/neural-chilli/fkn/internal/codemap"
 	"github.com/neural-chilli/fkn/internal/config"
+	"github.com/neural-chilli/fkn/internal/ordered"
 )
 
 type Output struct {
@@ -259,7 +260,7 @@ func buildTaskMatches(cfg *config.Config, names []string) []TaskMatch {
 			Safety: task.SafetyLevel(),
 			Needs:  append([]string(nil), task.Needs...),
 			Steps:  append([]string(nil), task.Steps...),
-			Groups: groupNamesForTask(cfg.Groups, name),
+			Groups: config.GroupNamesForTask(cfg.Groups, name),
 		})
 	}
 	return out
@@ -385,25 +386,7 @@ func makeSet(items []string) map[string]bool {
 }
 
 func mapsKeys(items map[string]bool) []string {
-	out := make([]string, 0, len(items))
-	for item := range items {
-		out = append(out, item)
-	}
-	return out
-}
-
-func groupNamesForTask(groups map[string]config.Group, taskName string) []string {
-	var names []string
-	for name, group := range groups {
-		for _, member := range group.Tasks {
-			if member == taskName {
-				names = append(names, name)
-				break
-			}
-		}
-	}
-	sort.Strings(names)
-	return names
+	return ordered.Keys(items)
 }
 
 func gitDiffFiles(repoRoot string) []string {

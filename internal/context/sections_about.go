@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/neural-chilli/fkn/internal/codemap"
+	"github.com/neural-chilli/fkn/internal/ordered"
 )
 
 func (g *Generator) codemapSection(taskName string) string {
@@ -21,7 +22,7 @@ func (g *Generator) codemapSection(taskName string) string {
 func (g *Generator) aboutTasksSection(topic string) string {
 	query := strings.ToLower(topic)
 	var lines []string
-	for _, name := range sortedKeys(g.cfg.Tasks) {
+	for _, name := range ordered.Keys(g.cfg.Tasks) {
 		task := g.cfg.Tasks[name]
 		if !matchesTopic(query, name, task.Desc, task.Scope, task.Cmd, strings.Join(task.Steps, " ")) {
 			continue
@@ -38,7 +39,7 @@ func (g *Generator) aboutTasksSection(topic string) string {
 func (g *Generator) aboutScopesSection(topic string) string {
 	query := strings.ToLower(topic)
 	var lines []string
-	for _, name := range sortedKeys(g.cfg.Scopes) {
+	for _, name := range ordered.Keys(g.cfg.Scopes) {
 		scopeDef := g.cfg.Scopes[name]
 		if !matchesTopic(query, name, scopeDef.Desc, strings.Join(scopeDef.Paths, " ")) {
 			continue
@@ -55,7 +56,7 @@ func (g *Generator) aboutScopesSection(topic string) string {
 func (g *Generator) aboutCodemapSection(topic string) string {
 	query := strings.ToLower(topic)
 	var matches []codemap.PackageExplanation
-	for _, name := range sortedKeys(g.cfg.Codemap.Packages) {
+	for _, name := range ordered.Keys(g.cfg.Codemap.Packages) {
 		entry := g.cfg.Codemap.Packages[name]
 		if !matchesTopic(query, name, entry.Desc, strings.Join(entry.KeyTypes, " "), strings.Join(entry.EntryPoints, " "), strings.Join(entry.Conventions, " "), strings.Join(entry.DependsOn, " ")) {
 			continue
@@ -75,7 +76,7 @@ func (g *Generator) aboutCodemapSection(topic string) string {
 func (g *Generator) aboutGlossarySection(topic string) string {
 	query := strings.ToLower(topic)
 	var lines []string
-	for _, term := range sortedKeys(g.cfg.Codemap.Glossary) {
+	for _, term := range ordered.Keys(g.cfg.Codemap.Glossary) {
 		definition := g.cfg.Codemap.Glossary[term]
 		if !matchesTopic(query, term, definition) {
 			continue
@@ -90,7 +91,7 @@ func (g *Generator) aboutRelevantPathsSection(topic string) string {
 	seen := map[string]bool{}
 	var paths []string
 
-	for _, name := range sortedKeys(g.cfg.Tasks) {
+	for _, name := range ordered.Keys(g.cfg.Tasks) {
 		task := g.cfg.Tasks[name]
 		if task.Scope == "" || !matchesTopic(query, name, task.Desc, task.Scope) {
 			continue
@@ -102,7 +103,7 @@ func (g *Generator) aboutRelevantPathsSection(topic string) string {
 			}
 		}
 	}
-	for _, name := range sortedKeys(g.cfg.Scopes) {
+	for _, name := range ordered.Keys(g.cfg.Scopes) {
 		scopeDef := g.cfg.Scopes[name]
 		if !matchesTopic(query, name, scopeDef.Desc, strings.Join(scopeDef.Paths, " ")) {
 			continue
@@ -114,7 +115,7 @@ func (g *Generator) aboutRelevantPathsSection(topic string) string {
 			}
 		}
 	}
-	for _, name := range sortedKeys(g.cfg.Codemap.Packages) {
+	for _, name := range ordered.Keys(g.cfg.Codemap.Packages) {
 		entry := g.cfg.Codemap.Packages[name]
 		if !matchesTopic(query, name, entry.Desc, strings.Join(entry.KeyTypes, " "), strings.Join(entry.EntryPoints, " ")) {
 			continue

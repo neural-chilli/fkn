@@ -9,6 +9,7 @@ import (
 
 	"github.com/neural-chilli/fkn/internal/config"
 	"github.com/neural-chilli/fkn/internal/guard"
+	"github.com/neural-chilli/fkn/internal/ordered"
 	"github.com/neural-chilli/fkn/internal/runner"
 )
 
@@ -50,7 +51,7 @@ func printTaskHelp(stdout *os.File, invokedName, resolvedName string, cfg *confi
 	if len(aliases) > 0 {
 		fmt.Fprintf(stdout, "Aliases: %s\n", strings.Join(aliases, ", "))
 	}
-	if groups := groupNamesForTask(cfg.Groups, resolvedName); len(groups) > 0 {
+	if groups := config.GroupNamesForTask(cfg.Groups, resolvedName); len(groups) > 0 {
 		fmt.Fprintf(stdout, "Groups: %s\n", strings.Join(groups, ", "))
 	}
 	if len(task.Needs) > 0 {
@@ -327,31 +328,9 @@ func sortedListParamNames(params map[string]listParam) []string {
 	return names
 }
 
-func sortedGroupNames(groups map[string]config.Group) []string {
-	names := make([]string, 0, len(groups))
-	for name := range groups {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	return names
-}
-
-func groupNamesForTask(groups map[string]config.Group, taskName string) []string {
-	names := []string{}
-	for _, groupName := range sortedGroupNames(groups) {
-		for _, member := range groups[groupName].Tasks {
-			if member == taskName {
-				names = append(names, groupName)
-				break
-			}
-		}
-	}
-	return names
-}
-
 func listGroups(groups map[string]config.Group) []listGroup {
 	items := make([]listGroup, 0, len(groups))
-	for _, name := range sortedGroupNames(groups) {
+	for _, name := range ordered.Keys(groups) {
 		group := groups[name]
 		items = append(items, listGroup{
 			Name:  name,
@@ -429,12 +408,12 @@ func levenshtein(a, b string) int {
 	}
 
 	prev := make([]int, len(b)+1)
+	current := make([]int, len(b)+1)
 	for j := range prev {
 		prev[j] = j
 	}
 
 	for i := 1; i <= len(a); i++ {
-		current := make([]int, len(b)+1)
 		current[0] = i
 		for j := 1; j <= len(b); j++ {
 			cost := 0
@@ -443,7 +422,7 @@ func levenshtein(a, b string) int {
 			}
 			current[j] = min(current[j-1]+1, min(prev[j]+1, prev[j-1]+cost))
 		}
-		prev = current
+		prev, current = current, prev
 	}
 	return prev[len(b)]
 }

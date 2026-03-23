@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"sort"
 	"strings"
 	"syscall"
 	"time"
@@ -16,6 +15,7 @@ import (
 	"github.com/neural-chilli/fkn/internal/codemap"
 	"github.com/neural-chilli/fkn/internal/config"
 	"github.com/neural-chilli/fkn/internal/guard"
+	"github.com/neural-chilli/fkn/internal/ordered"
 	"github.com/neural-chilli/fkn/internal/repair"
 	"github.com/neural-chilli/fkn/internal/runner"
 	watchpkg "github.com/neural-chilli/fkn/internal/watch"
@@ -36,7 +36,7 @@ func runList(args []string, stdout, stderr *os.File) int {
 	}
 
 	items := make([]listTask, 0, len(cfg.Tasks))
-	for _, name := range sortedTaskNames(cfg.Tasks) {
+	for _, name := range ordered.Keys(cfg.Tasks) {
 		task := cfg.Tasks[name]
 		item := listTask{
 			Name:    name,
@@ -47,7 +47,7 @@ func runList(args []string, stdout, stderr *os.File) int {
 			Default: isDefaultTask(cfg, name),
 		}
 		item.Aliases = aliasesForTask(cfg.Aliases, name)
-		item.Groups = groupNamesForTask(cfg.Groups, name)
+		item.Groups = config.GroupNamesForTask(cfg.Groups, name)
 		if task.Scope != "" {
 			item.Scope = &task.Scope
 		}
@@ -102,7 +102,7 @@ func runList(args []string, stdout, stderr *os.File) int {
 	}
 
 	if len(groupedTasks) > 0 {
-		for _, groupName := range sortedGroupNames(cfg.Groups) {
+		for _, groupName := range ordered.Keys(cfg.Groups) {
 			group := cfg.Groups[groupName]
 			fmt.Fprintf(stdout, "%s\n", groupName)
 			if group.Desc != "" {
@@ -301,15 +301,6 @@ func loadConfig() (*config.Config, string, error) {
 		return nil, "", err
 	}
 	return cfg, repoRoot, nil
-}
-
-func sortedTaskNames(tasks map[string]config.Task) []string {
-	names := make([]string, 0, len(tasks))
-	for name := range tasks {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	return names
 }
 
 func runRepair(args []string, stdout, stderr *os.File) int {

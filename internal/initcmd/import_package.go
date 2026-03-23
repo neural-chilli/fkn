@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/neural-chilli/fkn/internal/config"
+	"github.com/neural-chilli/fkn/internal/ordered"
 )
 
 func findPackageScripts(repoRoot string) map[string]packageScript {
@@ -39,7 +40,7 @@ func buildPackageScriptCommand(name, command string) string {
 	if len(params) == 0 {
 		return fmt.Sprintf("npm run %s", name)
 	}
-	paramNames := sortedParamNames(params)
+	paramNames := ordered.Keys(params)
 	parts := []string{fmt.Sprintf("npm run %s --", name)}
 	for _, paramName := range paramNames {
 		parts = append(parts, fmt.Sprintf("--%s={{params.%s}}", paramName, paramName))

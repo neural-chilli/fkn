@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"github.com/neural-chilli/fkn/internal/config"
+	"github.com/neural-chilli/fkn/internal/ordered"
 )
 
 func inferConfig(repoRoot string) string {
@@ -40,7 +40,7 @@ func inferConfig(repoRoot string) string {
 		}
 		if len(task.Params) > 0 {
 			builder.WriteString("    params:\n")
-			for _, paramName := range sortedParamNames(task.Params) {
+			for _, paramName := range ordered.Keys(task.Params) {
 				param := task.Params[paramName]
 				builder.WriteString(fmt.Sprintf("      %s:\n", paramName))
 				if param.Desc != "" {
@@ -118,12 +118,7 @@ func inferTasks(repoRoot string) []inferredTask {
 	}
 
 	scripts := findPackageScripts(repoRoot)
-	scriptNames := make([]string, 0, len(scripts))
-	for name := range scripts {
-		scriptNames = append(scriptNames, name)
-	}
-	sort.Strings(scriptNames)
-	for _, name := range scriptNames {
+	for _, name := range ordered.Keys(scripts) {
 		script := scripts[name]
 		if !shouldInferPackageScript(name, script) {
 			continue
@@ -193,7 +188,7 @@ func writeAliasConfig(builder *strings.Builder, aliases map[string]string) {
 		return
 	}
 	builder.WriteString("\naliases:\n")
-	for _, name := range sortedAliasNames(aliases) {
+	for _, name := range ordered.Keys(aliases) {
 		builder.WriteString(fmt.Sprintf("  %s: %s\n", name, aliases[name]))
 	}
 }
@@ -373,69 +368,6 @@ func inferredWatchPaths(repoRoot string) []string {
 		out = append(out, path)
 	}
 	return out
-}
-
-func sortedTaskNames(tasks map[string]config.Task) []string {
-	names := make([]string, 0, len(tasks))
-	for name := range tasks {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	return names
-}
-
-func sortedParamNames(params map[string]config.Param) []string {
-	names := make([]string, 0, len(params))
-	for name := range params {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	return names
-}
-
-func sortedGuardNames(guards map[string]config.Guard) []string {
-	names := make([]string, 0, len(guards))
-	for name := range guards {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	return names
-}
-
-func sortedGroupNames(groups map[string]config.Group) []string {
-	names := make([]string, 0, len(groups))
-	for name := range groups {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	return names
-}
-
-func sortedPromptNames(prompts map[string]config.Prompt) []string {
-	names := make([]string, 0, len(prompts))
-	for name := range prompts {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	return names
-}
-
-func sortedScopeNames(scopes map[string]config.Scope) []string {
-	names := make([]string, 0, len(scopes))
-	for name := range scopes {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	return names
-}
-
-func sortedAliasNames(aliases map[string]string) []string {
-	names := make([]string, 0, len(aliases))
-	for name := range aliases {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	return names
 }
 
 func hasFile(repoRoot, name string) bool {

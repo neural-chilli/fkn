@@ -3,21 +3,15 @@ package mcp
 import (
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"github.com/neural-chilli/fkn/internal/config"
+	"github.com/neural-chilli/fkn/internal/ordered"
 )
 
 func (s *Server) Tools() []Tool {
-	names := make([]string, 0, len(s.cfg.Tasks))
-	for name := range s.cfg.Tasks {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-
-	tools := make([]Tool, 0, len(names))
-	for _, name := range names {
+	tools := make([]Tool, 0, len(s.cfg.Tasks))
+	for _, name := range ordered.Keys(s.cfg.Tasks) {
 		task := s.cfg.Tasks[name]
 		if !task.AgentEnabled() {
 			continue
@@ -37,7 +31,7 @@ func (s *Server) Tools() []Tool {
 			},
 		}
 		required := []string{}
-		for _, paramName := range sortedParamNames(task.Params) {
+		for _, paramName := range ordered.Keys(task.Params) {
 			param := task.Params[paramName]
 			prop := map[string]any{
 				"type":        "string",
@@ -102,14 +96,8 @@ func (s *Server) instructions() string {
 }
 
 func (s *Server) Prompts() []Prompt {
-	names := make([]string, 0, len(s.cfg.Prompts))
-	for name := range s.cfg.Prompts {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-
-	prompts := make([]Prompt, 0, len(names))
-	for _, name := range names {
+	prompts := make([]Prompt, 0, len(s.cfg.Prompts))
+	for _, name := range ordered.Keys(s.cfg.Prompts) {
 		promptCfg := s.cfg.Prompts[name]
 		prompts = append(prompts, Prompt{
 			Name:        name,
@@ -144,7 +132,7 @@ func (s *Server) Resources() []Resource {
 		})
 	}
 
-	for _, name := range sortedScopeNames(s.cfg.Scopes) {
+	for _, name := range ordered.Keys(s.cfg.Scopes) {
 		description := "Path list for the " + name + " scope"
 		if s.cfg.Scopes[name].Desc != "" {
 			description = s.cfg.Scopes[name].Desc
@@ -158,24 +146,6 @@ func (s *Server) Resources() []Resource {
 	}
 
 	return resources
-}
-
-func sortedParamNames(params map[string]config.Param) []string {
-	names := make([]string, 0, len(params))
-	for name := range params {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	return names
-}
-
-func sortedScopeNames(scopes map[string]config.Scope) []string {
-	names := make([]string, 0, len(scopes))
-	for name := range scopes {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	return names
 }
 
 func fileExists(path string) bool {

@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/neural-chilli/fkn/internal/ordered"
 )
 
 func (g *Generator) projectSection() string {
@@ -46,7 +48,7 @@ func (g *Generator) agentSection(taskName string) (string, error) {
 }
 
 func (g *Generator) taskSection() string {
-	names := sortedKeys(g.cfg.Tasks)
+	names := ordered.Keys(g.cfg.Tasks)
 	lines := make([]string, 0, len(names))
 	for _, name := range names {
 		task := g.cfg.Tasks[name]
@@ -66,7 +68,7 @@ func (g *Generator) guardSection() string {
 	if len(g.cfg.Guards) == 0 {
 		return ""
 	}
-	names := sortedKeys(g.cfg.Guards)
+	names := ordered.Keys(g.cfg.Guards)
 	lines := make([]string, 0, len(names))
 	for _, name := range names {
 		lines = append(lines, fmt.Sprintf("- `%s`: %s", name, strings.Join(g.cfg.Guards[name].Steps, ", ")))
@@ -311,13 +313,4 @@ func approximateTokenCount(text string) int {
 		return 0
 	}
 	return (runes + 3) / 4
-}
-
-func sortedKeys[T any](items map[string]T) []string {
-	names := make([]string, 0, len(items))
-	for name := range items {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	return names
 }
