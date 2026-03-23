@@ -1,4 +1,4 @@
-# fkn
+# Flow Kit Neu (fkn)
 
 [![CI](https://github.com/neural-chilli/fkn/actions/workflows/ci.yml/badge.svg)](https://github.com/neural-chilli/fkn/actions/workflows/ci.yml)
 [![Release](https://github.com/neural-chilli/fkn/actions/workflows/release.yml/badge.svg)](https://github.com/neural-chilli/fkn/actions/workflows/release.yml)
